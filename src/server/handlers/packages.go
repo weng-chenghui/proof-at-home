@@ -1,0 +1,191 @@
+package handlers
+
+import (
+	"archive/tar"
+	"compress/gzip"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+
+	"github.com/proof-at-home/server/src/server/data"
+	"github.com/proof-at-home/server/src/server/store"
+)
+
+type PackageHandler struct {
+	Store *store.MemoryStore
+}
+
+type packageSubmitResponse struct {
+	Status          string   `json:"status"`
+	AddedProblemIDs []string `json:"added_problem_ids"`
+	Count           int      `json:"count"`
+}
+
+func (h *PackageHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	if r.Method != http.MethodPost {
+		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+		return
+	}
+
+	ct := r.Header.Get("Content-Type")
+
+	var added []string
+	var err error
+
+	switch {
+	case strings.HasPrefix(ct, "application/gzip"):
+		added, err = h.handleTarGz(r)
+	case strings.HasPrefix(ct, "application/json"):
+		added, err = h.handleGitURL(r)
+	default:
+		http.Error(w, `{"error":"unsupported content type"}`, http.StatusBadRequest)
+		return
+	}
+
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":%q}`, err.Error()), http.StatusBadRequest)
+		return
+	}
+
+	resp := packageSubmitResponse{
+		Status:          "accepted",
+		AddedProblemIDs: added,
+		Count:           len(added),
+	}
+	if resp.AddedProblemIDs == nil {
+		resp.AddedProblemIDs = []string{}
+	}
+	json.NewEncoder(w).Encode(resp)
+}
+
+func (h *PackageHandler) handleTarGz(r *http.Request) ([]string, error) {
+	tmpDir, err := os.MkdirTemp("", "pkg-tar-*")
+	if err != nil {
+		return nil, fmt.Errorf("creating temp dir: %w", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	if err := extractTarGz(r.Body, tmpDir); err != nil {
+		return nil, fmt.Errorf("extracting tar.gz: %w", err)
+	}
+
+	problems, err := loadProblemsFromDir(tmpDir)
+	if err != nil {
+		return nil, err
+	}
+
+	return h.Store.AddProblems(problems), nil
+}
+
+func (h *PackageHandler) handleGitURL(r *http.Request) ([]string, error) {
+	var body struct {
+		GitURL string `json:"git_url"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		return nil, fmt.Errorf("invalid JSON body: %w", err)
+	}
+	if body.GitURL == "" {
+		return nil, fmt.Errorf("git_url is required")
+	}
+
+	tmpDir, err := os.MkdirTemp("", "pkg-git-*")
+	if err != nil {
+		return nil, fmt.Errorf("creating temp dir: %w", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	cmd := exec.Command("git", "clone", "--depth", "1", body.GitURL, tmpDir)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return nil, fmt.Errorf("git clone failed: %s: %w", string(out), err)
+	}
+
+	problems, err := loadProblemsFromDir(tmpDir)
+	if err != nil {
+		return nil, err
+	}
+
+	return h.Store.AddProblems(problems), nil
+}
+
+func extractTarGz(r io.Reader, destDir string) error {
+	gz, err := gzip.NewReader(r)
+	if err != nil {
+		return err
+	}
+	defer gz.Close()
+
+	tr := tar.NewReader(gz)
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+
+		// Reject path traversal
+		clean := filepath.Clean(hdr.Name)
+		if strings.HasPrefix(clean, "..") || strings.Contains(clean, string(filepath.Separator)+"..") {
+			continue
+		}
+
+		target := filepath.Join(destDir, clean)
+		if !strings.HasPrefix(target, destDir) {
+			continue
+		}
+
+		switch hdr.Typeflag {
+		case tar.TypeDir:
+			os.MkdirAll(target, 0o755)
+		case tar.TypeReg:
+			os.MkdirAll(filepath.Dir(target), 0o755)
+			f, err := os.Create(target)
+			if err != nil {
+				return err
+			}
+			if _, err := io.Copy(f, tr); err != nil {
+				f.Close()
+				return err
+			}
+			f.Close()
+		}
+	}
+	return nil
+}
+
+func loadProblemsFromDir(dir string) ([]data.Problem, error) {
+	var problems []data.Problem
+	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil // skip errors
+		}
+		if info.IsDir() || filepath.Ext(path) != ".json" {
+			return nil
+		}
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			return nil
+		}
+		var p data.Problem
+		if err := json.Unmarshal(raw, &p); err != nil {
+			return nil // skip invalid files
+		}
+		if p.ID == "" {
+			return nil // skip problems without ID
+		}
+		problems = append(problems, p)
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("walking directory: %w", err)
+	}
+	return problems, nil
+}

@@ -36,6 +36,9 @@ func main() {
 		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 	})
 
+	packageHandler := &handlers.PackageHandler{Store: s}
+	http.Handle("/problems/packages", packageHandler)
+
 	http.Handle("/problems/", problemHandler)
 	http.Handle("/problems", problemHandler)
 

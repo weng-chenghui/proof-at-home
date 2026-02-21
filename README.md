@@ -210,7 +210,18 @@ The `problems/` directory includes three starter problems:
 | `prob_002` | ≤ antisymmetry on naturals | Rocq | Medium |
 | `prob_003` | List.reverse is involutive | Lean 4 | Medium |
 
-Add your own by dropping JSON files into `problems/` — the server loads them at startup.
+Add your own by dropping JSON files into `problems/` — the server loads them at startup. You can also submit problems at runtime using the CLI:
+
+```bash
+# Submit a directory of problem JSON files
+proof-at-home submit-package ./my-problems/
+
+# Submit a tar.gz archive
+proof-at-home submit-package /tmp/problems.tar.gz
+
+# Submit a git repo URL (server clones it)
+proof-at-home submit-package https://github.com/example/problems.git
+```
 
 ### Problem JSON format
 
@@ -269,6 +280,7 @@ Add your own by dropping JSON files into `problems/` — the server loads them a
 | `POST` | `/results/batch` | Submit session summary with archive hash |
 | `GET` | `/review-packages` | List available proof packages for review |
 | `GET` | `/review-packages/{id}/archive` | Download a prover's archive |
+| `POST` | `/problems/packages` | Submit problem package (tar.gz body or JSON git URL) |
 | `POST` | `/reviews` | Submit review summary |
 
 ## Project Structure
@@ -280,7 +292,7 @@ proof-at-home/
 ├── src/
 │   ├── client/                     # Rust CLI
 │   │   └── src/
-│   │       ├── main.rs             # clap entry point (init/donate/run/status/review)
+│   │       ├── main.rs             # clap entry point (init/donate/run/status/review/submit-package)
 │   │       ├── commands/           # CLI subcommands (including review)
 │   │       ├── prover/             # Claude invocation + coqc/lean verification
 │   │       ├── reviewer/           # AI comparison, report templates, review types

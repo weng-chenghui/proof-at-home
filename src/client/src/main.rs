@@ -35,6 +35,11 @@ enum Commands {
         #[command(subcommand)]
         action: commands::review::ReviewAction,
     },
+    /// Submit a problem package (directory, tar.gz, or git URL)
+    SubmitPackage {
+        /// Path to directory, .tar.gz file, or git URL
+        source: String,
+    },
 }
 
 #[tokio::main]
@@ -47,6 +52,9 @@ async fn main() {
         Commands::Run => commands::run::run_session().await,
         Commands::Status => commands::status::run_status(),
         Commands::Review { action } => commands::review::run_review(action).await,
+        Commands::SubmitPackage { source } => {
+            commands::submit_package::run_submit_package(&source).await
+        }
     };
 
     if let Err(e) = result {

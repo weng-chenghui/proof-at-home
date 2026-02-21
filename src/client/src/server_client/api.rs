@@ -203,6 +203,53 @@ impl ServerClient {
     }
 }
 
+// ── Package submission endpoints ──
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct PackageSubmitResponse {
+    #[allow(dead_code)]
+    pub status: String,
+    pub added_problem_ids: Vec<String>,
+    pub count: u32,
+}
+
+impl ServerClient {
+    /// Submit a tar.gz archive of problem JSON files
+    pub async fn submit_package_tar(&self, tar_bytes: Vec<u8>) -> Result<PackageSubmitResponse> {
+        let resp = self
+            .client
+            .post(format!("{}/problems/packages", self.base_url))
+            .header("Content-Type", "application/gzip")
+            .body(tar_bytes)
+            .send()
+            .await
+            .context("Failed to submit package")?;
+        if !resp.status().is_success() {
+            let body = resp.text().await.unwrap_or_default();
+            anyhow::bail!("Server returned error: {}", body);
+        }
+        let result: PackageSubmitResponse = resp.json().await?;
+        Ok(result)
+    }
+
+    /// Submit a git URL for the server to clone
+    pub async fn submit_package_git_url(&self, git_url: &str) -> Result<PackageSubmitResponse> {
+        let resp = self
+            .client
+            .post(format!("{}/problems/packages", self.base_url))
+            .json(&serde_json::json!({ "git_url": git_url }))
+            .send()
+            .await
+            .context("Failed to submit package")?;
+        if !resp.status().is_success() {
+            let body = resp.text().await.unwrap_or_default();
+            anyhow::bail!("Server returned error: {}", body);
+        }
+        let result: PackageSubmitResponse = resp.json().await?;
+        Ok(result)
+    }
+}
+
 // ── Review-related API types ──
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

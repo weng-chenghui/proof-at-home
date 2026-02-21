@@ -59,6 +59,30 @@ func (s *MemoryStore) LoadProblems(dir string) error {
 	return nil
 }
 
+// AddProblems inserts problems into the store, skipping duplicates.
+// Returns the IDs of newly added problems.
+func (s *MemoryStore) AddProblems(problems []data.Problem) []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	var added []string
+	for _, p := range problems {
+		if p.ID == "" {
+			continue
+		}
+		if _, exists := s.problems[p.ID]; exists {
+			continue
+		}
+		if p.Status == "" {
+			p.Status = "open"
+		}
+		s.problems[p.ID] = p
+		s.order = append(s.order, p.ID)
+		added = append(added, p.ID)
+	}
+	return added
+}
+
 func (s *MemoryStore) ListProblems() []data.ProblemSummary {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
