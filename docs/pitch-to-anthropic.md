@@ -24,7 +24,7 @@ In the early 2000s, SETI@Home demonstrated that millions of volunteers would don
 
 ### The academic bottleneck is staggering
 
-Formal mathematics — the kind verified by proof assistants like Lean, Coq, and Isabelle — represents humanity's most rigorous form of knowledge. Yet:
+Formal mathematics — the kind verified by proof assistants like Lean, Rocq, and Isabelle — represents humanity's most rigorous form of knowledge. Yet:
 
 - **Less than 1% of known mathematics has been formally verified.** The gap between what mathematicians *know* and what machines can *check* is enormous.
 - **Mathlib**, the largest single formalization library, contains ~150,000 theorems — the product of years of painstaking manual effort by a dedicated community.
@@ -77,7 +77,7 @@ Local formal verifier checks the proof
 
 ### The Verification Guarantee
 
-This is not another AI product that asks you to trust the output. **Proofs compile or they don't.** A formal verification compiler (Lean, Coq, Isabelle) provides a binary, unfakeable guarantee of correctness. There is no "mostly right." There is no hallucination risk. The compiler is the ultimate judge, and it cannot be fooled. This makes Proof@Home the only AI-powered platform where *hallucination is architecturally impossible* at the output layer.
+This is not another AI product that asks you to trust the output. **Proofs compile or they don't.** A formal verification compiler (Lean, Rocq, Isabelle) provides a binary, unfakeable guarantee of correctness. There is no "mostly right." There is no hallucination risk. The compiler is the ultimate judge, and it cannot be fooled. This makes Proof@Home the only AI-powered platform where *hallucination is architecturally impossible* at the output layer.
 
 ### Six Platform Roles
 
@@ -126,7 +126,7 @@ This is not another AI product that asks you to trust the output. **Proofs compi
        │                                    ▼                 └───────────────┘
        │                         ┌──────────────────────┐
        │                         │  FORMAL VERIFIER     │
-       │                         │  (Lean/Coq/Isabelle) │
+       │                         │  (Lean/Rocq/Isabelle) │
        │                         │                      │
        │                         │  PASS ──┐  FAIL ──► retry with
        │                         │         │           modified prompt
@@ -205,7 +205,7 @@ We propose co-founding **The Formal Knowledge Foundation** (working title) — a
 **The Foundation would:**
 
 - Govern the public domain proof library and DOI assignment system
-- Coordinate with Lean FRO, Mathlib, MathComp, Coq community, and Isabelle/AFP
+- Coordinate with Lean FRO, Mathlib, MathComp, Rocq community, and Isabelle/AFP
 - Set standards for proof quality, reviewer certification, and contribution credit
 - Invite competitors (OpenAI, Google DeepMind, Meta FAIR) to participate — with Anthropic as the **founding sponsor and initiator**
 - Operate independently from any single company, ensuring long-term credibility
@@ -238,7 +238,7 @@ The blockchain is not just for tokens — it is the **permanent, decentralized a
 | Artifact | What Goes On-Chain | Why It Matters |
 |---|---|---|
 | **Question / Conjecture** | The original problem statement, submitted by the Curator | Immutable record of *what was asked* — no one can claim a question was different after the fact |
-| **Verified Proof** | The full proof script (Lean/Coq/Isabelle source) that passed compilation | The mathematical knowledge itself, preserved forever. No server shutdown, no company pivot, no database failure can erase it |
+| **Verified Proof** | The full proof script (Lean/Rocq/Isabelle source) that passed compilation | The mathematical knowledge itself, preserved forever. No server shutdown, no company pivot, no database failure can erase it |
 | **Reviewer Verdict** | The human Reviewer's accept/reject decision with reasoning | Transparent, auditable quality control. Anyone can verify *why* a proof was accepted or challenged |
 | **Contribution Credit** | Token minted to the Prover, Curator, and Reviewer | Attribution that cannot be revoked or falsified |
 
@@ -248,7 +248,7 @@ The blockchain is not just for tokens — it is the **permanent, decentralized a
 
 - **Proofs are small.** A Lean proof script is typically kilobytes, not megabytes. On-chain storage is expensive per byte, but proofs are compact — far cheaper to store than images, videos, or books.
 - **Proofs are forever.** Mathematical truths do not expire, get outdated, or need updates. Write-once, read-forever is exactly the blockchain storage model.
-- **Verification is self-contained.** Anyone with a Lean/Coq/Isabelle compiler can independently verify any on-chain proof. The chain is not just storage — it is a *self-verifying archive*. No trust in any institution required.
+- **Verification is self-contained.** Anyone with a Lean/Rocq/Isabelle compiler can independently verify any on-chain proof. The chain is not just storage — it is a *self-verifying archive*. No trust in any institution required.
 - **Provenance matters.** Who asked the question, who proved it, who reviewed it, when — the full chain of custody is critical for academic citation and credit. Blockchain makes this tamper-proof.
 
 **The result:** Even if Proof@Home the platform disappears, even if Anthropic pivots, even if the NGO dissolves — **the proofs survive on-chain, verifiable by anyone, forever.** The knowledge cannot be lost. This is the strongest possible guarantee of permanence for public domain science.
@@ -322,7 +322,7 @@ This section is personal. It is not market analysis. It is the lived experience 
 
 ### Daily workflow with Claude Opus for proof exploration
 
-I use Claude Opus every day to explore formal proofs in Coq and Lean. Not as a novelty. Not as an experiment. As my primary research tool. This is the workflow that convinced me Proof@Home is not just possible — it is *inevitable*. Someone will build it. The question is whether Anthropic will be the partner that shapes how it's built.
+I use Claude Opus every day to explore formal proofs in Rocq and Lean. Not as a novelty. Not as an experiment. As my primary research tool. This is the workflow that convinced me Proof@Home is not just possible — it is *inevitable*. Someone will build it. The question is whether Anthropic will be the partner that shapes how it's built.
 
 ### Even wrong proofs are valuable
 
@@ -332,7 +332,7 @@ Claude does not always generate proofs that compile. Current success rates for n
 
 What makes Claude uniquely suited is not just proof generation. It is the **complete workflow:**
 
-- **Parsing error messages** — Coq and Lean compiler errors are notoriously opaque. Claude translates them into actionable guidance, often identifying the exact tactic or lemma needed.
+- **Parsing error messages** — Rocq and Lean compiler errors are notoriously opaque. Claude translates them into actionable guidance, often identifying the exact tactic or lemma needed.
 - **Searching scientific literature** — Finding relevant theorems, definitions, and prior work across formalization libraries.
 - **Evaluating proof strategies** — Checking whether an approach is sound before committing hours to it.
 - **Generating examples and counterexamples** — The fastest way to test whether a conjecture is even plausible.
@@ -450,7 +450,7 @@ Representatives from the formal methods community, including:
 
 - Lean FRO (Lean Focused Research Organization)
 - Mathlib maintainers and contributors
-- Coq/Rocq development team
+- Rocq development team
 - Isabelle/AFP (Archive of Formal Proofs) editors
 - Academic formal methods researchers
 - AI safety organizations

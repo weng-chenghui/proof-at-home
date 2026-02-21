@@ -18,7 +18,7 @@ A lightweight desktop/CLI application that:
 - Connects to the user's AI subscription (Claude, ChatGPT, Gemini) via API keys
 - Pulls lemma tasks from the coordinator
 - Constructs prompts to generate proof scripts
-- Runs a local formal verification compiler (Lean, Coq, or Isabelle)
+- Runs a local formal verification compiler (Lean, Rocq, or Isabelle)
 - Submits verified proofs back to the coordinator
 
 ### 3. Verification Pipeline
@@ -84,6 +84,6 @@ Local formal verifier checks the proof
 | Client | Rust (CLI) with optional Electron/Tauri GUI |
 | API | REST + gRPC |
 | Database | PostgreSQL + object storage for proof artifacts |
-| Verification | Lean 4, Coq, Isabelle (containerized) |
+| Verification | Lean 4, Rocq, Isabelle (containerized) |
 | AI Integration | OpenAI API, Anthropic API, Google AI API |
 | Registry | Content-addressed storage (IPFS or similar) |

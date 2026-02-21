@@ -16,10 +16,10 @@ use crate::server_client::api::{Dependencies, Problem, ProofResult, ServerClient
 /// Compute a dep-group key for grouping problems by identical dependencies.
 fn dep_group_key(problem: &Problem) -> String {
     match &problem.dependencies {
-        Some(Dependencies::Coq(deps)) => {
+        Some(Dependencies::Rocq(deps)) => {
             let mut pkgs = deps.opam_packages.clone();
             pkgs.sort();
-            format!("coq:{}:{}", deps.coq_version, pkgs.join(","))
+            format!("rocq:{}:{}", deps.rocq_version, pkgs.join(","))
         }
         Some(Dependencies::Lean(deps)) => {
             let mut pkgs = deps.lake_packages.clone();

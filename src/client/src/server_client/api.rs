@@ -8,8 +8,8 @@ pub struct ServerClient {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CoqDeps {
-    pub coq_version: String,
+pub struct RocqDeps {
+    pub rocq_version: String,
     #[serde(default)]
     pub opam_packages: Vec<String>,
 }
@@ -24,7 +24,7 @@ pub struct LeanDeps {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum Dependencies {
-    Coq(CoqDeps),
+    Rocq(RocqDeps),
     Lean(LeanDeps),
 }
 

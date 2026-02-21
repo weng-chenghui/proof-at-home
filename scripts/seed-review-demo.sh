@@ -49,7 +49,7 @@ for prover in alice bob carol; do
   "total_cost_usd": 0.05,
   "archive_sha256": "$SHA",
   "nft_metadata": {},
-  "proof_assistant": "coq",
+  "proof_assistant": "rocq",
   "problem_ids": ["prob_001", "prob_002"],
   "archive_path": "../${prover}-proofs.tar.gz"
 }

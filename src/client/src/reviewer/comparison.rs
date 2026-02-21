@@ -353,7 +353,7 @@ pub async fn run_comparison(
     // Track problem titles: problem_id -> title (use filename as fallback)
     let mut problem_titles: HashMap<String, String> = HashMap::new();
     // Detect proof assistant from file extensions
-    let mut proof_assistant = String::from("Coq");
+    let mut proof_assistant = String::from("Rocq");
 
     for pkg in &session.packages {
         let pkg_dir = packages_dir.join(&pkg.prover_session_id);

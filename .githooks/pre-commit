@@ -1,6 +1,10 @@
 #!/bin/sh
-# Format Rust and Go code before committing
+# Pre-commit hook: mirrors CI checks locally
+# Auto-fixes formatting, then runs clippy/vet/build/test
 
+set -e
+
+echo "=== Pre-commit: Rust formatting ==="
 cargo fmt --manifest-path src/client/Cargo.toml -- --check 2>/dev/null
 if [ $? -ne 0 ]; then
     echo "Running cargo fmt..."
@@ -9,6 +13,7 @@ if [ $? -ne 0 ]; then
     git add -u src/client/
 fi
 
+echo "=== Pre-commit: Go formatting ==="
 unformatted=$(gofmt -l src/server/ 2>/dev/null)
 if [ -n "$unformatted" ]; then
     echo "Running gofmt..."
@@ -16,3 +21,23 @@ if [ -n "$unformatted" ]; then
     echo "Go files formatted. Re-staging changed files."
     git add -u src/server/
 fi
+
+echo "=== Pre-commit: Rust clippy ==="
+cargo clippy --manifest-path src/client/Cargo.toml -- -D warnings
+
+echo "=== Pre-commit: Rust build ==="
+cargo build --manifest-path src/client/Cargo.toml --release
+
+echo "=== Pre-commit: Rust tests ==="
+cargo test --manifest-path src/client/Cargo.toml
+
+echo "=== Pre-commit: Go vet ==="
+go vet ./src/server/...
+
+echo "=== Pre-commit: Go build ==="
+go build -o target/proof-at-home-server ./src/server
+
+echo "=== Pre-commit: Go tests ==="
+go test ./src/server/...
+
+echo "=== All pre-commit checks passed ==="

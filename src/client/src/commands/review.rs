@@ -153,8 +153,7 @@ async fn cmd_start() -> Result<()> {
         println!("Available proof packages from server:\n");
         let items: Vec<String> = available
             .iter()
-            .enumerate()
-            .map(|(_, p)| {
+            .map(|p| {
                 format!(
                     "{} ({}) — {} problems [{}]",
                     p.prover_username,
@@ -271,7 +270,7 @@ async fn cmd_import(path: &Path) -> Result<()> {
     {
         "lean".into()
     } else {
-        "coq".into()
+        "rocq".into()
     };
 
     session.packages.push(ProofPackage {

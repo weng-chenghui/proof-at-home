@@ -3,7 +3,7 @@ use sha2::{Digest, Sha256};
 use std::path::PathBuf;
 use std::process::Command;
 
-use crate::server_client::api::{CoqDeps, Dependencies, LeanDeps, Problem};
+use crate::server_client::api::{Dependencies, LeanDeps, Problem, RocqDeps};
 
 /// A fully resolved proof environment ready for compilation.
 #[derive(Debug, Clone)]
@@ -11,6 +11,7 @@ pub struct ResolvedEnv {
     pub project_dir: PathBuf,
     pub theories_dir: PathBuf,
     pub build_cmd: Vec<String>,
+    #[allow(dead_code)]
     pub opam_switch: Option<String>,
 }
 
@@ -35,7 +36,7 @@ impl EnvManager {
             .context("Problem is missing dependencies field")?;
 
         match deps {
-            Dependencies::Coq(coq_deps) => self.ensure_coq_env(coq_deps),
+            Dependencies::Rocq(rocq_deps) => self.ensure_rocq_env(rocq_deps),
             Dependencies::Lean(lean_deps) => self.ensure_lean_env(lean_deps),
         }
     }
@@ -48,12 +49,12 @@ impl EnvManager {
         hex::encode(&result[..4]) // 8 hex chars
     }
 
-    /// Build a canonical JSON string for Coq dependencies (for hashing).
-    fn coq_canonical(deps: &CoqDeps) -> String {
+    /// Build a canonical JSON string for Rocq dependencies (for hashing).
+    fn rocq_canonical(deps: &RocqDeps) -> String {
         let mut packages = deps.opam_packages.clone();
         packages.sort();
         serde_json::json!({
-            "coq_version": deps.coq_version,
+            "rocq_version": deps.rocq_version,
             "opam_packages": packages,
         })
         .to_string()
@@ -70,11 +71,11 @@ impl EnvManager {
         .to_string()
     }
 
-    fn ensure_coq_env(&self, deps: &CoqDeps) -> Result<ResolvedEnv> {
-        let canonical = Self::coq_canonical(deps);
+    fn ensure_rocq_env(&self, deps: &RocqDeps) -> Result<ResolvedEnv> {
+        let canonical = Self::rocq_canonical(deps);
         let hash = Self::dep_hash(&canonical);
-        let env_name = format!("coq-{}-{}", deps.coq_version, hash);
-        let env_dir = self.envs_root.join("coq").join(&env_name);
+        let env_name = format!("rocq-{}-{}", deps.rocq_version, hash);
+        let env_dir = self.envs_root.join("rocq").join(&env_name);
         let theories_dir = env_dir.join("theories");
         let ready_marker = env_dir.join(".ready");
         let switch_name = format!("proof-at-home-{}", hash);
@@ -120,19 +121,30 @@ impl EnvManager {
             }
         }
 
-        // Step b: install coq and packages
-        let coq_pkg = format!("coq.{}", deps.coq_version);
+        // Step b: add rocq-released opam repo and install rocq packages
+        eprintln!("  Adding rocq-released opam repo...");
+        let _ = Command::new("opam")
+            .args([
+                "repo",
+                "add",
+                "rocq-released",
+                "https://rocq-prover.org/opam/released",
+                &format!("--switch={}", switch_name),
+            ])
+            .status();
+
+        let rocq_pkg = format!("rocq-prover.{}", deps.rocq_version);
         let mut install_args = vec![
             "install".to_string(),
             "-y".to_string(),
             format!("--switch={}", switch_name),
-            coq_pkg,
+            rocq_pkg,
             "dune".to_string(),
         ];
         for pkg in &deps.opam_packages {
             install_args.push(pkg.clone());
         }
-        eprintln!("  Installing Coq packages (this may take a while)...");
+        eprintln!("  Installing Rocq packages (this may take a while)...");
         let status = Command::new("opam")
             .args(&install_args)
             .status()
@@ -157,11 +169,11 @@ impl EnvManager {
         // Generate Dockerfile and Makefile for reproducible verification
         std::fs::write(
             env_dir.join("Dockerfile"),
-            Self::generate_dockerfile_coq(deps),
+            Self::generate_dockerfile_rocq(deps),
         )?;
         std::fs::write(
             env_dir.join("Makefile"),
-            Self::generate_makefile("coq", &env_name, &switch_name),
+            Self::generate_makefile("rocq", &env_name, &switch_name),
         )?;
 
         // Step d: touch .ready
@@ -273,14 +285,14 @@ impl EnvManager {
         })
     }
 
-    fn generate_dockerfile_coq(deps: &CoqDeps) -> String {
-        let coq_pkg = format!("coq.{}", deps.coq_version);
-        let mut opam_pkgs = vec![coq_pkg, "dune".to_string()];
+    fn generate_dockerfile_rocq(deps: &RocqDeps) -> String {
+        let rocq_pkg = format!("rocq-prover.{}", deps.rocq_version);
+        let mut opam_pkgs = vec![rocq_pkg, "dune".to_string()];
         opam_pkgs.extend(deps.opam_packages.iter().cloned());
         let opam_install_list = opam_pkgs.join(" ");
 
         format!(
-            r#"# Stage 1: Install Coq + dependencies via opam
+            r#"# Stage 1: Install Rocq + dependencies via opam
 FROM ocaml/opam:debian-12-ocaml-5.2 AS builder
 RUN opam update && opam install -y {opam_install_list}
 
@@ -327,7 +339,7 @@ CMD ["lake", "build"]
 
     fn generate_makefile(prover: &str, env_name: &str, switch_name: &str) -> String {
         let build_cmd = match prover {
-            "coq" => format!("opam exec --switch={} -- dune build", switch_name),
+            "rocq" => format!("opam exec --switch={} -- dune build", switch_name),
             _ => "lake build".to_string(),
         };
 

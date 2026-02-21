@@ -2,7 +2,7 @@
 
 **Donate unused AI budget to prove mathematical lemmas — verified, archived, and NFT-stamped.**
 
-Proof@Home is a CLI tool that turns your Anthropic API credits into formally verified mathematical proofs. It fetches open problems from a server, uses Claude to generate proof scripts, verifies them with Coq or Lean, and archives the results with SHA-256 hashes in NFT-compatible metadata.
+Proof@Home is a CLI tool that turns your Anthropic API credits into formally verified mathematical proofs. It fetches open problems from a server, uses Claude to generate proof scripts, verifies them with Rocq or Lean, and archives the results with SHA-256 hashes in NFT-compatible metadata.
 
 ## Quick Start
 
@@ -11,7 +11,7 @@ Proof@Home is a CLI tool that turns your Anthropic API credits into formally ver
 - [Rust](https://rustup.rs/) (1.70+)
 - [Go](https://go.dev/dl/) (1.21+)
 - An [Anthropic API key](https://console.anthropic.com/)
-- **Optional:** [Coq](https://coq.inria.fr/) for Coq proofs, [Lean 4](https://leanprover.github.io/) for Lean proofs
+- **Optional:** [Rocq](https://rocq-prover.org/) for Rocq proofs, [Lean 4](https://leanprover.github.io/) for Lean proofs
 
 ### 1. Build
 
@@ -34,7 +34,7 @@ The CLI binary is at `target/release/proof-at-home`.
 ./target/release/proof-at-home init
 ```
 
-This asks for your name, username, Anthropic API key, paths to `coqc`/`lean`, and the server URL. Config is saved to `~/.proof-at-home/config.toml`.
+This asks for your name, username, Anthropic API key, and the server URL. Config is saved to `~/.proof-at-home/config.toml`.
 
 ### 3. Set your donation budget
 
@@ -73,7 +73,7 @@ This will:
 
 1. Connect to the server and fetch available problems
 2. For each problem, call Claude to generate a proof (up to 5 retries with error feedback)
-3. Verify each proof with `coqc` or `lean`
+3. Verify each proof with `rocq c` or `lean`
 4. Submit results to the server
 5. Stop when your budget is exhausted
 6. Archive all proofs to `~/.proof-at-home/sessions/<session-id>/proofs.tar.gz`
@@ -206,8 +206,8 @@ The `problems/` directory includes three starter problems:
 
 | ID | Title | Assistant | Difficulty |
 |---|---|---|---|
-| `prob_001` | Natural number addition is commutative | Coq | Easy |
-| `prob_002` | ≤ antisymmetry on naturals | Coq | Medium |
+| `prob_001` | Natural number addition is commutative | Rocq | Easy |
+| `prob_002` | ≤ antisymmetry on naturals | Rocq | Medium |
 | `prob_003` | List.reverse is involutive | Lean 4 | Medium |
 
 Add your own by dropping JSON files into `problems/` — the server loads them at startup.
@@ -219,7 +219,7 @@ Add your own by dropping JSON files into `problems/` — the server loads them a
   "id": "prob_004",
   "title": "Your problem title",
   "difficulty": "easy|medium|hard",
-  "proof_assistant": "coq|lean4",
+  "proof_assistant": "rocq|lean4",
   "status": "open",
   "preamble": "Require Import Arith.",
   "lemma_statement": "Lemma foo : ...",
@@ -248,7 +248,7 @@ Add your own by dropping JSON files into `problems/` — the server loads them a
        │
        ▼
 ┌──────────────┐
-│  coqc / lean │  ← verify proof compiles
+│  rocq c/lean │  ← verify proof compiles
 └──────┬───────┘
        │
        ▼
@@ -325,8 +325,8 @@ model = "claude-sonnet-4-6"
 [proof_assistant]
 scratch_dir = "/tmp/proof-at-home"
 
-[proof_assistant.coq]
-coqc_path = "coqc"
+[proof_assistant.rocq]
+rocq_path = "rocq"
 
 [proof_assistant.lean]
 lean_path = "lean"

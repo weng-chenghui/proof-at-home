@@ -57,7 +57,7 @@ pub fn run_init() -> Result<()> {
     println!();
     println!("{}", "Checking proof assistant toolchains...".bold());
 
-    // Check opam (for Coq)
+    // Check opam (for Rocq)
     print!("  opam... ");
     match Command::new("opam").arg("--version").output() {
         Ok(output) if output.status.success() => {
@@ -72,7 +72,7 @@ pub fn run_init() -> Result<()> {
             );
             println!(
                 "    {}",
-                "Coq problems will not work without opam.".dimmed()
+                "Rocq problems will not work without opam.".dimmed()
             );
         }
     }

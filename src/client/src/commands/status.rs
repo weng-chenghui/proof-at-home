@@ -43,7 +43,7 @@ pub fn run_status() -> Result<()> {
     let envs_dir = Path::new(&config.proof_assistant.envs_dir);
     if envs_dir.exists() {
         let mut found_any = false;
-        for prover in &["coq", "lean"] {
+        for prover in &["rocq", "lean"] {
             let prover_dir = envs_dir.join(prover);
             if !prover_dir.exists() {
                 continue;

@@ -1,4 +1,4 @@
-# Prove a Coq/Rocq lemma
+# Prove a Rocq lemma
 
 Prove the lemma described below. Follow this strategy strictly.
 
@@ -8,7 +8,7 @@ $ARGUMENTS
 
 ## Setup
 
-- Compiler: `$COQC` (or `coqc` if not set)
+- Compiler: `$ROCQ` (or `rocq c` if not set)
 - Include flag: `$COQ_INCLUDE` (may be empty)
 - All debug scripts go in `$SCRATCH_DIR/debug_rocq.v` (default: `/tmp/proof-at-home/debug_rocq.v`)
 - Lemma file: `$LEMMA_FILE`
@@ -27,7 +27,7 @@ Do this in a **single** temp script + compile cycle:
 - Add `rewrite /def1 /def2 ... /=.` to reduce local definitions to primitives.
 - Insert `Show.` to display the proof state.
 - End with `Abort.` so the file compiles.
-- Compile: `$COQC $COQ_INCLUDE $SCRATCH_DIR/debug_rocq.v` and inspect the output.
+- Compile: `$ROCQ c $COQ_INCLUDE $SCRATCH_DIR/debug_rocq.v` and inspect the output.
 
 ### 3. Check and search for lemmas
 
@@ -46,7 +46,7 @@ Batch all queries into a **single** temp script:
 ### 5. Apply to the real file
 
 - Once the proof compiles in the debug script, write the complete proof to `$LEMMA_FILE`.
-- Compile: `$COQC $COQ_INCLUDE $LEMMA_FILE` to confirm.
+- Compile: `$ROCQ c $COQ_INCLUDE $LEMMA_FILE` to confirm.
 
 ## Rules
 

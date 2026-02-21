@@ -10,7 +10,7 @@
 
 ## Phase 2: Multi-Prover Support
 
-- [ ] Add Coq/Rocq verification backend
+- [ ] Add Rocq verification backend
 - [ ] Add Isabelle verification backend
 - [ ] Support multiple AI providers (Claude, ChatGPT, Gemini)
 - [ ] Implement server-side re-verification pipeline

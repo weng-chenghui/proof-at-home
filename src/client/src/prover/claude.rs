@@ -121,7 +121,7 @@ struct ApiUsage {
 fn build_proof_prompt(problem: &Problem) -> String {
     let assistant_name = match problem.proof_assistant.to_lowercase().as_str() {
         "lean" | "lean4" => "Lean 4",
-        _ => "Coq/Rocq",
+        _ => "Rocq",
     };
 
     let hints_text = if problem.hints.is_empty() {
@@ -182,7 +182,7 @@ Output the proof script now:"#,
         compiler = if assistant_name == "Lean 4" {
             "lean"
         } else {
-            "coqc"
+            "rocq c"
         },
         comment_syntax = if assistant_name == "Lean 4" {
             "`/- ... -/` or `-- ...`"

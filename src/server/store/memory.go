@@ -129,7 +129,7 @@ func (s *MemoryStore) ListReviewPackages() []data.ReviewPackageInfo {
 
 		proofAssistant := ss.ProofAssistant
 		if proofAssistant == "" {
-			proofAssistant = "coq"
+			proofAssistant = "rocq"
 		}
 
 		packages = append(packages, data.ReviewPackageInfo{
