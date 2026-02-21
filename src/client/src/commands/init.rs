@@ -11,17 +11,13 @@ pub fn run_init() -> Result<()> {
     println!();
 
     // Identity
-    let real_name: String = Input::new()
-        .with_prompt("Your real name")
-        .interact_text()?;
+    let real_name: String = Input::new().with_prompt("Your real name").interact_text()?;
 
     let username: String = Input::new()
         .with_prompt("Username (for attribution)")
         .interact_text()?;
 
-    let email: String = Input::new()
-        .with_prompt("Email")
-        .interact_text()?;
+    let email: String = Input::new().with_prompt("Email").interact_text()?;
 
     let affiliation: String = Input::new()
         .with_prompt("Affiliation (optional, press Enter to skip)")
@@ -32,8 +28,7 @@ pub fn run_init() -> Result<()> {
     println!();
     println!(
         "{}",
-        "Get your API key at: https://console.anthropic.com → Settings → API Keys"
-            .dimmed()
+        "Get your API key at: https://console.anthropic.com → Settings → API Keys".dimmed()
     );
     let api_key: String = Password::new()
         .with_prompt("Anthropic API key")
@@ -111,10 +106,7 @@ pub fn run_init() -> Result<()> {
         }
         _ => {
             println!("{}", "NOT FOUND".yellow());
-            println!(
-                "    {}",
-                "lake is usually installed with elan.".dimmed()
-            );
+            println!("    {}", "lake is usually installed with elan.".dimmed());
         }
     }
 
@@ -125,10 +117,7 @@ pub fn run_init() -> Result<()> {
             let version = String::from_utf8_lossy(&output.stdout);
             println!("{} ({})", "OK".green(), version.trim());
         }
-        _ => println!(
-            "{} (will use API fallback)",
-            "NOT FOUND".yellow()
-        ),
+        _ => println!("{} (will use API fallback)", "NOT FOUND".yellow()),
     }
 
     let config = Config {
@@ -153,16 +142,15 @@ pub fn run_init() -> Result<()> {
     config.save()?;
     let path = Config::config_path()?;
     println!();
-    println!(
-        "{} Config saved to {}",
-        "✓".green().bold(),
-        path.display()
-    );
+    println!("{} Config saved to {}", "✓".green().bold(), path.display());
     println!(
         "{}",
         "Proof environments will be auto-created when you run problems.".dimmed()
     );
-    println!("Run {} to set your donation budget.", "proof-at-home donate".cyan());
+    println!(
+        "Run {} to set your donation budget.",
+        "proof-at-home donate".cyan()
+    );
 
     Ok(())
 }

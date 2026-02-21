@@ -24,7 +24,11 @@ impl AuditLogger {
 
     pub fn log_attempt(&self, entry: &AuditEntry) {
         if let Ok(line) = serde_json::to_string(entry) {
-            if let Ok(mut f) = OpenOptions::new().create(true).append(true).open(&self.path) {
+            if let Ok(mut f) = OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(&self.path)
+            {
                 let _ = writeln!(f, "{}", line);
             }
         }
@@ -175,7 +179,11 @@ Output the proof script now:"#,
         statement = problem.lemma_statement,
         hints = hints_text,
         skeleton = problem.skeleton,
-        compiler = if assistant_name == "Lean 4" { "lean" } else { "coqc" },
+        compiler = if assistant_name == "Lean 4" {
+            "lean"
+        } else {
+            "coqc"
+        },
         comment_syntax = if assistant_name == "Lean 4" {
             "`/- ... -/` or `-- ...`"
         } else {
@@ -338,8 +346,7 @@ pub async fn prove_problem(
                 }
             }
         } else {
-            try_api_fallback(&prompt, &config.api.anthropic_api_key, &config.api.model)
-                .await?
+            try_api_fallback(&prompt, &config.api.anthropic_api_key, &config.api.model).await?
         };
 
         total_cost += cost;

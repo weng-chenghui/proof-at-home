@@ -265,7 +265,11 @@ impl ReviewAuditLogger {
 
     pub fn log(&self, entry: &ReviewAuditEntry) {
         if let Ok(line) = serde_json::to_string(entry) {
-            if let Ok(mut f) = OpenOptions::new().create(true).append(true).open(&self.path) {
+            if let Ok(mut f) = OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(&self.path)
+            {
                 let _ = writeln!(f, "{}", line);
             }
         }
@@ -376,14 +380,11 @@ pub async fn run_comparison(
             let script = std::fs::read_to_string(&proof_path)
                 .with_context(|| format!("Failed to read {}", proof_path.display()))?;
 
-            problem_proofs
-                .entry(pid.clone())
-                .or_default()
-                .push((
-                    pkg.prover_session_id.clone(),
-                    pkg.prover_username.clone(),
-                    script,
-                ));
+            problem_proofs.entry(pid.clone()).or_default().push((
+                pkg.prover_session_id.clone(),
+                pkg.prover_username.clone(),
+                script,
+            ));
 
             problem_titles
                 .entry(pid.clone())
@@ -403,10 +404,7 @@ pub async fn run_comparison(
         );
     }
 
-    println!(
-        "Comparing {} problems across provers...",
-        comparable.len()
-    );
+    println!("Comparing {} problems across provers...", comparable.len());
 
     let mut problem_comparisons = Vec::new();
 
@@ -483,7 +481,7 @@ pub async fn run_comparison(
                 prover_username: username,
                 avg_scores: avg,
                 problems_compared: n,
-                rank: 0, // filled below
+                rank: 0,                // filled below
                 summary: String::new(), // filled by AI rollup
             }
         })

@@ -46,7 +46,10 @@ fn default_scratch_dir() -> String {
 
 fn default_envs_dir() -> String {
     let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
-    home.join(".proof-at-home").join("envs").to_string_lossy().to_string()
+    home.join(".proof-at-home")
+        .join("envs")
+        .to_string_lossy()
+        .to_string()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -87,8 +90,7 @@ impl Config {
         let path = Self::config_path()?;
         let content = fs::read_to_string(&path)
             .with_context(|| format!("Could not read config at {}", path.display()))?;
-        let config: Config =
-            toml::from_str(&content).context("Failed to parse config.toml")?;
+        let config: Config = toml::from_str(&content).context("Failed to parse config.toml")?;
         Ok(config)
     }
 

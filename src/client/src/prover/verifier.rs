@@ -61,11 +61,9 @@ pub fn verify_with_env(
     }
 }
 
-fn run_with_timeout(
-    mut cmd: Command,
-    timeout: Duration,
-) -> Result<std::process::Output> {
-    let child = cmd.stdout(std::process::Stdio::piped())
+fn run_with_timeout(mut cmd: Command, timeout: Duration) -> Result<std::process::Output> {
+    let child = cmd
+        .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
         .spawn()?;
 

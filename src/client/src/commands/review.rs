@@ -212,11 +212,7 @@ async fn cmd_start() -> Result<()> {
     save_session(&review_dir, &session)?;
     set_active_review_id(&review_id)?;
 
-    println!(
-        "\n{} Review session created: {}",
-        "✓".green(),
-        review_id
-    );
+    println!("\n{} Review session created: {}", "✓".green(), review_id);
     println!("  Directory: {}", review_dir.display());
     println!("  Packages loaded: {}", session.packages.len());
     if session.packages.is_empty() {
@@ -269,7 +265,9 @@ async fn cmd_import(path: &Path) -> Result<()> {
     let problem_ids = scan_proof_files(&dest_dir)?;
 
     // Detect proof assistant
-    let proof_assistant = if problem_ids.iter().any(|p| dest_dir.join(format!("{}.lean", p)).exists())
+    let proof_assistant = if problem_ids
+        .iter()
+        .any(|p| dest_dir.join(format!("{}.lean", p)).exists())
     {
         "lean".into()
     } else {
@@ -364,7 +362,10 @@ async fn cmd_ai_compare() -> Result<()> {
 
     // Print results table
     println!("\n{}", "=== AI Comparison Results ===".bold());
-    println!("Model: {}  |  Cost: ${:.4}\n", result.model, result.cost_usd);
+    println!(
+        "Model: {}  |  Cost: ${:.4}\n",
+        result.model, result.cost_usd
+    );
 
     for pc in &result.problem_comparisons {
         println!("{} ({})", pc.problem_title.bold(), pc.problem_id);
@@ -473,9 +474,7 @@ async fn cmd_seal() -> Result<()> {
     // 1. Validate report exists and is valid
     let report_path = review_dir.join("review_report.toml");
     if !report_path.exists() {
-        anyhow::bail!(
-            "review_report.toml not found. Run `proof-at-home review report` first."
-        );
+        anyhow::bail!("review_report.toml not found. Run `proof-at-home review report` first.");
     }
 
     let errors = templates::validate_report(&report_path)?;
@@ -612,11 +611,7 @@ async fn cmd_seal() -> Result<()> {
 
     match server.submit_review(&server_summary).await {
         Ok(()) => println!("{} Review submitted to server.", "✓".green()),
-        Err(e) => eprintln!(
-            "{}: Could not submit to server: {}",
-            "Warning".yellow(),
-            e
-        ),
+        Err(e) => eprintln!("{}: Could not submit to server: {}", "Warning".yellow(), e),
     }
 
     // 8. Mark session as sealed
@@ -632,10 +627,7 @@ async fn cmd_seal() -> Result<()> {
     println!("  Packages:     {}", session.packages.len());
     println!("  Compared:     {} problems", problems_compared);
     println!("  Top prover:   {}", top_prover);
-    println!(
-        "  Recommendation: {}",
-        report.summary.recommendation
-    );
+    println!("  Recommendation: {}", report.summary.recommendation);
 
     Ok(())
 }

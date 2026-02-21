@@ -72,10 +72,16 @@ pub fn run_status() -> Result<()> {
             }
         }
         if !found_any {
-            println!("  {}", "(none — environments are created on first run)".dimmed());
+            println!(
+                "  {}",
+                "(none — environments are created on first run)".dimmed()
+            );
         }
     } else {
-        println!("  {}", "(none — environments are created on first run)".dimmed());
+        println!(
+            "  {}",
+            "(none — environments are created on first run)".dimmed()
+        );
     }
     println!();
 

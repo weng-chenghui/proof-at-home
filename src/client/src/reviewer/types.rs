@@ -74,12 +74,10 @@ impl ProofScores {
                 as u8,
             library_reuse: (scores.iter().map(|s| s.library_reuse as f64).sum::<f64>() / n).round()
                 as u8,
-            generality: (scores.iter().map(|s| s.generality as f64).sum::<f64>() / n).round()
+            generality: (scores.iter().map(|s| s.generality as f64).sum::<f64>() / n).round() as u8,
+            modularity: (scores.iter().map(|s| s.modularity as f64).sum::<f64>() / n).round() as u8,
+            math_strategy: (scores.iter().map(|s| s.math_strategy as f64).sum::<f64>() / n).round()
                 as u8,
-            modularity: (scores.iter().map(|s| s.modularity as f64).sum::<f64>() / n).round()
-                as u8,
-            math_strategy: (scores.iter().map(|s| s.math_strategy as f64).sum::<f64>() / n)
-                .round() as u8,
             overall: (scores.iter().map(|s| s.overall as f64).sum::<f64>() / n).round() as u8,
         }
     }

@@ -100,7 +100,12 @@ impl EnvManager {
         // Step a: create opam switch
         eprintln!("  Creating opam switch '{}'...", switch_name);
         let status = Command::new("opam")
-            .args(["switch", "create", &switch_name, "ocaml-base-compiler.5.2.1"])
+            .args([
+                "switch",
+                "create",
+                &switch_name,
+                "ocaml-base-compiler.5.2.1",
+            ])
             .status()
             .context("Failed to run opam switch create")?;
         if !status.success() {
@@ -138,10 +143,7 @@ impl EnvManager {
 
         // Step c: generate project files
         // _CoqProject
-        std::fs::write(
-            env_dir.join("_CoqProject"),
-            "-R theories PaH\n",
-        )?;
+        std::fs::write(env_dir.join("_CoqProject"), "-R theories PaH\n")?;
 
         // dune-project
         std::fs::write(
@@ -150,10 +152,7 @@ impl EnvManager {
         )?;
 
         // theories/dune
-        std::fs::write(
-            theories_dir.join("dune"),
-            "(coq.theory\n (name PaH))\n",
-        )?;
+        std::fs::write(theories_dir.join("dune"), "(coq.theory\n (name PaH))\n")?;
 
         // Generate Dockerfile and Makefile for reproducible verification
         std::fs::write(
@@ -208,10 +207,7 @@ impl EnvManager {
         std::fs::create_dir_all(&env_dir)?;
 
         // Step a: write lean-toolchain
-        std::fs::write(
-            env_dir.join("lean-toolchain"),
-            &deps.lean_toolchain,
-        )?;
+        std::fs::write(env_dir.join("lean-toolchain"), &deps.lean_toolchain)?;
 
         // Step b: lake init
         let has_mathlib = deps.lake_packages.iter().any(|p| p == "mathlib");

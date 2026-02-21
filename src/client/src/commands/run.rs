@@ -142,10 +142,7 @@ pub async fn run_session() -> Result<()> {
 
     for problem in &problems {
         if tracker.is_exhausted() {
-            println!(
-                "\n{} Budget exhausted! Wrapping up session.",
-                "⚠".yellow()
-            );
+            println!("\n{} Budget exhausted! Wrapping up session.", "⚠".yellow());
             break;
         }
 

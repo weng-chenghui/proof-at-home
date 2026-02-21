@@ -185,7 +185,10 @@ pub fn validate_report(report_path: &Path) -> Result<Vec<String>> {
 
     for (i, pr) in report.package_reviews.iter().enumerate() {
         if pr.prover_session_id.is_empty() {
-            errors.push(format!("package_reviews[{}].prover_session_id is required", i));
+            errors.push(format!(
+                "package_reviews[{}].prover_session_id is required",
+                i
+            ));
         }
         if pr.rank == 0 {
             errors.push(format!("package_reviews[{}].rank must be > 0", i));
