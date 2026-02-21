@@ -1,0 +1,18 @@
+{
+  "id": "prob_001",
+  "title": "Natural number addition is commutative",
+  "difficulty": "easy",
+  "proof_assistant": "coq",
+  "status": "open",
+  "preamble": "Require Import Arith.\nRequire Import Lia.",
+  "lemma_statement": "Lemma add_comm : forall n m : nat, n + m = m + n.",
+  "hints": [
+    "Try induction on n",
+    "The standard library has Nat.add_comm"
+  ],
+  "skeleton": "Lemma add_comm : forall n m : nat, n + m = m + n.\nProof.\n  (* your proof here *)\nAdmitted.",
+  "dependencies": {
+    "coq_version": "8.20",
+    "opam_packages": []
+  }
+}

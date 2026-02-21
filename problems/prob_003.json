@@ -1,0 +1,18 @@
+{
+  "id": "prob_003",
+  "title": "List.reverse is involutive",
+  "difficulty": "medium",
+  "proof_assistant": "lean4",
+  "status": "open",
+  "preamble": "import Mathlib.Data.List.Basic\n\nopen List",
+  "lemma_statement": "theorem reverse_reverse (l : List α) : l.reverse.reverse = l := by",
+  "hints": [
+    "Try simp [List.reverse_reverse]",
+    "Mathlib provides List.reverse_reverse"
+  ],
+  "skeleton": "theorem reverse_reverse (l : List α) : l.reverse.reverse = l := by\n  sorry",
+  "dependencies": {
+    "lean_toolchain": "leanprover/lean4:v4.16.0",
+    "lake_packages": ["mathlib"]
+  }
+}
