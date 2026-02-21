@@ -1,0 +1,18 @@
+#!/bin/sh
+# Format Rust and Go code before committing
+
+cargo fmt --manifest-path src/client/Cargo.toml -- --check 2>/dev/null
+if [ $? -ne 0 ]; then
+    echo "Running cargo fmt..."
+    cargo fmt --manifest-path src/client/Cargo.toml
+    echo "Rust files formatted. Re-staging changed files."
+    git add -u src/client/
+fi
+
+unformatted=$(gofmt -l src/server/ 2>/dev/null)
+if [ -n "$unformatted" ]; then
+    echo "Running gofmt..."
+    gofmt -w src/server/
+    echo "Go files formatted. Re-staging changed files."
+    git add -u src/server/
+fi

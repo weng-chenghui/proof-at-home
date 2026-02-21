@@ -135,10 +135,10 @@ func (s *MemoryStore) ListReviewPackages() []data.ReviewPackageInfo {
 		packages = append(packages, data.ReviewPackageInfo{
 			ProverSessionID: ss.SessionID,
 			ProverUsername:  ss.Username,
-			ProofAssistant: proofAssistant,
-			ProblemIDs:     problemIDs,
-			ArchiveURL:     fmt.Sprintf("/review-packages/%s/archive", ss.SessionID),
-			ArchiveSHA256:  ss.ArchiveSHA256,
+			ProofAssistant:  proofAssistant,
+			ProblemIDs:      problemIDs,
+			ArchiveURL:      fmt.Sprintf("/review-packages/%s/archive", ss.SessionID),
+			ArchiveSHA256:   ss.ArchiveSHA256,
 		})
 	}
 	return packages

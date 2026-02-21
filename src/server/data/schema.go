@@ -51,21 +51,21 @@ type SessionSummary struct {
 type ReviewPackageInfo struct {
 	ProverSessionID string   `json:"prover_session_id"`
 	ProverUsername  string   `json:"prover_username"`
-	ProofAssistant string   `json:"proof_assistant"`
-	ProblemIDs     []string `json:"problem_ids"`
-	ArchiveURL     string   `json:"archive_url"`
-	ArchiveSHA256  string   `json:"archive_sha256"`
+	ProofAssistant  string   `json:"proof_assistant"`
+	ProblemIDs      []string `json:"problem_ids"`
+	ArchiveURL      string   `json:"archive_url"`
+	ArchiveSHA256   string   `json:"archive_sha256"`
 }
 
 type ReviewSummary struct {
 	ReviewerUsername string                  `json:"reviewer_username"`
-	ReviewID         string                 `json:"review_id"`
-	PackagesReviewed int                    `json:"packages_reviewed"`
-	ProblemsCompared int                    `json:"problems_compared"`
+	ReviewID         string                  `json:"review_id"`
+	PackagesReviewed int                     `json:"packages_reviewed"`
+	ProblemsCompared int                     `json:"problems_compared"`
 	PackageRankings  []PackageRankingSummary `json:"package_rankings"`
-	Recommendation   string                 `json:"recommendation"`
-	ArchiveSHA256    string                 `json:"archive_sha256"`
-	NFTMetadata      interface{}            `json:"nft_metadata"`
+	Recommendation   string                  `json:"recommendation"`
+	ArchiveSHA256    string                  `json:"archive_sha256"`
+	NFTMetadata      interface{}             `json:"nft_metadata"`
 }
 
 type PackageRankingSummary struct {
