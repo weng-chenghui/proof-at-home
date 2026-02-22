@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Submit Batch — proof-at-home</title>
+    <link rel="stylesheet" href="/shared.css">
+</head>
+<body>
+    <nav id="navbar"></nav>
+    <div class="container">
+        <h1>Submit Session Summary (Batch)</h1>
+        <div id="msg" class="msg" style="display:none"></div>
+
+        <form id="form" onsubmit="return submitForm(event)">
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" required>
+            </div>
+            <div class="form-group">
+                <label for="session_id">Session ID</label>
+                <input type="text" id="session_id" required>
+            </div>
+            <div class="form-group">
+                <label for="problems_attempted">Problems Attempted</label>
+                <input type="number" id="problems_attempted" min="0" value="0">
+            </div>
+            <div class="form-group">
+                <label for="problems_proved">Problems Proved</label>
+                <input type="number" id="problems_proved" min="0" value="0">
+            </div>
+            <div class="form-group">
+                <label for="total_cost_usd">Total Cost (USD)</label>
+                <input type="number" id="total_cost_usd" step="0.01" min="0" value="0">
+            </div>
+            <div class="form-group">
+                <label for="archive_sha256">Archive SHA256</label>
+                <input type="text" id="archive_sha256">
+            </div>
+            <div class="form-group">
+                <label for="proof_assistant">Proof Assistant</label>
+                <input type="text" id="proof_assistant" placeholder="e.g. Rocq, Lean4">
+            </div>
+            <div class="form-group">
+                <label for="problem_ids">Problem IDs</label>
+                <input type="text" id="problem_ids" placeholder="comma-separated, e.g. p1, p2, p3">
+                <div class="hint">Separate multiple IDs with commas</div>
+            </div>
+            <div class="form-group">
+                <label for="proof_status">Proof Status</label>
+                <input type="text" id="proof_status" placeholder="e.g. complete, partial">
+            </div>
+            <button type="submit">Submit Batch</button>
+        </form>
+    </div>
+    <script src="/shared.js"></script>
+    <script>
+        async function submitForm(e) {
+            e.preventDefault();
+            hideMsg('msg');
+            const idsRaw = document.getElementById('problem_ids').value.trim();
+            const problemIds = idsRaw ? idsRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
+            const body = {
+                username: document.getElementById('username').value.trim(),
+                session_id: document.getElementById('session_id').value.trim(),
+                problems_attempted: parseInt(document.getElementById('problems_attempted').value) || 0,
+                problems_proved: parseInt(document.getElementById('problems_proved').value) || 0,
+                total_cost_usd: parseFloat(document.getElementById('total_cost_usd').value) || 0,
+                archive_sha256: document.getElementById('archive_sha256').value.trim(),
+                proof_assistant: document.getElementById('proof_assistant').value.trim(),
+                problem_ids: problemIds,
+                proof_status: document.getElementById('proof_status').value.trim()
+            };
+            try {
+                await api('POST', '/results/batch', body);
+                showMsg('msg', 'Batch submitted successfully.', false);
+            } catch (e) {
+                showMsg('msg', 'Error: ' + (e.error || e.message || 'submission failed'), true);
+            }
+            return false;
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Problems — proof-at-home</title>
+    <link rel="stylesheet" href="/shared.css">
+</head>
+<body>
+    <nav id="navbar"></nav>
+    <div class="container">
+        <h1>Problems</h1>
+
+        <div class="filter-bar">
+            <select id="filterDifficulty">
+                <option value="">All difficulties</option>
+                <option value="easy">Easy</option>
+                <option value="medium">Medium</option>
+                <option value="hard">Hard</option>
+            </select>
+            <select id="filterAssistant">
+                <option value="">All proof assistants</option>
+            </select>
+        </div>
+
+        <div id="msg" class="msg" style="display:none"></div>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Title</th>
+                    <th>Difficulty</th>
+                    <th>Proof Assistant</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+        </table>
+    </div>
+    <script src="/shared.js"></script>
+    <script>
+        let allProblems = [];
+
+        async function load() {
+            try {
+                allProblems = await api('GET', '/problems');
+                populateAssistantFilter();
+                render();
+            } catch (e) {
+                showMsg('msg', 'Failed to load problems: ' + (e.error || e.message || 'unknown error'), true);
+            }
+        }
+
+        function populateAssistantFilter() {
+            const sel = document.getElementById('filterAssistant');
+            const assistants = [...new Set(allProblems.map(p => p.proof_assistant).filter(Boolean))].sort();
+            assistants.forEach(a => {
+                const opt = document.createElement('option');
+                opt.value = a;
+                opt.textContent = a;
+                sel.appendChild(opt);
+            });
+        }
+
+        function render() {
+            const diff = document.getElementById('filterDifficulty').value;
+            const asst = document.getElementById('filterAssistant').value;
+            const filtered = allProblems.filter(p =>
+                (!diff || p.difficulty === diff) &&
+                (!asst || p.proof_assistant === asst)
+            );
+            const tbody = document.getElementById('tbody');
+            tbody.innerHTML = filtered.map(p => `
+                <tr>
+                    <td><a href="/problem.html?id=${encodeURIComponent(p.id)}">${escapeHtml(p.id)}</a></td>
+                    <td>${escapeHtml(p.title)}</td>
+                    <td>${difficultyBadge(p.difficulty)}</td>
+                    <td>${escapeHtml(p.proof_assistant)}</td>
+                    <td>${statusDot(p.status)}</td>
+                </tr>
+            `).join('');
+        }
+
+        document.getElementById('filterDifficulty').addEventListener('change', render);
+        document.getElementById('filterAssistant').addEventListener('change', render);
+        document.addEventListener('DOMContentLoaded', load);
+    </script>
+</body>
+</html>

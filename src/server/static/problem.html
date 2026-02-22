@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Problem Detail — proof-at-home</title>
+    <link rel="stylesheet" href="/shared.css">
+</head>
+<body>
+    <nav id="navbar"></nav>
+    <div class="container">
+        <p><a href="/problems.html">&larr; Back to Problems</a></p>
+        <div id="msg" class="msg" style="display:none"></div>
+        <div id="content"></div>
+    </div>
+    <script src="/shared.js"></script>
+    <script>
+        async function load() {
+            const id = new URLSearchParams(window.location.search).get('id');
+            if (!id) {
+                showMsg('msg', 'No problem ID specified.', true);
+                return;
+            }
+            try {
+                const p = await api('GET', '/problems/' + encodeURIComponent(id));
+                document.title = p.title + ' — proof-at-home';
+                document.getElementById('content').innerHTML = `
+                    <h1>${escapeHtml(p.title)}</h1>
+                    <p>
+                        ${difficultyBadge(p.difficulty)}
+                        &nbsp; ${escapeHtml(p.proof_assistant)}
+                        &nbsp; ${statusDot(p.status)}
+                    </p>
+
+                    ${p.preamble ? `<h2>Preamble</h2><pre><code>${escapeHtml(p.preamble)}</code></pre>` : ''}
+
+                    <h2>Lemma Statement</h2>
+                    <pre><code>${escapeHtml(p.lemma_statement)}</code></pre>
+
+                    ${p.skeleton ? `<h2>Skeleton</h2><pre><code>${escapeHtml(p.skeleton)}</code></pre>` : ''}
+
+                    ${p.hints && p.hints.length ? `
+                        <details>
+                            <summary>Hints (${p.hints.length})</summary>
+                            <ul>${p.hints.map(h => `<li>${escapeHtml(h)}</li>`).join('')}</ul>
+                        </details>
+                    ` : ''}
+
+                    ${p.dependencies ? `
+                        <details>
+                            <summary>Dependencies</summary>
+                            <pre><code>${escapeHtml(JSON.stringify(p.dependencies, null, 2))}</code></pre>
+                        </details>
+                    ` : ''}
+                `;
+            } catch (e) {
+                showMsg('msg', 'Failed to load problem: ' + (e.error || e.message || 'not found'), true);
+            }
+        }
+        document.addEventListener('DOMContentLoaded', load);
+    </script>
+</body>
+</html>

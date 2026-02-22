@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings — proof-at-home</title>
+    <link rel="stylesheet" href="/shared.css">
+</head>
+<body>
+    <nav id="navbar"></nav>
+    <div class="container">
+        <h1>Settings</h1>
+        <div id="msg" class="msg" style="display:none"></div>
+
+        <div class="form-group">
+            <label for="token">JWT Token</label>
+            <input type="password" id="token" placeholder="Paste your JWT token here">
+            <div class="hint">Token is stored in your browser's localStorage and sent as a Bearer token with API requests.</div>
+        </div>
+
+        <div style="display:flex;gap:0.5rem;margin-bottom:1rem;">
+            <button onclick="saveToken()">Save Token</button>
+            <button class="btn-danger" onclick="clearToken()">Clear Token</button>
+        </div>
+
+        <p id="status" class="text-muted"></p>
+    </div>
+    <script src="/shared.js"></script>
+    <script>
+        function updateStatus() {
+            const token = localStorage.getItem('pah_jwt_token');
+            document.getElementById('status').textContent = token
+                ? 'Token is set (' + token.length + ' characters)'
+                : 'No token configured.';
+        }
+
+        function saveToken() {
+            const val = document.getElementById('token').value.trim();
+            if (!val) {
+                showMsg('msg', 'Please enter a token.', true);
+                return;
+            }
+            localStorage.setItem('pah_jwt_token', val);
+            document.getElementById('token').value = '';
+            showMsg('msg', 'Token saved.', false);
+            updateStatus();
+        }
+
+        function clearToken() {
+            localStorage.removeItem('pah_jwt_token');
+            document.getElementById('token').value = '';
+            showMsg('msg', 'Token cleared.', false);
+            updateStatus();
+        }
+
+        document.addEventListener('DOMContentLoaded', updateStatus);
+    </script>
+</body>
+</html>

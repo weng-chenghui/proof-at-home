@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reviews — proof-at-home</title>
+    <link rel="stylesheet" href="/shared.css">
+</head>
+<body>
+    <nav id="navbar"></nav>
+    <div class="container">
+        <h1>Review Packages</h1>
+        <div id="msg" class="msg" style="display:none"></div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Prover</th>
+                    <th>Session ID</th>
+                    <th>Proof Assistant</th>
+                    <th>Problems</th>
+                    <th>Status</th>
+                    <th>Reviewed By</th>
+                    <th>Archive</th>
+                </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+        </table>
+    </div>
+    <script src="/shared.js"></script>
+    <script>
+        async function load() {
+            try {
+                const packages = await api('GET', '/review-packages');
+                const tbody = document.getElementById('tbody');
+                tbody.innerHTML = (packages || []).map(p => `
+                    <tr>
+                        <td>${escapeHtml(p.prover_username)}</td>
+                        <td>${escapeHtml(p.prover_session_id)}</td>
+                        <td>${escapeHtml(p.proof_assistant)}</td>
+                        <td>${(p.problem_ids || []).length}</td>
+                        <td>${escapeHtml(p.proof_status || 'pending')}</td>
+                        <td>${(p.reviewed_by || []).join(', ') || '—'}</td>
+                        <td><a href="/review-packages/${encodeURIComponent(p.prover_session_id)}/archive" download>Download</a></td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                showMsg('msg', 'Failed to load review packages: ' + (e.error || e.message || 'unknown error'), true);
+            }
+        }
+        document.addEventListener('DOMContentLoaded', load);
+    </script>
+</body>
+</html>

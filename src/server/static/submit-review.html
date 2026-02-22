@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Submit Review — proof-at-home</title>
+    <link rel="stylesheet" href="/shared.css">
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js" defer></script>
+</head>
+<body>
+    <nav id="navbar"></nav>
+    <div class="container">
+        <h1>Submit Review</h1>
+        <div id="msg" class="msg" style="display:none"></div>
+
+        <form id="form" x-data="reviewForm()" @submit.prevent="submit()">
+            <div class="form-group">
+                <label for="reviewer_username">Reviewer Username</label>
+                <input type="text" id="reviewer_username" x-model="reviewer_username" required>
+            </div>
+            <div class="form-group">
+                <label for="review_id">Review ID</label>
+                <input type="text" id="review_id" x-model="review_id" required>
+            </div>
+            <div class="form-group">
+                <label for="packages_reviewed">Packages Reviewed</label>
+                <input type="number" id="packages_reviewed" x-model.number="packages_reviewed" min="0" value="0">
+            </div>
+            <div class="form-group">
+                <label for="problems_compared">Problems Compared</label>
+                <input type="number" id="problems_compared" x-model.number="problems_compared" min="0" value="0">
+            </div>
+            <div class="form-group">
+                <label for="recommendation">Recommendation</label>
+                <textarea id="recommendation" x-model="recommendation" rows="4"></textarea>
+            </div>
+
+            <h2>Package Rankings</h2>
+            <template x-for="(row, idx) in rankings" :key="idx">
+                <div style="display:flex;gap:0.75rem;align-items:end;margin-bottom:0.75rem;flex-wrap:wrap;">
+                    <div class="form-group" style="flex:2;margin-bottom:0">
+                        <label>Prover Session ID</label>
+                        <input type="text" x-model="row.prover_session_id">
+                    </div>
+                    <div class="form-group" style="flex:1;margin-bottom:0">
+                        <label>Rank</label>
+                        <input type="number" x-model.number="row.rank" min="1">
+                    </div>
+                    <div class="form-group" style="flex:1;margin-bottom:0">
+                        <label>Overall Score</label>
+                        <input type="number" x-model.number="row.overall_score" step="0.1" min="0">
+                    </div>
+                    <button type="button" class="btn-danger btn-sm" @click="rankings.splice(idx, 1)" style="margin-bottom:0.05rem">Remove</button>
+                </div>
+            </template>
+            <button type="button" class="btn-secondary btn-sm mb-1" @click="rankings.push({prover_session_id:'',rank:rankings.length+1,overall_score:0})">+ Add Ranking</button>
+
+            <div class="mt-1">
+                <button type="submit">Submit Review</button>
+            </div>
+        </form>
+    </div>
+    <script src="/shared.js"></script>
+    <script>
+        function reviewForm() {
+            return {
+                reviewer_username: '',
+                review_id: '',
+                packages_reviewed: 0,
+                problems_compared: 0,
+                recommendation: '',
+                rankings: [{ prover_session_id: '', rank: 1, overall_score: 0 }],
+                async submit() {
+                    hideMsg('msg');
+                    const body = {
+                        reviewer_username: this.reviewer_username,
+                        review_id: this.review_id,
+                        packages_reviewed: this.packages_reviewed,
+                        problems_compared: this.problems_compared,
+                        recommendation: this.recommendation,
+                        package_rankings: this.rankings.map(r => ({
+                            prover_session_id: r.prover_session_id,
+                            rank: r.rank,
+                            overall_score: r.overall_score
+                        }))
+                    };
+                    try {
+                        await api('POST', '/reviews', body);
+                        showMsg('msg', 'Review submitted successfully.', false);
+                    } catch (e) {
+                        showMsg('msg', 'Error: ' + (e.error || e.message || 'submission failed'), true);
+                    }
+                }
+            };
+        }
+    </script>
+</body>
+</html>
