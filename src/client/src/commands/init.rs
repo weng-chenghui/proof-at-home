@@ -54,6 +54,12 @@ pub fn run_init() -> Result<()> {
         .default("http://localhost:8080".to_string())
         .interact_text()?;
 
+    let auth_token: String = Input::new()
+        .with_prompt("Server auth token (optional, press Enter to skip)")
+        .default(String::new())
+        .allow_empty(true)
+        .interact_text()?;
+
     // Check proof assistant toolchains
     println!();
     println!("{}", "Checking proof assistant toolchains...".bold());
@@ -136,6 +142,7 @@ pub fn run_init() -> Result<()> {
             anthropic_api_key: api_key,
             server_url,
             model,
+            auth_token,
         },
         proof_assistant: ProofAssistant {
             scratch_dir: "/tmp/proof-at-home".to_string(),

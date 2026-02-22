@@ -38,6 +38,8 @@ pub struct Api {
     pub server_url: String,
     #[serde(default = "default_model")]
     pub model: String,
+    #[serde(default)]
+    pub auth_token: String,
 }
 
 fn default_model() -> String {

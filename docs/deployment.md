@@ -91,7 +91,19 @@ Open `/_/` on your deployment. On the first visit, you'll be prompted to create 
 - Configure file storage (local or S3-compatible)
 - View logs and create backups
 
-### 5. What You Get
+### 5. Enable OAuth Providers (Optional)
+
+To let users log in via GitHub, Google, or Facebook on the web UI's `/login.html` page:
+
+1. Go to `/_/` > **Settings** > **Auth providers**
+2. Enable the providers you want (GitHub, Google, Facebook)
+3. For each provider, paste the **Client ID** and **Client Secret** from the provider's developer console:
+   - **GitHub**: [github.com/settings/developers](https://github.com/settings/developers) — create an OAuth App, set the callback URL to `https://your-domain.com/api/oauth2-redirect`
+   - **Google**: [console.cloud.google.com](https://console.cloud.google.com/) — Credentials > OAuth 2.0 Client IDs, set authorized redirect URI to `https://your-domain.com/api/oauth2-redirect`
+   - **Facebook**: [developers.facebook.com](https://developers.facebook.com/) — create an app, add Facebook Login product, set Valid OAuth Redirect URI to `https://your-domain.com/api/oauth2-redirect`
+4. Save. Users can now sign in from the Login page.
+
+### 6. What You Get
 
 Everything runs from the single binary — no Postgres, no Redis, no separate file server:
 
@@ -217,6 +229,7 @@ Both deployment options embed a web frontend served from the root URL. No separa
 | Submit Result | `/submit-result.html` | Single proof result form |
 | Submit Batch | `/submit-batch.html` | Session summary form |
 | Submit Review | `/submit-review.html` | Review form with dynamic package rankings |
+| Login | `/login.html` | OAuth login (GitHub, Google, Facebook) for PocketBase deployments |
 | Settings | `/settings.html` | JWT token configuration (stored in browser localStorage) |
 
 The web UI uses vanilla JS with Alpine.js (CDN) for dynamic forms. Auth tokens configured in Settings are sent as `Bearer` headers on all API requests.
@@ -346,6 +359,7 @@ src/server/                        Custom Go server
     problem.html                   Problem detail
     reviews.html                   Review dashboard
     submit-*.html                  Submission forms (problem, result, batch, review)
+    login.html                     OAuth login (PocketBase deployments)
     settings.html                  JWT token configuration
     shared.css                     Shared stylesheet
     shared.js                      API helper + nav bar injection

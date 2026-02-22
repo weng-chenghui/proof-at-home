@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login — proof-at-home</title>
+    <link rel="stylesheet" href="/shared.css">
+    <script src="https://cdn.jsdelivr.net/npm/pocketbase@0.36/dist/pocketbase.umd.js"></script>
+</head>
+<body>
+    <nav id="navbar"></nav>
+    <div class="container">
+        <h1>Login</h1>
+        <div id="msg" class="msg" style="display:none"></div>
+
+        <div id="logged-out">
+            <p>Sign in with your account to submit proofs and reviews.</p>
+            <div style="display:flex;flex-direction:column;gap:0.75rem;max-width:300px;margin:1.5rem 0;">
+                <button onclick="oauthLogin('github')">Sign in with GitHub</button>
+                <button onclick="oauthLogin('google')">Sign in with Google</button>
+                <button onclick="oauthLogin('facebook')">Sign in with Facebook</button>
+            </div>
+            <p class="text-muted">Using a custom server? Use the <a href="/settings.html">Settings</a> page to paste your token manually.</p>
+        </div>
+
+        <div id="logged-in" style="display:none">
+            <p>Logged in as <strong id="user-display"></strong></p>
+            <button class="btn-danger" onclick="logout()">Logout</button>
+        </div>
+    </div>
+    <script src="/shared.js"></script>
+    <script>
+        const pb = new PocketBase(window.location.origin);
+
+        function updateLoginState() {
+            const token = localStorage.getItem('pah_jwt_token');
+            const loggedOut = document.getElementById('logged-out');
+            const loggedIn = document.getElementById('logged-in');
+            if (token) {
+                loggedOut.style.display = 'none';
+                loggedIn.style.display = 'block';
+                // Try to decode JWT payload for display name
+                try {
+                    const payload = JSON.parse(atob(token.split('.')[1]));
+                    document.getElementById('user-display').textContent =
+                        payload.email || payload.name || payload.sub || 'authenticated user';
+                } catch {
+                    document.getElementById('user-display').textContent = 'authenticated user';
+                }
+            } else {
+                loggedOut.style.display = 'block';
+                loggedIn.style.display = 'none';
+            }
+        }
+
+        async function oauthLogin(provider) {
+            hideMsg('msg');
+            try {
+                const authData = await pb.collection('users').authWithOAuth2({ provider });
+                localStorage.setItem('pah_jwt_token', pb.authStore.token);
+                showMsg('msg', 'Login successful! Redirecting...', false);
+                setTimeout(() => { window.location.href = '/'; }, 500);
+            } catch (err) {
+                showMsg('msg', 'Login failed: ' + (err.message || err), true);
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('pah_jwt_token');
+            pb.authStore.clear();
+            showMsg('msg', 'Logged out.', false);
+            updateLoginState();
+        }
+
+        document.addEventListener('DOMContentLoaded', updateLoginState);
+    </script>
+</body>
+</html>

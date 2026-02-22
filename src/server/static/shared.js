@@ -23,6 +23,10 @@ async function api(method, path, body, contentType) {
 function initNav() {
     const nav = document.getElementById('navbar');
     if (!nav) return;
+    const token = localStorage.getItem('pah_jwt_token');
+    const authLink = token
+        ? '<a href="#" onclick="navLogout(event)">Logout</a>'
+        : '<a href="/login.html">Login</a>';
     nav.innerHTML = `
         <a class="nav-brand" href="/">proof-at-home</a>
         <a href="/problems.html">Problems</a>
@@ -32,7 +36,14 @@ function initNav() {
         <a href="/submit-batch.html">Submit Batch</a>
         <a href="/submit-review.html">Submit Review</a>
         <a href="/settings.html">Settings</a>
+        ${authLink}
     `;
+}
+
+function navLogout(e) {
+    e.preventDefault();
+    localStorage.removeItem('pah_jwt_token');
+    window.location.reload();
 }
 
 function showMsg(containerId, text, isError) {

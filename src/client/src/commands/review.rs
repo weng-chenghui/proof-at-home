@@ -136,7 +136,7 @@ async fn cmd_start() -> Result<()> {
     };
 
     // Try to fetch available packages from server
-    let server = ServerClient::new(&config.api.server_url);
+    let server = ServerClient::new(&config.api.server_url, &config.api.auth_token);
     let available = match server.fetch_review_packages().await {
         Ok(pkgs) => pkgs,
         Err(e) => {
@@ -610,7 +610,7 @@ async fn cmd_seal() -> Result<()> {
     std::fs::write(&nft_path, serde_json::to_string_pretty(&nft_metadata)?)?;
 
     // 7. Submit to server
-    let server = ServerClient::new(&config.api.server_url);
+    let server = ServerClient::new(&config.api.server_url, &config.api.auth_token);
 
     let server_summary = crate::server_client::api::ReviewSummary {
         reviewer_username: report.reviewer.username.clone(),

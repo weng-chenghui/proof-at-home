@@ -58,7 +58,7 @@ pub async fn run_session() -> Result<()> {
     println!();
 
     // Health check
-    let server = ServerClient::new(&config.api.server_url);
+    let server = ServerClient::new(&config.api.server_url, &config.api.auth_token);
     print!("Connecting to server... ");
     match server.health_check().await {
         Ok(true) => println!("{}", "OK".green()),

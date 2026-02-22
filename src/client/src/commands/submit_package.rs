@@ -7,7 +7,7 @@ use crate::server_client::api::ServerClient;
 
 pub async fn run_submit_package(source: &str) -> Result<()> {
     let cfg = Config::load()?;
-    let client = ServerClient::new(&cfg.api.server_url);
+    let client = ServerClient::new(&cfg.api.server_url, &cfg.api.auth_token);
 
     // Detect source type
     if is_git_url(source) {
