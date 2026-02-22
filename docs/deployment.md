@@ -130,6 +130,95 @@ Set `PROBLEMS_DIR` to load problem JSON files on startup:
 PROBLEMS_DIR=./problems ./pah-pocketbase serve
 ```
 
+### Deploy to GCP Cloud Run
+
+Cloud Run runs the PocketBase container as a serverless service. SQLite data is stored on a persistent volume.
+
+**1. Build and push the container image:**
+
+```bash
+gcloud auth configure-docker
+docker build -f Dockerfile.pocketbase -t gcr.io/PROJECT_ID/pah-pocketbase .
+docker push gcr.io/PROJECT_ID/pah-pocketbase
+```
+
+**2. Deploy with a persistent volume for SQLite data:**
+
+```bash
+gcloud run deploy pah-pocketbase \
+  --image gcr.io/PROJECT_ID/pah-pocketbase \
+  --region us-central1 \
+  --allow-unauthenticated \
+  --port 8090 \
+  --cpu 1 --memory 512Mi \
+  --min-instances 1 \
+  --max-instances 1 \
+  --set-env-vars "PROBLEMS_DIR=/problems" \
+  --set-env-vars "PB_S3_BUCKET=proof-archives" \
+  --set-env-vars "PB_S3_REGION=auto" \
+  --set-env-vars "PB_S3_ENDPOINT=https://storage.googleapis.com" \
+  --set-env-vars "PB_S3_ACCESS_KEY=GOOG1E..." \
+  --set-env-vars "PB_S3_SECRET=..." \
+  --execution-environment gen2 \
+  --add-volume name=pb-data,type=cloud-storage,bucket=pah-pb-data \
+  --add-volume-mount volume=pb-data,mount-path=/pb_data
+```
+
+Notes:
+- `--min-instances 1` keeps the instance warm (PocketBase uses SQLite, which needs a persistent process)
+- `--max-instances 1` prevents concurrent writes to SQLite
+- The volume mount stores `pb_data/` in a GCS bucket so data survives redeployments
+- File uploads (proof archives) go to the separate GCS bucket configured via `PB_S3_*` env vars
+
+**3. Set up the admin account:**
+
+After deployment, visit `https://pah-pocketbase-xxxxx.run.app/_/` to create the first admin account.
+
+### Deploy to a VPS (Fly.io, Railway, or bare VM)
+
+**Fly.io:**
+
+```bash
+# fly.toml
+fly launch --image gcr.io/PROJECT_ID/pah-pocketbase
+fly volumes create pb_data --size 1
+fly deploy
+```
+
+**Bare VM (systemd):**
+
+```bash
+# Build locally
+CGO_ENABLED=0 GOOS=linux go build -o pah-pocketbase ./cmd/pocketbase
+scp pah-pocketbase problems/ user@server:~/pah/
+
+# On the server, create /etc/systemd/system/pah-pocketbase.service
+[Unit]
+Description=proof-at-home PocketBase
+After=network.target
+
+[Service]
+ExecStart=/home/user/pah/pah-pocketbase serve --http=0.0.0.0:8090
+WorkingDirectory=/home/user/pah
+Environment=PROBLEMS_DIR=/home/user/pah/problems
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+sudo systemctl enable --now pah-pocketbase
+```
+
+Put nginx or Caddy in front for HTTPS. Caddy example:
+
+```
+pah.example.com {
+    reverse_proxy localhost:8090
+}
+```
+
 ### What PocketBase Provides
 
 In addition to the 9 backward-compatible API endpoints and the embedded web UI, PocketBase auto-generates:
@@ -226,5 +315,6 @@ cmd/pocketbase/                    PocketBase deployment
   hooks/hooks.go                   Business logic (auto-prove, review tracking)
 
 Dockerfile                         Multi-stage build for custom server
+Dockerfile.pocketbase              Multi-stage build for PocketBase
 docker-compose.yml                 Server + Postgres + MinIO
 ```
