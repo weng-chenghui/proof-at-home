@@ -2,9 +2,7 @@ package main
 
 import (
 	"context"
-	"embed"
 	"fmt"
-	"io/fs"
 	"log/slog"
 	"net/http"
 	"os"
@@ -19,14 +17,12 @@ import (
 	"github.com/proof-at-home/server/src/server/handlers"
 	"github.com/proof-at-home/server/src/server/logging"
 	authmw "github.com/proof-at-home/server/src/server/middleware"
+	"github.com/proof-at-home/server/src/server/static"
 	"github.com/proof-at-home/server/src/server/storage"
 	"github.com/proof-at-home/server/src/server/store"
 	"github.com/proof-at-home/server/src/server/store/postgres"
 	sqlitestore "github.com/proof-at-home/server/src/server/store/sqlite"
 )
-
-//go:embed static/*
-var staticFiles embed.FS
 
 func main() {
 	cfg := config.Load()
@@ -175,8 +171,7 @@ func main() {
 	})
 
 	// Serve embedded static files
-	staticSub, _ := fs.Sub(staticFiles, "static")
-	fileServer := http.FileServer(http.FS(staticSub))
+	fileServer := http.FileServer(http.FS(static.Files))
 	r.Handle("/*", fileServer)
 
 	srv := &http.Server{
