@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NFT Gallery — proof-at-home</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/shared.css">
+    <style>
+        .nft-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .nft-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 1.25rem;
+            transition: all var(--transition);
+        }
+        .nft-card:hover {
+            box-shadow: var(--shadow-md);
+            border-color: var(--accent);
+        }
+        .nft-card-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+        }
+        .nft-card-header h3 {
+            margin: 0;
+            font-size: 0.9rem;
+            font-weight: 650;
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .badge-type {
+            font-size: 0.65rem;
+            font-weight: 600;
+            padding: 0.125rem 0.5rem;
+            border-radius: 999px;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+        .badge-contribution { background: var(--accent-subtle); color: var(--accent); }
+        .badge-review { background: var(--yellow-subtle); color: var(--yellow); }
+        .badge-published { background: var(--green-subtle); color: var(--green); }
+        .badge-draft { background: var(--code-bg); color: var(--text-muted); }
+        .nft-card-stats {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.375rem 1rem;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.75rem;
+        }
+        .nft-card-stats span { white-space: nowrap; }
+        .nft-card-stats strong { color: var(--text); font-weight: 600; }
+        .nft-card-footer {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+        .nft-card-footer a {
+            font-size: 0.75rem;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: var(--text-muted);
+        }
+        .empty-state h2 {
+            font-size: 1.15rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+        .empty-state p { margin-bottom: 1.25rem; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+    <nav id="navbar"></nav>
+    <div class="container">
+        <h1>NFT Gallery</h1>
+        <p class="text-secondary" style="margin-bottom:1.5rem;font-size:0.9rem">Contribution and review records. Published entries have metadata pinned to IPFS.</p>
+
+        <div class="tab-bar">
+            <button class="active" onclick="filterTab('all', this)">All</button>
+            <button onclick="filterTab('contribution', this)">Contributions</button>
+            <button onclick="filterTab('review', this)">Reviews</button>
+        </div>
+
+        <div id="msg" class="msg" style="display:none"></div>
+        <div id="gallery" class="nft-grid"></div>
+        <div id="empty" class="empty-state" style="display:none">
+            <h2>No records yet</h2>
+            <p>Use the CLI to submit contributions and reviews.</p>
+        </div>
+    </div>
+    <script src="/shared.js"></script>
+    <script>
+        let allCards = [];
+        let currentFilter = 'all';
+
+        function getAttr(nft, traitType) {
+            if (!nft || !nft.attributes) return null;
+            const attr = nft.attributes.find(a => a.trait_type === traitType);
+            return attr ? attr.value : null;
+        }
+
+        function renderCards(cards) {
+            const gallery = document.getElementById('gallery');
+            const empty = document.getElementById('empty');
+            const filtered = currentFilter === 'all' ? cards : cards.filter(c => c.type === currentFilter);
+
+            if (filtered.length === 0) {
+                gallery.innerHTML = '';
+                empty.style.display = 'block';
+                return;
+            }
+            empty.style.display = 'none';
+
+            gallery.innerHTML = filtered.map(c => {
+                const typeBadge = c.type === 'contribution'
+                    ? '<span class="badge badge-type badge-contribution">Contribution</span>'
+                    : '<span class="badge badge-type badge-review">Review</span>';
+                const statusBadge = c.published
+                    ? '<span class="badge badge-type badge-published">Published</span>'
+                    : '<span class="badge badge-type badge-draft">Draft</span>';
+
+                let stats = '';
+                if (c.type === 'contribution') {
+                    const proved = getAttr(c.nft, 'Problems Proved');
+                    const attempted = getAttr(c.nft, 'Problems Attempted');
+                    const cost = getAttr(c.nft, 'Cost Donated (USD)');
+                    const assistant = getAttr(c.nft, 'Proof Assistant');
+                    if (proved !== null) stats += `<span><strong>${proved}</strong>/${attempted || '?'} proved</span>`;
+                    if (cost) stats += `<span>$${cost} donated</span>`;
+                    if (assistant) stats += `<span>${escapeHtml(assistant)}</span>`;
+                } else {
+                    const pkgs = getAttr(c.nft, 'Packages Reviewed');
+                    const problems = getAttr(c.nft, 'Problems Compared');
+                    const rec = getAttr(c.nft, 'Recommendation');
+                    if (pkgs !== null) stats += `<span><strong>${pkgs}</strong> packages</span>`;
+                    if (problems !== null) stats += `<span><strong>${problems}</strong> problems</span>`;
+                    if (rec) stats += `<span>${escapeHtml(rec)}</span>`;
+                }
+
+                const ipfsLink = c.published && c.ipfs_cid
+                    ? `<a href="https://gateway.pinata.cloud/ipfs/${encodeURIComponent(c.ipfs_cid)}" target="_blank">View on IPFS</a>`
+                    : '';
+
+                return `
+                    <div class="nft-card">
+                        <div class="nft-card-header">
+                            <h3 title="${escapeHtml(c.name)}">${escapeHtml(c.name)}</h3>
+                            ${typeBadge}
+                        </div>
+                        <div class="nft-card-stats">${stats}</div>
+                        <div class="nft-card-footer">
+                            ${statusBadge}
+                            <span>${escapeHtml(c.username)}</span>
+                            ${ipfsLink}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function filterTab(type, btn) {
+            currentFilter = type;
+            document.querySelectorAll('.tab-bar button').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderCards(allCards);
+        }
+
+        async function load() {
+            try {
+                const [contributions, reviews] = await Promise.all([
+                    api('GET', '/contributions').catch(() => []),
+                    api('GET', '/reviews-list').catch(() => [])
+                ]);
+
+                allCards = [];
+
+                (contributions || []).forEach(c => {
+                    const nft = c.nft_metadata;
+                    const archiveCid = getAttr(nft, 'Archive IPFS CID');
+                    allCards.push({
+                        type: 'contribution',
+                        name: (nft && nft.name) || `Contribution ${c.contribution_id || ''}`,
+                        username: c.username || getAttr(nft, 'Username') || 'Unknown',
+                        nft: nft,
+                        published: !!archiveCid,
+                        ipfs_cid: archiveCid
+                    });
+                });
+
+                (reviews || []).forEach(r => {
+                    const nft = r.nft_metadata;
+                    const archiveCid = getAttr(nft, 'Archive IPFS CID');
+                    allCards.push({
+                        type: 'review',
+                        name: (nft && nft.name) || `Review ${r.review_id || ''}`,
+                        username: r.reviewer_username || getAttr(nft, 'Reviewer') || 'Unknown',
+                        nft: nft,
+                        published: !!archiveCid,
+                        ipfs_cid: archiveCid
+                    });
+                });
+
+                renderCards(allCards);
+            } catch (e) {
+                showMsg('msg', 'Failed to load gallery: ' + (e.error || e.message || 'unknown error'), true);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', load);
+    </script>
+</body>
+</html>

@@ -4,52 +4,60 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>proof-at-home</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/shared.css">
 </head>
 <body>
     <nav id="navbar"></nav>
     <div class="container">
-        <h1>proof-at-home</h1>
-        <p class="text-muted">Distributed formal proof verification platform. Browse problems, submit proofs, and review proof packages.</p>
-
-        <h2>Browse</h2>
-        <div class="card-grid">
-            <a class="card" href="/problems.html">
-                <h3>Problems</h3>
-                <p>Browse available proof problems by difficulty and proof assistant.</p>
-            </a>
-            <a class="card" href="/reviews.html">
-                <h3>Reviews</h3>
-                <p>View submitted proof packages and review status.</p>
-            </a>
+        <div class="hero">
+            <h1>proof-at-home</h1>
+            <p>Distributed formal proof verification. Browse problems, prove lemmas with AI, and review proof packages from the community.</p>
         </div>
 
-        <h2>Submit</h2>
-        <div class="card-grid">
-            <a class="card" href="/submit-problem.html">
-                <h3>Submit Problem</h3>
-                <p>Upload a problem package (tar.gz) or provide a git URL.</p>
-            </a>
-            <a class="card" href="/submit-result.html">
-                <h3>Submit Result</h3>
-                <p>Submit a single proof result for a problem.</p>
-            </a>
-            <a class="card" href="/submit-batch.html">
-                <h3>Submit Batch</h3>
-                <p>Submit a session summary with multiple proof results.</p>
-            </a>
-            <a class="card" href="/submit-review.html">
-                <h3>Submit Review</h3>
-                <p>Submit a review with package rankings.</p>
-            </a>
+        <div class="workflow">
+            <div class="workflow-step">
+                <div class="workflow-number">1</div>
+                <div class="workflow-content">
+                    <h3>Browse Problems</h3>
+                    <p>Find open proof problems to work on, filtered by difficulty and proof assistant.</p>
+                    <div class="workflow-actions">
+                        <a href="/problems.html" class="btn">Browse Problems</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="workflow-step">
+                <div class="workflow-number">2</div>
+                <div class="workflow-content">
+                    <h3>Prove &amp; Submit</h3>
+                    <p>Run the CLI to prove lemmas with AI and submit your results. Install with <code>cargo install pah</code>.</p>
+                    <div class="workflow-actions">
+                        <a href="/problems.html" class="btn">Browse Problems</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="workflow-step">
+                <div class="workflow-number">3</div>
+                <div class="workflow-content">
+                    <h3>Review</h3>
+                    <p>Review proof packages from other provers and rank their submissions.</p>
+                    <div class="workflow-actions">
+                        <a href="/reviews.html" class="btn">Browse Packages</a>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <h2>Settings</h2>
-        <div class="card-grid">
-            <a class="card" href="/settings.html">
-                <h3>JWT Token</h3>
-                <p>Configure your authentication token for protected endpoints.</p>
-            </a>
+        <div class="workflow-separator">
+            <h3>For problem authors</h3>
+            <p>Upload problem packages for provers to work on.</p>
+            <div class="workflow-actions">
+                <a href="/submit-problem.html" class="btn btn-secondary">Submit Problem Package</a>
+            </div>
         </div>
     </div>
     <script src="/shared.js"></script>
