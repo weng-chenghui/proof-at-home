@@ -9,16 +9,11 @@ import (
 )
 
 type ResultHandler struct {
-	Store *store.MemoryStore
+	Store store.Store
 }
 
-func (h *ResultHandler) HandleResult(w http.ResponseWriter, r *http.Request) {
+func (h *ResultHandler) Submit(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-
-	if r.Method != http.MethodPost {
-		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
-		return
-	}
 
 	var result data.ProofResult
 	if err := json.NewDecoder(r.Body).Decode(&result); err != nil {
@@ -31,13 +26,8 @@ func (h *ResultHandler) HandleResult(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"status": "accepted"})
 }
 
-func (h *ResultHandler) HandleBatch(w http.ResponseWriter, r *http.Request) {
+func (h *ResultHandler) SubmitBatch(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-
-	if r.Method != http.MethodPost {
-		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
-		return
-	}
 
 	var summary data.SessionSummary
 	if err := json.NewDecoder(r.Body).Decode(&summary); err != nil {

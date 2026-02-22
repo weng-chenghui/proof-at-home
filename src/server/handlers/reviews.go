@@ -2,71 +2,58 @@ package handlers
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
-	"strings"
+	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/proof-at-home/server/src/server/data"
+	"github.com/proof-at-home/server/src/server/storage"
 	"github.com/proof-at-home/server/src/server/store"
 )
 
 type ReviewHandler struct {
-	Store *store.MemoryStore
+	Store   store.Store
+	Storage storage.ObjectStorage // nil means serve from filesystem
 }
 
-func (h *ReviewHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *ReviewHandler) List(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-
-	path := strings.TrimPrefix(r.URL.Path, "/review-packages")
-	path = strings.TrimPrefix(path, "/")
-
-	if path == "" {
-		h.listReviewPackages(w, r)
-		return
-	}
-
-	// Check for /review-packages/{session_id}/archive
-	parts := strings.SplitN(path, "/", 2)
-	if len(parts) == 2 && parts[1] == "archive" {
-		h.downloadArchive(w, r, parts[0])
-		return
-	}
-
-	http.Error(w, `{"error":"not found"}`, http.StatusNotFound)
-}
-
-func (h *ReviewHandler) listReviewPackages(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
-		return
-	}
 	packages := h.Store.ListReviewPackages()
 	json.NewEncoder(w).Encode(packages)
 }
 
-func (h *ReviewHandler) downloadArchive(w http.ResponseWriter, r *http.Request, sessionID string) {
-	if r.Method != http.MethodGet {
-		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
-		return
-	}
+func (h *ReviewHandler) DownloadArchive(w http.ResponseWriter, r *http.Request) {
+	sessionID := chi.URLParam(r, "sessionID")
 
 	archivePath, ok := h.Store.GetArchivePath(sessionID)
 	if !ok || archivePath == "" {
+		w.Header().Set("Content-Type", "application/json")
 		http.Error(w, `{"error":"archive not found"}`, http.StatusNotFound)
 		return
 	}
 
+	// If S3 storage is configured, generate a presigned URL and redirect
+	if h.Storage != nil {
+		presignedURL, err := h.Storage.PresignedURL(r.Context(), archivePath, 15*time.Minute)
+		if err != nil {
+			slog.Error("Failed to generate presigned URL", "error", err, "key", archivePath)
+			w.Header().Set("Content-Type", "application/json")
+			http.Error(w, `{"error":"failed to generate download URL"}`, http.StatusInternalServerError)
+			return
+		}
+		http.Redirect(w, r, presignedURL, http.StatusTemporaryRedirect)
+		return
+	}
+
+	// Fallback: serve directly from filesystem
 	w.Header().Set("Content-Type", "application/gzip")
 	w.Header().Set("Content-Disposition", "attachment; filename=proofs.tar.gz")
 	http.ServeFile(w, r, archivePath)
 }
 
-func (h *ReviewHandler) HandleSubmitReview(w http.ResponseWriter, r *http.Request) {
+func (h *ReviewHandler) SubmitReview(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-
-	if r.Method != http.MethodPost {
-		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
-		return
-	}
 
 	var review data.ReviewSummary
 	if err := json.NewDecoder(r.Body).Decode(&review); err != nil {

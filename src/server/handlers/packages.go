@@ -17,7 +17,7 @@ import (
 )
 
 type PackageHandler struct {
-	Store *store.MemoryStore
+	Store store.Store
 }
 
 type packageSubmitResponse struct {
@@ -26,13 +26,8 @@ type packageSubmitResponse struct {
 	Count           int      `json:"count"`
 }
 
-func (h *PackageHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *PackageHandler) Submit(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-
-	if r.Method != http.MethodPost {
-		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
-		return
-	}
 
 	ct := r.Header.Get("Content-Type")
 
