@@ -88,22 +88,75 @@ Returns HTTP 503 if any check fails.
 
 ---
 
-## Option B: PocketBase
+## Option B: PocketBase (Recommended)
 
-### Quick Start
+PocketBase is an open-source backend that packs a database (SQLite), authentication, file storage, and an admin dashboard into a single executable. No external services needed — one binary does everything.
+
+### 1. Build
 
 ```bash
 go build -o pah-pocketbase ./cmd/pocketbase
-./pah-pocketbase serve
 ```
 
-On first run, PocketBase creates `pb_data/` (SQLite database + local file storage) and runs migrations to create the `problems`, `proof_results`, `sessions`, and `reviews` collections.
+This compiles PocketBase with the proof-at-home API routes, web UI, database migrations, and business logic hooks into a single binary.
 
-Open `http://localhost:8090/` to access the web UI. Visit `http://localhost:8090/_/` to set up the admin account.
+### 2. Launch
 
-### With GCP Cloud Storage
+```bash
+PROBLEMS_DIR=./problems ./pah-pocketbase serve
+```
 
-GCP Cloud Storage provides an S3-compatible XML API. Configure via the admin UI at Settings > Files storage, or via environment variables:
+On first run, PocketBase automatically:
+- Creates `pb_data/` with a SQLite database and local file storage
+- Runs migrations to create the `problems`, `proof_results`, `sessions`, and `reviews` collections
+- Seeds problems from the `PROBLEMS_DIR` directory
+
+That's it. The server is running.
+
+### 3. Set Up the Admin Dashboard
+
+Open `http://127.0.0.1:8090/_/` in your browser. On the first visit, you'll be prompted to create a Superuser email and password. The admin dashboard lets you:
+
+- Browse and edit all collections (problems, results, sessions, reviews)
+- Manage users and authentication settings
+- Configure file storage (local or S3-compatible)
+- View logs and create backups
+
+### 4. Use the Web UI
+
+Open `http://127.0.0.1:8090/` to access the proof-at-home web interface for browsing problems, submitting proofs, and reviewing packages. See the [Web UI](#web-ui) section below for details on each page.
+
+### 5. What You Get
+
+Everything runs from the single binary — no Postgres, no Redis, no separate file server:
+
+| Feature | Details |
+|---|---|
+| Database | SQLite, zero configuration |
+| Web UI | Embedded at `/` (problem browser, submission forms, review dashboard) |
+| Admin UI | Built-in at `/_/` (data browser, user management, logs, backups) |
+| API | 9 backward-compatible endpoints (same as custom server) |
+| Auth | Built-in password, OAuth2, OTP |
+| File storage | Local by default, S3-compatible optional |
+| CRUD API | Auto-generated at `/api/collections/{name}/records` with filtering, sorting, pagination |
+| Realtime | SSE subscriptions for live updates |
+
+### Custom Port
+
+```bash
+./pah-pocketbase serve --http=0.0.0.0:8080
+```
+
+### Business Logic Hooks
+
+Two hooks run automatically (defined in `cmd/pocketbase/hooks/hooks.go`):
+
+1. **Auto-prove**: When a `proof_results` record is created with `success=true`, the corresponding problem's status is set to `"proved"`.
+2. **Review tracking**: When a `reviews` record is created, the `reviewed_by` field on affected sessions is updated with the reviewer's username.
+
+### Advanced: GCP Cloud Storage
+
+By default, file uploads (proof archives) are stored locally in `pb_data/storage/`. To use GCP Cloud Storage instead, configure via the admin UI at Settings > Files storage, or via environment variables:
 
 ```bash
 PB_S3_BUCKET=proof-archives \
@@ -114,37 +167,19 @@ PB_S3_SECRET=... \
 ./pah-pocketbase serve
 ```
 
-To generate HMAC keys for GCP, go to Cloud Console > Cloud Storage > Settings > Interoperability > Create a key for a service account.
+To generate HMAC keys, go to Cloud Console > Cloud Storage > Settings > Interoperability > Create a key for a service account.
 
-### Custom Port
+### Advanced: Remote Deployment
 
-```bash
-./pah-pocketbase serve --http=0.0.0.0:8080
-```
-
-### Seeding Problems
-
-Set `PROBLEMS_DIR` to load problem JSON files on startup:
+**GCP Cloud Run:**
 
 ```bash
-PROBLEMS_DIR=./problems ./pah-pocketbase serve
-```
-
-### Deploy to GCP Cloud Run
-
-Cloud Run runs the PocketBase container as a serverless service. SQLite data is stored on a persistent volume.
-
-**1. Build and push the container image:**
-
-```bash
+# Build and push container
 gcloud auth configure-docker
 docker build -f Dockerfile.pocketbase -t gcr.io/PROJECT_ID/pah-pocketbase .
 docker push gcr.io/PROJECT_ID/pah-pocketbase
-```
 
-**2. Deploy with a persistent volume for SQLite data:**
-
-```bash
+# Deploy (single instance for SQLite consistency)
 gcloud run deploy pah-pocketbase \
   --image gcr.io/PROJECT_ID/pah-pocketbase \
   --region us-central1 \
@@ -154,45 +189,28 @@ gcloud run deploy pah-pocketbase \
   --min-instances 1 \
   --max-instances 1 \
   --set-env-vars "PROBLEMS_DIR=/problems" \
-  --set-env-vars "PB_S3_BUCKET=proof-archives" \
-  --set-env-vars "PB_S3_REGION=auto" \
-  --set-env-vars "PB_S3_ENDPOINT=https://storage.googleapis.com" \
-  --set-env-vars "PB_S3_ACCESS_KEY=GOOG1E..." \
-  --set-env-vars "PB_S3_SECRET=..." \
   --execution-environment gen2 \
   --add-volume name=pb-data,type=cloud-storage,bucket=pah-pb-data \
   --add-volume-mount volume=pb-data,mount-path=/pb_data
 ```
 
 Notes:
-- `--min-instances 1` keeps the instance warm (PocketBase uses SQLite, which needs a persistent process)
+- `--min-instances 1` keeps the instance warm (SQLite needs a persistent process)
 - `--max-instances 1` prevents concurrent writes to SQLite
 - The volume mount stores `pb_data/` in a GCS bucket so data survives redeployments
-- File uploads (proof archives) go to the separate GCS bucket configured via `PB_S3_*` env vars
+- After deployment, visit `https://pah-pocketbase-xxxxx.run.app/_/` to create the admin account
 
-**3. Set up the admin account:**
-
-After deployment, visit `https://pah-pocketbase-xxxxx.run.app/_/` to create the first admin account.
-
-### Deploy to a VPS (Fly.io, Railway, or bare VM)
-
-**Fly.io:**
+**Bare VM (any Linux server):**
 
 ```bash
-# fly.toml
-fly launch --image gcr.io/PROJECT_ID/pah-pocketbase
-fly volumes create pb_data --size 1
-fly deploy
-```
-
-**Bare VM (systemd):**
-
-```bash
-# Build locally
+# Build and copy to server
 CGO_ENABLED=0 GOOS=linux go build -o pah-pocketbase ./cmd/pocketbase
 scp pah-pocketbase problems/ user@server:~/pah/
+```
 
-# On the server, create /etc/systemd/system/pah-pocketbase.service
+Create `/etc/systemd/system/pah-pocketbase.service`:
+
+```ini
 [Unit]
 Description=proof-at-home PocketBase
 After=network.target
@@ -211,31 +229,13 @@ WantedBy=multi-user.target
 sudo systemctl enable --now pah-pocketbase
 ```
 
-Put nginx or Caddy in front for HTTPS. Caddy example:
+For HTTPS, put Caddy in front:
 
 ```
 pah.example.com {
     reverse_proxy localhost:8090
 }
 ```
-
-### What PocketBase Provides
-
-In addition to the 9 backward-compatible API endpoints and the embedded web UI, PocketBase auto-generates:
-
-- Full CRUD at `/api/collections/{name}/records` with filtering, sorting, pagination
-- Auth endpoints at `/api/collections/users/auth-with-password`, OAuth2, OTP
-- File upload/download per record
-- Realtime subscriptions (SSE) for live updates
-- Backup and restore via admin UI
-- Logs viewer in admin UI
-
-### Business Logic
-
-Two hooks run automatically (defined in `cmd/pocketbase/hooks/hooks.go`):
-
-1. **Auto-prove**: When a `proof_results` record is created with `success=true`, the corresponding problem's status is set to `"proved"`.
-2. **Review tracking**: When a `reviews` record is created, the `reviewed_by` field on affected sessions is updated with the reviewer's username.
 
 ---
 
