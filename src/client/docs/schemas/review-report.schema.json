@@ -1,0 +1,98 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ReviewReport",
+  "description": "Parsed review report from TOML",
+  "type": "object",
+  "required": [
+    "package_reviews",
+    "reviewer",
+    "summary"
+  ],
+  "properties": {
+    "package_reviews": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/PackageReview"
+      }
+    },
+    "reviewer": {
+      "$ref": "#/definitions/ReviewerInfo"
+    },
+    "summary": {
+      "$ref": "#/definitions/ReportSummary"
+    }
+  },
+  "definitions": {
+    "PackageReview": {
+      "type": "object",
+      "required": [
+        "prover_session_id",
+        "prover_username",
+        "rank",
+        "strengths",
+        "weaknesses"
+      ],
+      "properties": {
+        "notes": {
+          "default": "",
+          "type": "string"
+        },
+        "prover_session_id": {
+          "type": "string"
+        },
+        "prover_username": {
+          "type": "string"
+        },
+        "rank": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "strengths": {
+          "type": "string"
+        },
+        "weaknesses": {
+          "type": "string"
+        }
+      }
+    },
+    "ReportSummary": {
+      "type": "object",
+      "required": [
+        "confidence",
+        "overall_assessment",
+        "recommendation"
+      ],
+      "properties": {
+        "confidence": {
+          "type": "string"
+        },
+        "overall_assessment": {
+          "type": "string"
+        },
+        "recommendation": {
+          "type": "string"
+        }
+      }
+    },
+    "ReviewerInfo": {
+      "type": "object",
+      "required": [
+        "date",
+        "review_id",
+        "username"
+      ],
+      "properties": {
+        "date": {
+          "type": "string"
+        },
+        "review_id": {
+          "type": "string"
+        },
+        "username": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

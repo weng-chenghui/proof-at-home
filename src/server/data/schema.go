@@ -44,6 +44,8 @@ type SessionSummary struct {
 	ProofAssistant    string      `json:"proof_assistant,omitempty"`
 	ProblemIDs        []string    `json:"problem_ids,omitempty"`
 	ArchivePath       string      `json:"archive_path,omitempty"`
+	ProofStatus       string      `json:"proof_status,omitempty"`
+	ReviewedBy        []string    `json:"reviewed_by,omitempty"`
 }
 
 // ── Review types ──
@@ -55,6 +57,8 @@ type ReviewPackageInfo struct {
 	ProblemIDs      []string `json:"problem_ids"`
 	ArchiveURL      string   `json:"archive_url"`
 	ArchiveSHA256   string   `json:"archive_sha256"`
+	ProofStatus     string   `json:"proof_status,omitempty"`
+	ReviewedBy      []string `json:"reviewed_by,omitempty"`
 }
 
 type ReviewSummary struct {

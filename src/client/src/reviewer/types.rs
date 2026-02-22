@@ -1,6 +1,7 @@
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ReviewSession {
     pub review_id: String,
     pub reviewer_username: String,
@@ -9,7 +10,7 @@ pub struct ReviewSession {
     pub status: ReviewStatus,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema)]
 pub enum ReviewStatus {
     Open,
     Compared,
@@ -26,7 +27,7 @@ impl std::fmt::Display for ReviewStatus {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ProofPackage {
     pub prover_session_id: String,
     pub prover_username: String,
@@ -37,7 +38,7 @@ pub struct ProofPackage {
 }
 
 /// Per-problem comparison of proofs from different provers
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ProblemComparison {
     pub problem_id: String,
     pub problem_title: String,
@@ -45,7 +46,7 @@ pub struct ProblemComparison {
     pub analysis: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ProofRanking {
     pub prover_session_id: String,
     pub prover_username: String,
@@ -53,7 +54,7 @@ pub struct ProofRanking {
     pub reasoning: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema)]
 pub struct ProofScores {
     pub succinctness: u8,
     pub library_reuse: u8,
@@ -84,7 +85,7 @@ impl ProofScores {
 }
 
 /// Package-level rollup
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct PackageRanking {
     pub prover_session_id: String,
     pub prover_username: String,
@@ -95,7 +96,7 @@ pub struct PackageRanking {
 }
 
 /// Full comparison result
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ComparisonResult {
     pub timestamp: String,
     pub model: String,
@@ -105,28 +106,28 @@ pub struct ComparisonResult {
 }
 
 /// Parsed review report from TOML
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ReviewReport {
     pub reviewer: ReviewerInfo,
     pub summary: ReportSummary,
     pub package_reviews: Vec<PackageReview>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ReviewerInfo {
     pub username: String,
     pub date: String,
     pub review_id: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ReportSummary {
     pub overall_assessment: String,
     pub recommendation: String,
     pub confidence: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct PackageReview {
     pub prover_session_id: String,
     pub prover_username: String,

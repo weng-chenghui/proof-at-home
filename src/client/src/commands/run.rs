@@ -12,6 +12,7 @@ use crate::nft::metadata::{generate_nft_metadata, SessionInfo};
 use crate::prover::claude;
 use crate::prover::env_manager::{EnvManager, ResolvedEnv};
 use crate::server_client::api::{Dependencies, Problem, ProofResult, ServerClient, SessionSummary};
+use crate::signing;
 
 /// Compute a dep-group key for grouping problems by identical dependencies.
 fn dep_group_key(problem: &Problem) -> String {
@@ -139,6 +140,7 @@ pub async fn run_session() -> Result<()> {
     let mut problems_proved = 0u32;
     let mut problems_attempted = 0u32;
     let mut proof_assistants_used: Vec<String> = Vec::new();
+    let mut proof_assistant_versions: Vec<String> = Vec::new();
 
     for problem in &problems {
         if tracker.is_exhausted() {
@@ -200,6 +202,15 @@ pub async fn run_session() -> Result<()> {
             proof_assistants_used.push(problem.proof_assistant.clone());
         }
 
+        let version = match &problem.dependencies {
+            Some(Dependencies::Rocq(deps)) => deps.rocq_version.clone(),
+            Some(Dependencies::Lean(deps)) => deps.lean_toolchain.clone(),
+            None => String::new(),
+        };
+        if !version.is_empty() && !proof_assistant_versions.contains(&version) {
+            proof_assistant_versions.push(version);
+        }
+
         // Submit individual result
         let _ = server
             .submit_result(&ProofResult {
@@ -221,16 +232,54 @@ pub async fn run_session() -> Result<()> {
     let (archive_path, sha256) = pack::create_archive(&scratch_dir, &session_dir)?;
     println!("{}", "OK".green());
 
+    // Sign archive hash
+    let (public_key, archive_signature) = match Config::signing_key_path()
+        .ok()
+        .filter(|p| p.exists())
+        .and_then(|p| std::fs::read_to_string(&p).ok())
+    {
+        Some(key_hex) => match signing::load_signing_key(&key_hex) {
+            Ok(key) => {
+                let sig = signing::sign_hash(&key, &sha256).unwrap_or_default();
+                (config.identity.public_key.clone(), sig)
+            }
+            Err(e) => {
+                eprintln!("{}: Could not load signing key: {}", "Warning".yellow(), e);
+                (String::new(), String::new())
+            }
+        },
+        None => {
+            eprintln!(
+                "{}: No signing key found. Run `proof-at-home init` to generate one.",
+                "Warning".yellow()
+            );
+            (String::new(), String::new())
+        }
+    };
+
     // Generate NFT metadata
     let pa_label = proof_assistants_used.join("/");
     let total_cost = tracker.session_spent();
+    let proof_status = if problems_attempted == 0 || problems_proved == 0 {
+        "unproved"
+    } else if problems_proved == problems_attempted {
+        "proved"
+    } else {
+        "incomplete"
+    }
+    .to_string();
+
     let nft_meta = generate_nft_metadata(&SessionInfo {
         username: config.identity.username.clone(),
         problems_proved,
         problems_attempted,
         cost_donated_usd: total_cost,
         proof_assistant: pa_label,
+        proof_assistant_version: proof_assistant_versions.join("/"),
         archive_sha256: sha256.clone(),
+        proof_status: proof_status.clone(),
+        public_key,
+        archive_signature,
     });
 
     let nft_path = session_dir.join("nft_metadata.json");
@@ -246,6 +295,7 @@ pub async fn run_session() -> Result<()> {
             total_cost_usd: total_cost,
             archive_sha256: sha256.clone(),
             nft_metadata: nft_meta,
+            proof_status,
         })
         .await;
 

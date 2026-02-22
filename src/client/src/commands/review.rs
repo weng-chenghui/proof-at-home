@@ -11,6 +11,7 @@ use crate::reviewer::comparison;
 use crate::reviewer::templates;
 use crate::reviewer::types::*;
 use crate::server_client::api::ServerClient;
+use crate::signing;
 
 /// Resolve the reviews base directory: ~/.proof-at-home/reviews/
 fn reviews_dir() -> Result<PathBuf> {
@@ -558,7 +559,38 @@ async fn cmd_seal() -> Result<()> {
     // 5. Compute SHA-256
     let archive_sha = compute_sha256(&archive_path)?;
 
+    // 5b. Sign archive hash
+    let (reviewer_public_key, archive_signature) = match Config::signing_key_path()
+        .ok()
+        .filter(|p| p.exists())
+        .and_then(|p| std::fs::read_to_string(&p).ok())
+    {
+        Some(key_hex) => match signing::load_signing_key(&key_hex) {
+            Ok(key) => {
+                let sig = signing::sign_hash(&key, &archive_sha).unwrap_or_default();
+                (config.identity.public_key.clone(), sig)
+            }
+            Err(e) => {
+                eprintln!("{}: Could not load signing key: {}", "Warning".yellow(), e);
+                (String::new(), String::new())
+            }
+        },
+        None => {
+            eprintln!(
+                "{}: No signing key found. Run `proof-at-home init` to generate one.",
+                "Warning".yellow()
+            );
+            (String::new(), String::new())
+        }
+    };
+
     // 6. Generate NFT metadata
+    let reviewed_session_ids: Vec<String> = session
+        .packages
+        .iter()
+        .map(|p| p.prover_session_id.clone())
+        .collect();
+
     let nft_info = ReviewInfo {
         reviewer_username: report.reviewer.username.clone(),
         review_id: session.review_id.clone(),
@@ -568,6 +600,9 @@ async fn cmd_seal() -> Result<()> {
         recommendation: report.summary.recommendation.clone(),
         archive_sha256: archive_sha.clone(),
         ai_comparison_cost_usd: ai_cost,
+        reviewed_session_ids,
+        reviewer_public_key,
+        archive_signature,
     };
 
     let nft_metadata = generate_review_nft_metadata(&nft_info);

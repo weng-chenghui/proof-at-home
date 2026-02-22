@@ -1,0 +1,106 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Problem",
+  "type": "object",
+  "required": [
+    "difficulty",
+    "id",
+    "proof_assistant",
+    "title"
+  ],
+  "properties": {
+    "dependencies": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/Dependencies"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "difficulty": {
+      "type": "string"
+    },
+    "hints": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "id": {
+      "type": "string"
+    },
+    "lemma_statement": {
+      "default": "",
+      "type": "string"
+    },
+    "preamble": {
+      "default": "",
+      "type": "string"
+    },
+    "proof_assistant": {
+      "type": "string"
+    },
+    "skeleton": {
+      "default": "",
+      "type": "string"
+    },
+    "status": {
+      "default": "",
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    }
+  },
+  "definitions": {
+    "Dependencies": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/RocqDeps"
+        },
+        {
+          "$ref": "#/definitions/LeanDeps"
+        }
+      ]
+    },
+    "LeanDeps": {
+      "type": "object",
+      "required": [
+        "lean_toolchain"
+      ],
+      "properties": {
+        "lake_packages": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "lean_toolchain": {
+          "type": "string"
+        }
+      }
+    },
+    "RocqDeps": {
+      "type": "object",
+      "required": [
+        "rocq_version"
+      ],
+      "properties": {
+        "opam_packages": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "rocq_version": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

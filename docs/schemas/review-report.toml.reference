@@ -1,0 +1,35 @@
+# Proof@Home Review Report — TOML Reference
+#
+# This file documents the structure of review_report.toml files
+# created by `proof-at-home review report`.
+
+[reviewer]
+# The reviewer's username (must match config identity)
+username = "alice"
+# Date the review was conducted (ISO 8601)
+date = "2026-02-22"
+# Review session ID (UUID, auto-populated from review session)
+review_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+[summary]
+# Free-text assessment of the overall quality of submitted proofs
+overall_assessment = "Both packages demonstrated competent formal verification..."
+# One of: "accept", "revise", "reject"
+recommendation = "accept"
+# One of: "high", "medium", "low"
+confidence = "high"
+
+# One [[package_reviews]] section per proof package in the review session
+[[package_reviews]]
+# Session ID of the prover's submission
+prover_session_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+# Prover's username
+prover_username = "bob"
+# Rank among all packages (1 = best)
+rank = 1
+# Free-text description of strengths
+strengths = "Clean proof structure, good library reuse..."
+# Free-text description of weaknesses
+weaknesses = "Minor: could be more modular..."
+# Optional additional notes
+notes = ""

@@ -2,10 +2,12 @@ mod archive;
 mod budget;
 mod commands;
 mod config;
+mod ipfs;
 mod nft;
 mod prover;
 mod reviewer;
 mod server_client;
+mod signing;
 
 use clap::{Parser, Subcommand};
 
@@ -40,6 +42,13 @@ enum Commands {
         /// Path to directory, .tar.gz file, or git URL
         source: String,
     },
+    /// Publish NFT metadata and archive to IPFS for on-chain minting
+    Publish {
+        /// Type: "session" or "review"
+        kind: String,
+        /// Session or review ID
+        id: String,
+    },
 }
 
 #[tokio::main]
@@ -55,6 +64,7 @@ async fn main() {
         Commands::SubmitPackage { source } => {
             commands::submit_package::run_submit_package(&source).await
         }
+        Commands::Publish { kind, id } => commands::publish::run_publish(&kind, &id).await,
     };
 
     if let Err(e) = result {

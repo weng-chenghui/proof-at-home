@@ -163,6 +163,8 @@ func (s *MemoryStore) ListReviewPackages() []data.ReviewPackageInfo {
 			ProblemIDs:      problemIDs,
 			ArchiveURL:      fmt.Sprintf("/review-packages/%s/archive", ss.SessionID),
 			ArchiveSHA256:   ss.ArchiveSHA256,
+			ProofStatus:     ss.ProofStatus,
+			ReviewedBy:      ss.ReviewedBy,
 		})
 	}
 	return packages
@@ -181,11 +183,31 @@ func (s *MemoryStore) GetArchivePath(sessionID string) (string, bool) {
 	return "", false
 }
 
-// AddReview stores a submitted review.
+// AddReview stores a submitted review and updates reviewed_by on affected sessions.
 func (s *MemoryStore) AddReview(r data.ReviewSummary) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.reviews = append(s.reviews, r)
+
+	// Update reviewed_by for each session referenced in the review's package rankings
+	for _, pr := range r.PackageRankings {
+		for i, ss := range s.sessions {
+			if ss.SessionID == pr.ProverSessionID {
+				// Add reviewer if not already present
+				found := false
+				for _, reviewer := range ss.ReviewedBy {
+					if reviewer == r.ReviewerUsername {
+						found = true
+						break
+					}
+				}
+				if !found {
+					s.sessions[i].ReviewedBy = append(s.sessions[i].ReviewedBy, r.ReviewerUsername)
+				}
+				break
+			}
+		}
+	}
 }
 
 // LoadSeedSessions loads seed session JSON files from a directory.

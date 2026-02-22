@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ProofResult",
+  "type": "object",
+  "required": [
+    "attempts",
+    "cost_usd",
+    "error_output",
+    "problem_id",
+    "proof_script",
+    "success",
+    "username"
+  ],
+  "properties": {
+    "attempts": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0.0
+    },
+    "cost_usd": {
+      "type": "number",
+      "format": "double"
+    },
+    "error_output": {
+      "type": "string"
+    },
+    "problem_id": {
+      "type": "string"
+    },
+    "proof_script": {
+      "type": "string"
+    },
+    "success": {
+      "type": "boolean"
+    },
+    "username": {
+      "type": "string"
+    }
+  }
+}

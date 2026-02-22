@@ -5,6 +5,7 @@ use std::process::Command;
 
 use crate::config::types::*;
 use crate::config::Config;
+use crate::signing;
 
 pub fn run_init() -> Result<()> {
     println!("{}", "=== Proof@Home Setup Wizard ===".bold().cyan());
@@ -120,12 +121,16 @@ pub fn run_init() -> Result<()> {
         _ => println!("{} (will use API fallback)", "NOT FOUND".yellow()),
     }
 
+    // Generate ed25519 keypair
+    let (private_hex, public_hex) = signing::generate_keypair();
+
     let config = Config {
         identity: Identity {
             real_name,
             username,
             email,
             affiliation,
+            public_key: public_hex.clone(),
         },
         api: Api {
             anthropic_api_key: api_key,
@@ -137,12 +142,28 @@ pub fn run_init() -> Result<()> {
             envs_dir: default_envs_dir(),
         },
         budget: Budget::default(),
+        ipfs: Default::default(),
     };
 
     config.save()?;
+
+    // Write signing key with restricted permissions
+    let key_path = Config::signing_key_path()?;
+    std::fs::write(&key_path, &private_hex)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&key_path, std::fs::Permissions::from_mode(0o600))?;
+    }
+
     let path = Config::config_path()?;
     println!();
     println!("{} Config saved to {}", "✓".green().bold(), path.display());
+    println!(
+        "{} Ed25519 public key: {}",
+        "✓".green().bold(),
+        public_hex.dimmed()
+    );
     println!(
         "{}",
         "Proof environments will be auto-created when you run problems.".dimmed()

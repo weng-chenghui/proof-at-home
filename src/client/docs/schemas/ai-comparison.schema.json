@@ -1,0 +1,168 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ComparisonResult",
+  "description": "Full comparison result",
+  "type": "object",
+  "required": [
+    "cost_usd",
+    "model",
+    "package_rankings",
+    "problem_comparisons",
+    "timestamp"
+  ],
+  "properties": {
+    "cost_usd": {
+      "type": "number",
+      "format": "double"
+    },
+    "model": {
+      "type": "string"
+    },
+    "package_rankings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/PackageRanking"
+      }
+    },
+    "problem_comparisons": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/ProblemComparison"
+      }
+    },
+    "timestamp": {
+      "type": "string"
+    }
+  },
+  "definitions": {
+    "PackageRanking": {
+      "description": "Package-level rollup",
+      "type": "object",
+      "required": [
+        "avg_scores",
+        "problems_compared",
+        "prover_session_id",
+        "prover_username",
+        "rank",
+        "summary"
+      ],
+      "properties": {
+        "avg_scores": {
+          "$ref": "#/definitions/ProofScores"
+        },
+        "problems_compared": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "prover_session_id": {
+          "type": "string"
+        },
+        "prover_username": {
+          "type": "string"
+        },
+        "rank": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "summary": {
+          "type": "string"
+        }
+      }
+    },
+    "ProblemComparison": {
+      "description": "Per-problem comparison of proofs from different provers",
+      "type": "object",
+      "required": [
+        "analysis",
+        "problem_id",
+        "problem_title",
+        "rankings"
+      ],
+      "properties": {
+        "analysis": {
+          "type": "string"
+        },
+        "problem_id": {
+          "type": "string"
+        },
+        "problem_title": {
+          "type": "string"
+        },
+        "rankings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ProofRanking"
+          }
+        }
+      }
+    },
+    "ProofRanking": {
+      "type": "object",
+      "required": [
+        "prover_session_id",
+        "prover_username",
+        "reasoning",
+        "scores"
+      ],
+      "properties": {
+        "prover_session_id": {
+          "type": "string"
+        },
+        "prover_username": {
+          "type": "string"
+        },
+        "reasoning": {
+          "type": "string"
+        },
+        "scores": {
+          "$ref": "#/definitions/ProofScores"
+        }
+      }
+    },
+    "ProofScores": {
+      "type": "object",
+      "required": [
+        "generality",
+        "library_reuse",
+        "math_strategy",
+        "modularity",
+        "overall",
+        "succinctness"
+      ],
+      "properties": {
+        "generality": {
+          "type": "integer",
+          "format": "uint8",
+          "minimum": 0.0
+        },
+        "library_reuse": {
+          "type": "integer",
+          "format": "uint8",
+          "minimum": 0.0
+        },
+        "math_strategy": {
+          "type": "integer",
+          "format": "uint8",
+          "minimum": 0.0
+        },
+        "modularity": {
+          "type": "integer",
+          "format": "uint8",
+          "minimum": 0.0
+        },
+        "overall": {
+          "type": "integer",
+          "format": "uint8",
+          "minimum": 0.0
+        },
+        "succinctness": {
+          "type": "integer",
+          "format": "uint8",
+          "minimum": 0.0
+        }
+      }
+    }
+  }
+}

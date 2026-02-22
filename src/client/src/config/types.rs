@@ -9,6 +9,16 @@ pub struct Config {
     pub api: Api,
     pub proof_assistant: ProofAssistant,
     pub budget: Budget,
+    #[serde(default)]
+    pub ipfs: Ipfs,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct Ipfs {
+    #[serde(default)]
+    pub api_url: String,
+    #[serde(default)]
+    pub api_key: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -18,6 +28,8 @@ pub struct Identity {
     pub email: String,
     #[serde(default)]
     pub affiliation: String,
+    #[serde(default)]
+    pub public_key: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -84,6 +96,10 @@ impl Config {
 
     pub fn sessions_dir() -> Result<PathBuf> {
         Ok(Self::config_dir()?.join("sessions"))
+    }
+
+    pub fn signing_key_path() -> Result<PathBuf> {
+        Ok(Self::config_dir()?.join("signing_key.hex"))
     }
 
     pub fn load() -> Result<Self> {

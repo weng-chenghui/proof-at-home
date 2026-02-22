@@ -1,0 +1,76 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ReviewSession",
+  "type": "object",
+  "required": [
+    "created_at",
+    "packages",
+    "review_id",
+    "reviewer_username",
+    "status"
+  ],
+  "properties": {
+    "created_at": {
+      "type": "string"
+    },
+    "packages": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/ProofPackage"
+      }
+    },
+    "review_id": {
+      "type": "string"
+    },
+    "reviewer_username": {
+      "type": "string"
+    },
+    "status": {
+      "$ref": "#/definitions/ReviewStatus"
+    }
+  },
+  "definitions": {
+    "ProofPackage": {
+      "type": "object",
+      "required": [
+        "archive_sha256",
+        "import_source",
+        "problem_ids",
+        "proof_assistant",
+        "prover_session_id",
+        "prover_username"
+      ],
+      "properties": {
+        "archive_sha256": {
+          "type": "string"
+        },
+        "import_source": {
+          "type": "string"
+        },
+        "problem_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "proof_assistant": {
+          "type": "string"
+        },
+        "prover_session_id": {
+          "type": "string"
+        },
+        "prover_username": {
+          "type": "string"
+        }
+      }
+    },
+    "ReviewStatus": {
+      "type": "string",
+      "enum": [
+        "Open",
+        "Compared",
+        "Sealed"
+      ]
+    }
+  }
+}

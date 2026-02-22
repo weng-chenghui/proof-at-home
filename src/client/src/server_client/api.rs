@@ -1,4 +1,5 @@
 use anyhow::{Context, Result};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone)]
@@ -7,28 +8,28 @@ pub struct ServerClient {
     base_url: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct RocqDeps {
     pub rocq_version: String,
     #[serde(default)]
     pub opam_packages: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct LeanDeps {
     pub lean_toolchain: String,
     #[serde(default)]
     pub lake_packages: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(untagged)]
 pub enum Dependencies {
     Rocq(RocqDeps),
     Lean(LeanDeps),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct Problem {
     pub id: String,
     pub title: String,
@@ -47,7 +48,7 @@ pub struct Problem {
     pub dependencies: Option<Dependencies>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, JsonSchema)]
 pub struct ProofResult {
     pub problem_id: String,
     pub username: String,
@@ -58,7 +59,7 @@ pub struct ProofResult {
     pub error_output: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, JsonSchema)]
 pub struct SessionSummary {
     pub username: String,
     pub session_id: String,
@@ -67,6 +68,7 @@ pub struct SessionSummary {
     pub total_cost_usd: f64,
     pub archive_sha256: String,
     pub nft_metadata: serde_json::Value,
+    pub proof_status: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -252,7 +254,7 @@ impl ServerClient {
 
 // ── Review-related API types ──
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ReviewPackageInfo {
     pub prover_session_id: String,
     pub prover_username: String,
@@ -260,9 +262,13 @@ pub struct ReviewPackageInfo {
     pub problem_ids: Vec<String>,
     pub archive_url: String,
     pub archive_sha256: String,
+    #[serde(default)]
+    pub proof_status: String,
+    #[serde(default)]
+    pub reviewed_by: Vec<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, JsonSchema)]
 pub struct ReviewSummary {
     pub reviewer_username: String,
     pub review_id: String,
@@ -274,7 +280,7 @@ pub struct ReviewSummary {
     pub nft_metadata: serde_json::Value,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, JsonSchema)]
 pub struct PackageRankingSummary {
     pub prover_session_id: String,
     pub rank: u32,
