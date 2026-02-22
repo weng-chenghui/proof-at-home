@@ -1,0 +1,16 @@
+app = "proof-at-home"
+primary_region = "nrt"
+
+[build]
+  dockerfile = "Dockerfile.pocketbase"
+
+[env]
+  PROBLEMS_DIR = "/problems"
+
+[http_service]
+  internal_port = 8090
+  force_https = true
+
+[[mounts]]
+  source = "pb_data"
+  destination = "/app/pb_data"
