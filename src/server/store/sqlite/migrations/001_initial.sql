@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS conjectures (
     dependencies    TEXT
 );
 
-CREATE TABLE IF NOT EXISTS certificates (
+CREATE TABLE IF NOT EXISTS contribution_results (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
     conjecture_id TEXT NOT NULL,
     username     TEXT NOT NULL,
@@ -23,8 +23,8 @@ CREATE TABLE IF NOT EXISTS certificates (
     created_at   TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE INDEX IF NOT EXISTS idx_certificates_conjecture_id ON certificates(conjecture_id);
-CREATE INDEX IF NOT EXISTS idx_certificates_username ON certificates(username);
+CREATE INDEX IF NOT EXISTS idx_contribution_results_conjecture_id ON contribution_results(conjecture_id);
+CREATE INDEX IF NOT EXISTS idx_contribution_results_username ON contribution_results(username);
 
 CREATE TABLE IF NOT EXISTS contributions (
     contribution_id    TEXT PRIMARY KEY,
@@ -38,14 +38,14 @@ CREATE TABLE IF NOT EXISTS contributions (
     conjecture_ids     TEXT NOT NULL DEFAULT '[]',
     archive_path       TEXT NOT NULL DEFAULT '',
     proof_status       TEXT NOT NULL DEFAULT '',
-    reviewed_by        TEXT NOT NULL DEFAULT '[]',
+    certified_by       TEXT NOT NULL DEFAULT '[]',
     created_at         TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE TABLE IF NOT EXISTS reviews (
-    review_id          TEXT PRIMARY KEY,
-    reviewer_username  TEXT NOT NULL,
-    packages_reviewed  INTEGER NOT NULL DEFAULT 0,
+CREATE TABLE IF NOT EXISTS certificates (
+    certificate_id     TEXT PRIMARY KEY,
+    certifier_username TEXT NOT NULL,
+    packages_certified INTEGER NOT NULL DEFAULT 0,
     conjectures_compared INTEGER NOT NULL DEFAULT 0,
     package_rankings   TEXT NOT NULL DEFAULT '[]',
     recommendation     TEXT NOT NULL DEFAULT '',

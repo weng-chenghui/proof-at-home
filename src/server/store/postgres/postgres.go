@@ -143,40 +143,40 @@ func (s *PostgresStore) AddConjectures(conjectures []data.Conjecture) []string {
 	return added
 }
 
-func (s *PostgresStore) AddCertificate(r data.Certificate) {
+func (s *PostgresStore) AddContributionResult(r data.ContributionResult) {
 	tx, err := s.db.Begin()
 	if err != nil {
-		slog.Error("AddCertificate begin tx failed", "error", err)
+		slog.Error("AddContributionResult begin tx failed", "error", err)
 		return
 	}
 	defer tx.Rollback()
 
 	_, err = tx.Exec(
-		`INSERT INTO certificates (conjecture_id, username, success, proof_script, cost_usd, attempts, error_output)
+		`INSERT INTO contribution_results (conjecture_id, username, success, proof_script, cost_usd, attempts, error_output)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 		r.ConjectureID, r.Username, r.Success, r.ProofScript, r.CostUSD, r.Attempts, r.ErrorOutput,
 	)
 	if err != nil {
-		slog.Error("AddCertificate insert failed", "error", err)
+		slog.Error("AddContributionResult insert failed", "error", err)
 		return
 	}
 
 	if r.Success {
 		_, err = tx.Exec(`UPDATE conjectures SET status = 'proved' WHERE id = $1`, r.ConjectureID)
 		if err != nil {
-			slog.Error("AddCertificate update status failed", "error", err)
+			slog.Error("AddContributionResult update status failed", "error", err)
 			return
 		}
 	}
 
 	if err := tx.Commit(); err != nil {
-		slog.Error("AddCertificate commit failed", "error", err)
+		slog.Error("AddContributionResult commit failed", "error", err)
 	}
 }
 
 func (s *PostgresStore) AddContribution(cs data.ContributionSummary) {
 	conjectureIDsJSON, _ := json.Marshal(cs.ConjectureIDs)
-	reviewedByJSON, _ := json.Marshal(cs.ReviewedBy)
+	certifiedByJSON, _ := json.Marshal(cs.CertifiedBy)
 	var nftJSON []byte
 	if cs.NFTMetadata != nil {
 		nftJSON, _ = json.Marshal(cs.NFTMetadata)
@@ -184,7 +184,7 @@ func (s *PostgresStore) AddContribution(cs data.ContributionSummary) {
 
 	_, err := s.db.Exec(
 		`INSERT INTO contributions (contribution_id, username, conjectures_attempted, conjectures_proved, total_cost_usd,
-		 archive_sha256, nft_metadata, prover, conjecture_ids, archive_path, proof_status, reviewed_by)
+		 archive_sha256, nft_metadata, prover, conjecture_ids, archive_path, proof_status, certified_by)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 		 ON CONFLICT (contribution_id) DO UPDATE SET
 		   conjectures_attempted = EXCLUDED.conjectures_attempted,
@@ -196,45 +196,45 @@ func (s *PostgresStore) AddContribution(cs data.ContributionSummary) {
 		   conjecture_ids = EXCLUDED.conjecture_ids,
 		   archive_path = EXCLUDED.archive_path,
 		   proof_status = EXCLUDED.proof_status,
-		   reviewed_by = EXCLUDED.reviewed_by`,
+		   certified_by = EXCLUDED.certified_by`,
 		cs.ContributionID, cs.Username, cs.ConjecturesAttempted, cs.ConjecturesProved,
 		cs.TotalCostUSD, cs.ArchiveSHA256, nftJSON, cs.Prover,
-		conjectureIDsJSON, cs.ArchivePath, cs.ProofStatus, reviewedByJSON,
+		conjectureIDsJSON, cs.ArchivePath, cs.ProofStatus, certifiedByJSON,
 	)
 	if err != nil {
 		slog.Error("AddContribution insert failed", "error", err)
 	}
 }
 
-func (s *PostgresStore) ListReviewPackages() []data.ReviewPackageInfo {
+func (s *PostgresStore) ListCertificatePackages() []data.CertificatePackageInfo {
 	rows, err := s.db.Query(
-		`SELECT contribution_id, username, prover, conjecture_ids, archive_sha256, proof_status, reviewed_by
+		`SELECT contribution_id, username, prover, conjecture_ids, archive_sha256, proof_status, certified_by
 		 FROM contributions ORDER BY created_at`)
 	if err != nil {
-		slog.Error("ListReviewPackages query failed", "error", err)
+		slog.Error("ListCertificatePackages query failed", "error", err)
 		return nil
 	}
 	defer rows.Close()
 
-	var packages []data.ReviewPackageInfo
+	var packages []data.CertificatePackageInfo
 	for rows.Next() {
 		var contributionID, username, prover, archiveSHA256, proofStatus string
-		var conjectureIDsJSON, reviewedByJSON []byte
+		var conjectureIDsJSON, certifiedByJSON []byte
 
-		if err := rows.Scan(&contributionID, &username, &prover, &conjectureIDsJSON, &archiveSHA256, &proofStatus, &reviewedByJSON); err != nil {
-			slog.Error("ListReviewPackages scan failed", "error", err)
+		if err := rows.Scan(&contributionID, &username, &prover, &conjectureIDsJSON, &archiveSHA256, &proofStatus, &certifiedByJSON); err != nil {
+			slog.Error("ListCertificatePackages scan failed", "error", err)
 			continue
 		}
 
 		var conjectureIDs []string
-		var reviewedBy []string
+		var certifiedBy []string
 		json.Unmarshal(conjectureIDsJSON, &conjectureIDs)
-		json.Unmarshal(reviewedByJSON, &reviewedBy)
+		json.Unmarshal(certifiedByJSON, &certifiedBy)
 
 		if len(conjectureIDs) == 0 {
 			// Fallback: scan results for this user
 			resultRows, err := s.db.Query(
-				`SELECT DISTINCT conjecture_id FROM certificates WHERE username = $1 AND success = true`, username)
+				`SELECT DISTINCT conjecture_id FROM contribution_results WHERE username = $1 AND success = true`, username)
 			if err == nil {
 				for resultRows.Next() {
 					var pid string
@@ -250,15 +250,15 @@ func (s *PostgresStore) ListReviewPackages() []data.ReviewPackageInfo {
 			prover = "rocq"
 		}
 
-		packages = append(packages, data.ReviewPackageInfo{
+		packages = append(packages, data.CertificatePackageInfo{
 			ProverContributionID: contributionID,
 			ProverUsername:       username,
 			Prover:               prover,
 			ConjectureIDs:        conjectureIDs,
-			ArchiveURL:           fmt.Sprintf("/review-packages/%s/archive", contributionID),
+			ArchiveURL:           fmt.Sprintf("/certificate-packages/%s/archive", contributionID),
 			ArchiveSHA256:        archiveSHA256,
 			ProofStatus:          proofStatus,
-			ReviewedBy:           reviewedBy,
+			CertifiedBy:          certifiedBy,
 		})
 	}
 	return packages
@@ -273,10 +273,10 @@ func (s *PostgresStore) GetArchivePath(contributionID string) (string, bool) {
 	return path, true
 }
 
-func (s *PostgresStore) AddReview(r data.ReviewSummary) {
+func (s *PostgresStore) AddCertificate(r data.CertificateSummary) {
 	tx, err := s.db.Begin()
 	if err != nil {
-		slog.Error("AddReview begin tx failed", "error", err)
+		slog.Error("AddCertificate begin tx failed", "error", err)
 		return
 	}
 	defer tx.Rollback()
@@ -288,36 +288,36 @@ func (s *PostgresStore) AddReview(r data.ReviewSummary) {
 	}
 
 	_, err = tx.Exec(
-		`INSERT INTO reviews (review_id, reviewer_username, packages_reviewed, conjectures_compared, package_rankings, recommendation, archive_sha256, nft_metadata)
+		`INSERT INTO certificates (certificate_id, certifier_username, packages_certified, conjectures_compared, package_rankings, recommendation, archive_sha256, nft_metadata)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-		r.ReviewID, r.ReviewerUsername, r.PackagesReviewed, r.ConjecturesCompared,
+		r.CertificateID, r.CertifierUsername, r.PackagesCertified, r.ConjecturesCompared,
 		rankingsJSON, r.Recommendation, r.ArchiveSHA256, nftJSON,
 	)
 	if err != nil {
-		slog.Error("AddReview insert failed", "error", err)
+		slog.Error("AddCertificate insert failed", "error", err)
 		return
 	}
 
-	// Update reviewed_by for each contribution referenced in the review
+	// Update certified_by for each contribution referenced in the certificate
 	for _, pr := range r.PackageRankings {
 		_, err = tx.Exec(
-			`UPDATE contributions SET reviewed_by = (
+			`UPDATE contributions SET certified_by = (
 				SELECT jsonb_agg(DISTINCT val)
 				FROM (
-					SELECT jsonb_array_elements_text(reviewed_by) AS val
+					SELECT jsonb_array_elements_text(certified_by) AS val
 					UNION
 					SELECT $1
 				) sub
 			) WHERE contribution_id = $2`,
-			r.ReviewerUsername, pr.ProverContributionID,
+			r.CertifierUsername, pr.ProverContributionID,
 		)
 		if err != nil {
-			slog.Error("AddReview update reviewed_by failed", "error", err, "contribution_id", pr.ProverContributionID)
+			slog.Error("AddCertificate update certified_by failed", "error", err, "contribution_id", pr.ProverContributionID)
 		}
 	}
 
 	if err := tx.Commit(); err != nil {
-		slog.Error("AddReview commit failed", "error", err)
+		slog.Error("AddCertificate commit failed", "error", err)
 	}
 }
 

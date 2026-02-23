@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/shared.css">
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js" defer></script>
 </head>
 <body>
     <nav id="navbar"></nav>
@@ -15,112 +16,171 @@
         <h1>Submit Certificate</h1>
         <div id="msg" class="msg" style="display:none"></div>
 
-        <form id="form" onsubmit="return submitForm(event)">
+        <form id="form" x-data="certificateForm()" @submit.prevent="submit()">
             <div class="form-group">
-                <label for="conjecture_id">Conjecture</label>
-                <select id="conjecture_id" required>
-                    <option value="">Loading conjectures...</option>
-                </select>
-                <div class="hint">Select the conjecture you proved</div>
-                <div id="conjecture-preview" class="conjecture-preview" style="display:none"></div>
+                <label for="certifier_username">Certifier Username</label>
+                <input type="text" id="certifier_username" x-model="certifier_username" required>
             </div>
             <div class="form-group">
-                <label for="username">Username</label>
-                <input type="text" id="username" required>
+                <label for="certificate_id">Certificate ID</label>
+                <input type="text" id="certificate_id" x-model="certificate_id" required>
             </div>
-            <div class="form-group checkbox-group">
-                <input type="checkbox" id="success">
-                <label for="success">Proof successful</label>
+
+            <h2>Select Packages to Certify</h2>
+            <p class="text-muted" style="font-size:0.85rem;margin-bottom:0.75rem">Select the certificate packages you want to certify. Rankings will be auto-populated below.</p>
+            <div id="package-picker" class="package-list">
+                <p class="text-muted">Loading packages...</p>
+            </div>
+
+            <div class="form-group">
+                <label for="packages_certified">Packages Certified</label>
+                <input type="number" id="packages_certified" x-model.number="packages_certified" min="0" value="0" readonly>
+                <div class="hint">Auto-computed from selected packages</div>
             </div>
             <div class="form-group">
-                <label for="proof_script">Proof Script</label>
-                <textarea id="proof_script" rows="8"></textarea>
-                <div class="hint">The complete proof code accepted by the prover</div>
+                <label for="conjectures_compared">Conjectures Compared</label>
+                <input type="number" id="conjectures_compared" x-model.number="conjectures_compared" min="0" value="0">
             </div>
             <div class="form-group">
-                <label for="cost_usd">Cost (USD)</label>
-                <input type="number" id="cost_usd" step="0.01" min="0" value="0">
-                <div class="hint">API cost incurred during proving (e.g. from Claude API usage)</div>
+                <label for="recommendation">Recommendation</label>
+                <textarea id="recommendation" x-model="recommendation" rows="4"></textarea>
             </div>
-            <div class="form-group">
-                <label for="attempts">Attempts</label>
-                <input type="number" id="attempts" min="0" value="1">
+
+            <h2>Package Rankings</h2>
+            <template x-for="(row, idx) in rankings" :key="idx">
+                <div style="display:flex;gap:0.75rem;align-items:end;margin-bottom:0.75rem;flex-wrap:wrap;">
+                    <div class="form-group" style="flex:2;margin-bottom:0">
+                        <label>Prover Contribution ID</label>
+                        <input type="text" x-model="row.prover_contribution_id" readonly>
+                    </div>
+                    <div class="form-group" style="flex:1;margin-bottom:0">
+                        <label>Rank</label>
+                        <input type="number" x-model.number="row.rank" min="1">
+                    </div>
+                    <div class="form-group" style="flex:1;margin-bottom:0">
+                        <label>Overall Score</label>
+                        <input type="number" x-model.number="row.overall_score" step="0.1" min="0">
+                    </div>
+                    <button type="button" class="btn-danger btn-sm" @click="removeRanking(idx)" style="margin-bottom:0.05rem">Remove</button>
+                </div>
+            </template>
+            <button type="button" class="btn-secondary btn-sm mb-1" @click="rankings.push({prover_contribution_id:'',rank:rankings.length+1,overall_score:0})">+ Add Ranking Manually</button>
+
+            <div class="mt-1">
+                <button type="submit">Submit Certificate</button>
             </div>
-            <div class="form-group">
-                <label for="error_output">Error Output</label>
-                <textarea id="error_output" rows="4"></textarea>
-                <div class="hint">Compiler/checker error messages (if proof failed)</div>
-            </div>
-            <button type="submit">Submit Result</button>
         </form>
     </div>
     <script src="/shared.js"></script>
     <script>
-        let conjecturesCache = [];
+        let packagesCache = [];
 
-        async function loadConjectures() {
+        async function loadPackages() {
+            const picker = document.getElementById('package-picker');
             try {
-                const conjectures = await api('GET', '/conjectures');
-                conjecturesCache = conjectures || [];
-                const sel = document.getElementById('conjecture_id');
-                sel.innerHTML = '<option value="">— Select a conjecture —</option>';
-                conjecturesCache.forEach(p => {
-                    const opt = document.createElement('option');
-                    opt.value = p.id;
-                    const parts = [p.id];
-                    if (p.title) parts.push(p.title);
-                    if (p.difficulty) parts.push('[' + p.difficulty + ']');
-                    if (p.prover) parts.push('[' + p.prover + ']');
-                    opt.textContent = parts.join(' — ');
-                    sel.appendChild(opt);
-                });
+                const packages = await api('GET', '/certificate-packages');
+                packagesCache = packages || [];
+                if (packagesCache.length === 0) {
+                    picker.innerHTML = '<p class="text-muted">No packages available for certification.</p>';
+                    return;
+                }
+                picker.innerHTML = packagesCache.map((p, i) => `
+                    <label class="package-card" onclick="togglePackage(this, ${i})">
+                        <input type="checkbox" data-contribution-id="${escapeHtml(p.prover_contribution_id)}" onchange="onPackageSelectionChange()">
+                        <div class="package-card-info">
+                            <strong>${escapeHtml(p.prover_username || 'Unknown')}</strong>
+                            <span>Contribution: ${escapeHtml(p.prover_contribution_id)}</span>
+                            <span>${escapeHtml(p.prover || '—')}</span>
+                            <span>${(p.conjecture_ids || []).length} conjectures</span>
+                            <span>${escapeHtml(p.proof_status || 'pending')}</span>
+                        </div>
+                    </label>
+                `).join('');
             } catch {
-                const sel = document.getElementById('conjecture_id');
-                sel.innerHTML = '<option value="">Failed to load conjectures</option>';
+                picker.innerHTML = '<p class="text-muted">Failed to load packages.</p>';
             }
         }
 
-        function showConjecturePreview() {
-            const id = document.getElementById('conjecture_id').value;
-            const preview = document.getElementById('conjecture-preview');
-            if (!id) { preview.style.display = 'none'; return; }
-            const p = conjecturesCache.find(x => x.id === id);
-            if (!p) { preview.style.display = 'none'; return; }
-            let html = `<div class="conjecture-preview-title">${escapeHtml(p.title || p.id)}</div>`;
-            if (p.difficulty) html += difficultyBadge(p.difficulty) + ' ';
-            if (p.prover) html += `<span class="text-muted">${escapeHtml(p.prover)}</span>`;
-            if (p.lemma_statement) html += `<pre><code>${escapeHtml(p.lemma_statement)}</code></pre>`;
-            preview.innerHTML = html;
-            preview.style.display = 'block';
+        function togglePackage(card, idx) {
+            // The label click toggles the checkbox; update card style
+            setTimeout(() => {
+                const cb = card.querySelector('input[type="checkbox"]');
+                card.classList.toggle('selected', cb.checked);
+            }, 0);
+        }
+
+        function onPackageSelectionChange() {
+            // Sync selected packages to Alpine rankings
+            setTimeout(() => {
+                const checked = Array.from(document.querySelectorAll('#package-picker input:checked'));
+                const formEl = document.getElementById('form');
+                if (!formEl || !formEl._x_dataStack) return;
+                const data = formEl._x_dataStack[0];
+                const selectedIds = checked.map(cb => cb.dataset.contributionId);
+
+                // Update packages_certified count
+                data.packages_certified = selectedIds.length;
+
+                // Rebuild rankings from selected packages, preserving existing rank/score
+                const existingMap = {};
+                data.rankings.forEach(r => { existingMap[r.prover_contribution_id] = r; });
+                data.rankings = selectedIds.map((id, i) => {
+                    if (existingMap[id]) return existingMap[id];
+                    return { prover_contribution_id: id, rank: i + 1, overall_score: 0 };
+                });
+            }, 0);
+        }
+
+        function certificateForm() {
+            return {
+                certifier_username: '',
+                certificate_id: '',
+                packages_certified: 0,
+                conjectures_compared: 0,
+                recommendation: '',
+                rankings: [],
+                removeRanking(idx) {
+                    const removed = this.rankings.splice(idx, 1)[0];
+                    this.packages_certified = this.rankings.length;
+                    // Uncheck the corresponding package card
+                    if (removed) {
+                        const cb = document.querySelector(`#package-picker input[data-contribution-id="${removed.prover_contribution_id}"]`);
+                        if (cb) {
+                            cb.checked = false;
+                            cb.closest('.package-card').classList.remove('selected');
+                        }
+                    }
+                },
+                async submit() {
+                    hideMsg('msg');
+                    const body = {
+                        certifier_username: this.certifier_username,
+                        certificate_id: this.certificate_id,
+                        packages_certified: this.packages_certified,
+                        conjectures_compared: this.conjectures_compared,
+                        recommendation: this.recommendation,
+                        package_rankings: this.rankings.map(r => ({
+                            prover_contribution_id: r.prover_contribution_id,
+                            rank: r.rank,
+                            overall_score: r.overall_score
+                        }))
+                    };
+                    try {
+                        await api('POST', '/certificates', body);
+                        showMsg('msg', 'Certificate submitted successfully.', false);
+                    } catch (e) {
+                        showMsg('msg', 'Error: ' + (e.error || e.message || 'submission failed'), true);
+                    }
+                }
+            };
         }
 
         document.addEventListener('DOMContentLoaded', () => {
             if (loginGate('form')) return;
-            autoFillUsername('username');
-            loadConjectures();
-            document.getElementById('conjecture_id').addEventListener('change', showConjecturePreview);
+            autoFillUsername('certifier_username');
+            autoGenId('certificate_id');
+            loadPackages();
         });
-
-        async function submitForm(e) {
-            e.preventDefault();
-            hideMsg('msg');
-            const body = {
-                conjecture_id: document.getElementById('conjecture_id').value.trim(),
-                username: document.getElementById('username').value.trim(),
-                success: document.getElementById('success').checked,
-                proof_script: document.getElementById('proof_script').value,
-                cost_usd: parseFloat(document.getElementById('cost_usd').value) || 0,
-                attempts: parseInt(document.getElementById('attempts').value) || 0,
-                error_output: document.getElementById('error_output').value
-            };
-            try {
-                await api('POST', '/certificates', body);
-                showMsg('msg', 'Result submitted successfully.', false);
-            } catch (e) {
-                showMsg('msg', 'Error: ' + (e.error || e.message || 'submission failed'), true);
-            }
-            return false;
-        }
     </script>
 </body>
 </html>

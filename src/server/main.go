@@ -49,11 +49,11 @@ func main() {
 			os.Exit(1)
 		}
 
-		if cfg.SeedReviews != "" {
-			if err := pg.LoadSeedContributions(cfg.SeedReviews); err != nil {
-				slog.Warn("Failed to load seed review data", "error", err)
+		if cfg.SeedCertifications != "" {
+			if err := pg.LoadSeedContributions(cfg.SeedCertifications); err != nil {
+				slog.Warn("Failed to load seed certification data", "error", err)
 			} else {
-				slog.Info("Seed review data loaded", "dir", cfg.SeedReviews)
+				slog.Info("Seed certification data loaded", "dir", cfg.SeedCertifications)
 			}
 		}
 
@@ -78,11 +78,11 @@ func main() {
 			os.Exit(1)
 		}
 
-		if cfg.SeedReviews != "" {
-			if err := lite.LoadSeedContributions(cfg.SeedReviews); err != nil {
-				slog.Warn("Failed to load seed review data", "error", err)
+		if cfg.SeedCertifications != "" {
+			if err := lite.LoadSeedContributions(cfg.SeedCertifications); err != nil {
+				slog.Warn("Failed to load seed certification data", "error", err)
 			} else {
-				slog.Info("Seed review data loaded", "dir", cfg.SeedReviews)
+				slog.Info("Seed certification data loaded", "dir", cfg.SeedCertifications)
 			}
 		}
 
@@ -96,11 +96,11 @@ func main() {
 			os.Exit(1)
 		}
 
-		if cfg.SeedReviews != "" {
-			if err := mem.LoadSeedContributions(cfg.SeedReviews); err != nil {
-				slog.Warn("Failed to load seed review data", "error", err)
+		if cfg.SeedCertifications != "" {
+			if err := mem.LoadSeedContributions(cfg.SeedCertifications); err != nil {
+				slog.Warn("Failed to load seed certification data", "error", err)
 			} else {
-				slog.Info("Seed review data loaded", "dir", cfg.SeedReviews)
+				slog.Info("Seed certification data loaded", "dir", cfg.SeedCertifications)
 			}
 		}
 
@@ -128,8 +128,8 @@ func main() {
 	}
 
 	conjectureHandler := &handlers.ConjectureHandler{Store: st}
-	certificateHandler := &handlers.CertificateHandler{Store: st}
-	reviewHandler := &handlers.ReviewHandler{Store: st, Storage: objStorage}
+	contributionHandler := &handlers.ContributionHandler{Store: st}
+	certificateHandler := &handlers.CertificateHandler{Store: st, Storage: objStorage}
 	packageHandler := &handlers.PackageHandler{Store: st}
 
 	r := chi.NewRouter()
@@ -151,8 +151,8 @@ func main() {
 	// Public GET endpoints
 	r.Get("/conjectures", conjectureHandler.List)
 	r.Get("/conjectures/{id}", conjectureHandler.Get)
-	r.Get("/review-packages", reviewHandler.List)
-	r.Get("/review-packages/{contributionID}/archive", reviewHandler.DownloadArchive)
+	r.Get("/certificate-packages", certificateHandler.List)
+	r.Get("/certificate-packages/{contributionID}/archive", certificateHandler.DownloadArchive)
 
 	// POST endpoints — optionally protected by auth
 	r.Group(func(r chi.Router) {
@@ -165,9 +165,9 @@ func main() {
 		}
 
 		r.Post("/conjectures/packages", packageHandler.Submit)
-		r.Post("/certificates", certificateHandler.Submit)
-		r.Post("/certificates/batch", certificateHandler.SubmitBatch)
-		r.Post("/reviews", reviewHandler.SubmitReview)
+		r.Post("/contributions", contributionHandler.Submit)
+		r.Post("/contributions/batch", contributionHandler.SubmitBatch)
+		r.Post("/certificates", certificateHandler.SubmitCertificate)
 	})
 
 	// Serve embedded static files

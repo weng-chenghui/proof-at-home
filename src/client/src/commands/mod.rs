@@ -1,8 +1,8 @@
+pub mod certify;
 pub mod donate;
 pub mod init;
 pub mod login;
 pub mod publish;
-pub mod review;
 pub mod run;
 pub mod setup;
 pub mod status;

@@ -99,8 +99,8 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 		return e.JSON(http.StatusOK, conjecture)
 	})
 
-	// POST /certificates — submit individual proof result
-	se.Router.POST("/certificates", func(e *core.RequestEvent) error {
+	// POST /contributions — submit individual proof result
+	se.Router.POST("/contributions", func(e *core.RequestEvent) error {
 		var body struct {
 			ConjectureID string  `json:"conjecture_id"`
 			Username     string  `json:"username"`
@@ -114,7 +114,7 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 			return e.JSON(http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
 		}
 
-		collection, err := app.FindCollectionByNameOrId("certificates")
+		collection, err := app.FindCollectionByNameOrId("contribution_results")
 		if err != nil {
 			return e.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		}
@@ -135,8 +135,8 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 		return e.JSON(http.StatusCreated, map[string]string{"status": "accepted"})
 	})
 
-	// POST /certificates/batch — submit contribution summary
-	se.Router.POST("/certificates/batch", func(e *core.RequestEvent) error {
+	// POST /contributions/batch — submit contribution summary
+	se.Router.POST("/contributions/batch", func(e *core.RequestEvent) error {
 		var body struct {
 			Username            string   `json:"username"`
 			ContributionID      string   `json:"contribution_id"`
@@ -149,7 +149,7 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 			ConjectureIDs       []string `json:"conjecture_ids"`
 			ArchivePath         string   `json:"archive_path"`
 			ProofStatus         string   `json:"proof_status"`
-			ReviewedBy          []string `json:"reviewed_by"`
+			CertifiedBy         []string `json:"certified_by"`
 		}
 		if err := e.BindBody(&body); err != nil {
 			return e.JSON(http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
@@ -171,7 +171,7 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 		record.Set("prover", body.Prover)
 		record.Set("conjecture_ids", body.ConjectureIDs)
 		record.Set("proof_status", body.ProofStatus)
-		record.Set("reviewed_by", body.ReviewedBy)
+		record.Set("certified_by", body.CertifiedBy)
 
 		if err := app.Save(record); err != nil {
 			return e.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
@@ -180,14 +180,14 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 		return e.JSON(http.StatusCreated, map[string]string{"status": "accepted"})
 	})
 
-	// GET /review-packages — list review packages
-	se.Router.GET("/review-packages", func(e *core.RequestEvent) error {
+	// GET /certificate-packages — list certificate packages
+	se.Router.GET("/certificate-packages", func(e *core.RequestEvent) error {
 		records, err := app.FindAllRecords("contributions")
 		if err != nil {
 			return e.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		}
 
-		type reviewPkg struct {
+		type certPkg struct {
 			ProverContributionID string   `json:"prover_contribution_id"`
 			ProverUsername       string   `json:"prover_username"`
 			Prover               string   `json:"prover"`
@@ -195,10 +195,10 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 			ArchiveURL           string   `json:"archive_url"`
 			ArchiveSHA256        string   `json:"archive_sha256"`
 			ProofStatus          string   `json:"proof_status,omitempty"`
-			ReviewedBy           []string `json:"reviewed_by,omitempty"`
+			CertifiedBy          []string `json:"certified_by,omitempty"`
 		}
 
-		packages := make([]reviewPkg, 0, len(records))
+		packages := make([]certPkg, 0, len(records))
 		for _, r := range records {
 			contributionID := r.GetString("contribution_id")
 
@@ -219,34 +219,34 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 				}
 			}
 
-			// Get reviewed_by from JSON field
-			var reviewedBy []string
-			if raw := r.Get("reviewed_by"); raw != nil {
+			// Get certified_by from JSON field
+			var certifiedBy []string
+			if raw := r.Get("certified_by"); raw != nil {
 				if list, ok := raw.([]any); ok {
 					for _, v := range list {
 						if s, ok := v.(string); ok {
-							reviewedBy = append(reviewedBy, s)
+							certifiedBy = append(certifiedBy, s)
 						}
 					}
 				}
 			}
 
-			packages = append(packages, reviewPkg{
+			packages = append(packages, certPkg{
 				ProverContributionID: contributionID,
 				ProverUsername:       r.GetString("username"),
 				Prover:               prover,
 				ConjectureIDs:        conjectureIDs,
-				ArchiveURL:           "/review-packages/" + contributionID + "/archive",
+				ArchiveURL:           "/certificate-packages/" + contributionID + "/archive",
 				ArchiveSHA256:        r.GetString("archive_sha256"),
 				ProofStatus:          r.GetString("proof_status"),
-				ReviewedBy:           reviewedBy,
+				CertifiedBy:          certifiedBy,
 			})
 		}
 		return e.JSON(http.StatusOK, packages)
 	})
 
-	// GET /review-packages/{contributionID}/archive — download archive
-	se.Router.GET("/review-packages/{contributionID}/archive", func(e *core.RequestEvent) error {
+	// GET /certificate-packages/{contributionID}/archive — download archive
+	se.Router.GET("/certificate-packages/{contributionID}/archive", func(e *core.RequestEvent) error {
 		contributionID := e.Request.PathValue("contributionID")
 
 		record, err := app.FindFirstRecordByFilter("contributions", "contribution_id = {:cid}", map[string]any{
@@ -272,12 +272,12 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 		return fsys.Serve(e.Response, e.Request, filePath, "proofs.tar.gz")
 	})
 
-	// POST /reviews — submit review
-	se.Router.POST("/reviews", func(e *core.RequestEvent) error {
+	// POST /certificates — submit certificate
+	se.Router.POST("/certificates", func(e *core.RequestEvent) error {
 		var body struct {
-			ReviewerUsername   string `json:"reviewer_username"`
-			ReviewID           string `json:"review_id"`
-			PackagesReviewed   int    `json:"packages_reviewed"`
+			CertifierUsername   string `json:"certifier_username"`
+			CertificateID       string `json:"certificate_id"`
+			PackagesCertified   int    `json:"packages_certified"`
 			ConjecturesCompared int    `json:"conjectures_compared"`
 			PackageRankings    []any  `json:"package_rankings"`
 			Recommendation     string `json:"recommendation"`
@@ -288,15 +288,15 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 			return e.JSON(http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
 		}
 
-		collection, err := app.FindCollectionByNameOrId("reviews")
+		collection, err := app.FindCollectionByNameOrId("certificates")
 		if err != nil {
 			return e.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		}
 
 		record := core.NewRecord(collection)
-		record.Set("review_id", body.ReviewID)
-		record.Set("reviewer_username", body.ReviewerUsername)
-		record.Set("packages_reviewed", body.PackagesReviewed)
+		record.Set("certificate_id", body.CertificateID)
+		record.Set("certifier_username", body.CertifierUsername)
+		record.Set("packages_certified", body.PackagesCertified)
 		record.Set("conjectures_compared", body.ConjecturesCompared)
 		record.Set("package_rankings", body.PackageRankings)
 		record.Set("recommendation", body.Recommendation)
@@ -342,28 +342,28 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 		return e.JSON(http.StatusOK, entries)
 	})
 
-	// GET /reviews-list — list reviews with nft_metadata (for NFT gallery)
-	se.Router.GET("/reviews-list", func(e *core.RequestEvent) error {
-		records, err := app.FindAllRecords("reviews")
+	// GET /certificates-list — list certificates with nft_metadata (for NFT gallery)
+	se.Router.GET("/certificates-list", func(e *core.RequestEvent) error {
+		records, err := app.FindAllRecords("certificates")
 		if err != nil {
 			return e.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		}
 
-		type reviewEntry struct {
-			ReviewID            string `json:"review_id"`
-			ReviewerUsername    string `json:"reviewer_username"`
-			PackagesReviewed    int    `json:"packages_reviewed"`
+		type certificateEntry struct {
+			CertificateID       string `json:"certificate_id"`
+			CertifierUsername    string `json:"certifier_username"`
+			PackagesCertified    int    `json:"packages_certified"`
 			ConjecturesCompared int    `json:"conjectures_compared"`
 			Recommendation      string `json:"recommendation"`
 			NFTMetadata         any    `json:"nft_metadata"`
 		}
 
-		entries := make([]reviewEntry, 0, len(records))
+		entries := make([]certificateEntry, 0, len(records))
 		for _, r := range records {
-			entries = append(entries, reviewEntry{
-				ReviewID:            r.GetString("review_id"),
-				ReviewerUsername:    r.GetString("reviewer_username"),
-				PackagesReviewed:    int(r.GetFloat("packages_reviewed")),
+			entries = append(entries, certificateEntry{
+				CertificateID:       r.GetString("certificate_id"),
+				CertifierUsername:    r.GetString("certifier_username"),
+				PackagesCertified:    int(r.GetFloat("packages_certified")),
 				ConjecturesCompared: int(r.GetFloat("conjectures_compared")),
 				Recommendation:      r.GetString("recommendation"),
 				NFTMetadata:         r.Get("nft_metadata"),

@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Creates tar.gz archives for each demo prover and generates seed session
-# JSON files that the server can load via SEED_REVIEWS env var.
+# Creates tar.gz archives for each demo prover and generates seed contribution
+# JSON files that the server can load via SEED_CERTIFICATIONS env var.
 #
 # Usage:
 #   ./scripts/seed-review-demo.sh
-#   SEED_REVIEWS=examples/review-demo/seed CONJECTURES_DIR=conjectures go run ./src/server/...
+#   SEED_CERTIFICATIONS=examples/review-demo/seed CONJECTURES_DIR=conjectures go run ./src/server/...
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -61,8 +61,8 @@ echo "=== Seed files written to $SEED_DIR/ ==="
 echo ""
 echo "Start the server with review demo data:"
 echo ""
-echo "  SEED_REVIEWS=$SEED_DIR CONJECTURES_DIR=$PROJECT_ROOT/conjectures go run ./src/server/..."
+echo "  SEED_CERTIFICATIONS=$SEED_DIR CONJECTURES_DIR=$PROJECT_ROOT/conjectures go run ./src/server/..."
 echo ""
 echo "Then test:"
-echo "  curl http://localhost:8080/review-packages | python3 -m json.tool"
-echo "  proof-at-home review start"
+echo "  curl http://localhost:8080/certificate-packages | python3 -m json.tool"
+echo "  proof-at-home certify start"

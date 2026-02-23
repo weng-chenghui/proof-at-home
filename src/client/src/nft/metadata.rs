@@ -71,44 +71,44 @@ pub fn generate_nft_metadata(info: &ContributionInfo) -> Value {
     })
 }
 
-// ── Review NFT metadata ──
+// ── Certificate NFT metadata ──
 
 #[derive(Debug, Serialize, JsonSchema)]
-pub struct ReviewInfo {
-    pub reviewer_username: String,
-    pub review_id: String,
-    pub packages_reviewed: u32,
+pub struct CertificateInfo {
+    pub certifier_username: String,
+    pub certificate_id: String,
+    pub packages_certified: u32,
     pub conjectures_compared: u32,
     pub top_prover: String,
     pub recommendation: String,
     pub archive_sha256: String,
     pub ai_comparison_cost_usd: f64,
-    pub reviewed_contribution_ids: Vec<String>,
-    pub reviewer_public_key: String,
+    pub certified_contribution_ids: Vec<String>,
+    pub certifier_public_key: String,
     pub archive_signature: String,
 }
 
-/// Generate OpenSea-compatible NFT metadata JSON for a review
-pub fn generate_review_nft_metadata(info: &ReviewInfo) -> Value {
+/// Generate OpenSea-compatible NFT metadata JSON for a certificate
+pub fn generate_certificate_nft_metadata(info: &CertificateInfo) -> Value {
     let date = Utc::now().format("%Y-%m-%d").to_string();
 
     json!({
-        "name": format!("Proof@Home Review — {} — {}", info.reviewer_username, date),
-        "description": "Review record: human evaluation of formally verified proofs.",
+        "name": format!("Proof@Home Certificate — {} — {}", info.certifier_username, date),
+        "description": "Certificate record: human evaluation of formally verified proofs.",
         "external_url": "",
         "image": "",
         "attributes": [
             {
-                "trait_type": "Reviewer",
-                "value": info.reviewer_username
+                "trait_type": "Certifier",
+                "value": info.certifier_username
             },
             {
-                "trait_type": "Review ID",
-                "value": info.review_id
+                "trait_type": "Certificate ID",
+                "value": info.certificate_id
             },
             {
-                "trait_type": "Packages Reviewed",
-                "value": info.packages_reviewed
+                "trait_type": "Packages Certified",
+                "value": info.packages_certified
             },
             {
                 "trait_type": "Conjectures Compared",
@@ -128,7 +128,7 @@ pub fn generate_review_nft_metadata(info: &ReviewInfo) -> Value {
             },
             {
                 "trait_type": "Public Key",
-                "value": info.reviewer_public_key
+                "value": info.certifier_public_key
             },
             {
                 "trait_type": "Archive Signature",
@@ -139,8 +139,8 @@ pub fn generate_review_nft_metadata(info: &ReviewInfo) -> Value {
                 "value": format!("{:.4}", info.ai_comparison_cost_usd)
             },
             {
-                "trait_type": "Reviewed Contribution IDs",
-                "value": info.reviewed_contribution_ids.join(", ")
+                "trait_type": "Certified Contribution IDs",
+                "value": info.certified_contribution_ids.join(", ")
             }
         ]
     })
@@ -170,7 +170,7 @@ pub struct NftSessionMetadata {
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, JsonSchema)]
-pub struct NftReviewMetadata {
+pub struct NftCertificateMetadata {
     pub name: String,
     pub description: String,
     #[serde(default, skip_serializing_if = "String::is_empty")]

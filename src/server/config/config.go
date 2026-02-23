@@ -6,9 +6,9 @@ import (
 )
 
 type Config struct {
-	Port           string
-	ConjecturesDir string
-	SeedReviews    string
+	Port               string
+	ConjecturesDir     string
+	SeedCertifications string
 
 	// Store backend: "memory", "postgres", or "sqlite"
 	StoreBackend string
@@ -37,9 +37,9 @@ type Config struct {
 
 func Load() *Config {
 	return &Config{
-		Port:           envOrDefault("PORT", "8080"),
-		ConjecturesDir: envOrDefault("CONJECTURES_DIR", "conjectures"),
-		SeedReviews:    os.Getenv("SEED_REVIEWS"),
+		Port:               envOrDefault("PORT", "8080"),
+		ConjecturesDir:     envOrDefault("CONJECTURES_DIR", "conjectures"),
+		SeedCertifications: os.Getenv("SEED_CERTIFICATIONS"),
 
 		StoreBackend: envOrDefault("STORE_BACKEND", "memory"),
 		DatabaseURL:  os.Getenv("DATABASE_URL"),

@@ -85,38 +85,38 @@ This will:
 ./target/release/proof-at-home status
 ```
 
-## Reviewing Proofs
+## Certifying Proofs
 
-Reviewers evaluate and compare proof packages submitted by different provers. The `review` subcommand tree provides AI-assisted comparison, template-based reporting, and NFT-compatible sealing.
+Certifiers evaluate and compare proof packages submitted by different provers. The `certify` subcommand tree provides AI-assisted comparison, template-based reporting, and NFT-compatible sealing.
 
 ### Workflow
 
 ```bash
-# 1. Start a review (fetches available packages from the server)
-proof-at-home review start
+# 1. Start a certification (fetches available packages from the server)
+proof-at-home certify start
 
 # 2. Or import local proof archives
-proof-at-home review import ./prover-alice-proofs.tar.gz
-proof-at-home review import ./prover-bob-proofs.tar.gz
+proof-at-home certify import ./prover-alice-proofs.tar.gz
+proof-at-home certify import ./prover-bob-proofs.tar.gz
 
 # 3. See what's loaded
-proof-at-home review list
+proof-at-home certify list
 
 # 4. AI-compare proofs across provers (calls Claude, writes ai_comparison.json)
-proof-at-home review ai-compare
+proof-at-home certify ai-compare
 
-# 5. Generate and fill in a review report
-proof-at-home review report                  # default template
-proof-at-home review report --template minimal
-proof-at-home review report --template detailed
+# 5. Generate and fill in a certification report
+proof-at-home certify report                  # default template
+proof-at-home certify report --template minimal
+proof-at-home certify report --template detailed
 
-# 6. Seal the review (archive + NFT metadata + server submission)
-proof-at-home review seal
+# 6. Seal the certification (archive + NFT metadata + server submission)
+proof-at-home certify seal
 ```
 
-### Review directory
+### Certification directory
 
-Each review lives under `~/.proof-at-home/reviews/<review-uuid>/`:
+Each certification lives under `~/.proof-at-home/certifications/<certification-uuid>/`:
 
 ```
 ├── packages/
@@ -125,11 +125,11 @@ Each review lives under `~/.proof-at-home/reviews/<review-uuid>/`:
 │   │   └── *.v / *.lean              # Proof scripts
 │   └── <prover-contribution-uuid-2>/
 ├── ai_comparison.json               # AI comparison output (per-conjecture + rollup)
-├── review_report.toml               # Human-written review report
-├── review_summary.json              # Machine-readable summary
-├── review_package.tar.gz            # Sealed archive
-├── review_nft_metadata.json         # NFT metadata for reviewer credit
-└── review_audit.jsonl               # Audit log of AI comparison calls
+├── certification_report.toml               # Human-written certification report
+├── certification_summary.json              # Machine-readable summary
+├── certification_package.tar.gz            # Sealed archive
+├── certification_nft_metadata.json         # NFT metadata for certifier credit
+└── certification_audit.jsonl               # Audit log of AI comparison calls
 ```
 
 ### AI comparison scoring
@@ -156,9 +156,9 @@ Three template variants are available via `--template`:
 
 ### Sealing
 
-`review seal` validates the report, archives everything into `review_package.tar.gz`, computes SHA-256, generates NFT metadata crediting the reviewer, and submits the summary to the server.
+`certify seal` validates the report, archives everything into `certification_package.tar.gz`, computes SHA-256, generates NFT metadata crediting the certifier, and submits the summary to the server.
 
-### Review demo with example provers
+### Certification demo with example provers
 
 The `examples/review-demo/` directory contains dummy proved proofs from three provers (alice, bob, carol) for `prob_001` and `prob_002`, each using a different proof style:
 
@@ -168,36 +168,36 @@ The `examples/review-demo/` directory contains dummy proved proofs from three pr
 | **bob** | Automation | One-liner via `lia` | One-liner via `lia` |
 | **carol** | Library reuse | `exact Nat.add_comm` | Helper lemma + `Nat.le_antisymm` |
 
-To run the full review demo:
+To run the full certification demo:
 
 ```bash
 # 1. Generate proof archives and seed contribution data
 ./scripts/seed-review-demo.sh
 
 # 2. Start the server with seed data
-SEED_REVIEWS=examples/review-demo/seed \
+SEED_CERTIFICATIONS=examples/review-demo/seed \
   CONJECTURES_DIR=conjectures \
   go run ./src/server/...
 
 # 3. Verify packages are available
-curl http://localhost:8080/review-packages | python3 -m json.tool
+curl http://localhost:8080/certificate-packages | python3 -m json.tool
 
-# 4. Run the reviewer workflow
-proof-at-home review start        # select alice, bob, carol
-proof-at-home review list
-proof-at-home review ai-compare   # AI scores all proofs
-proof-at-home review report       # fill in the TOML template
-proof-at-home review seal         # archive + NFT metadata
+# 4. Run the certifier workflow
+proof-at-home certify start        # select alice, bob, carol
+proof-at-home certify list
+proof-at-home certify ai-compare   # AI scores all proofs
+proof-at-home certify report       # fill in the TOML template
+proof-at-home certify seal         # archive + NFT metadata
 ```
 
 You can also import archives manually without the server:
 
 ```bash
-proof-at-home review start
-proof-at-home review import examples/review-demo/alice-proofs.tar.gz
-proof-at-home review import examples/review-demo/bob-proofs.tar.gz
-proof-at-home review import examples/review-demo/carol-proofs.tar.gz
-proof-at-home review ai-compare
+proof-at-home certify start
+proof-at-home certify import examples/review-demo/alice-proofs.tar.gz
+proof-at-home certify import examples/review-demo/bob-proofs.tar.gz
+proof-at-home certify import examples/review-demo/carol-proofs.tar.gz
+proof-at-home certify ai-compare
 ```
 
 ## Sample Conjectures
@@ -278,10 +278,10 @@ proof-at-home submit-package https://github.com/example/conjectures.git
 | `GET` | `/conjectures/{id}` | Full conjecture details |
 | `POST` | `/results` | Submit one proof result |
 | `POST` | `/results/batch` | Submit contribution summary with archive hash |
-| `GET` | `/review-packages` | List available proof packages for review |
-| `GET` | `/review-packages/{id}/archive` | Download a prover's archive |
+| `GET` | `/certificate-packages` | List available proof packages for certification |
+| `GET` | `/certificate-packages/{id}/archive` | Download a prover's archive |
 | `POST` | `/conjectures/packages` | Submit conjecture package (tar.gz body or JSON git URL) |
-| `POST` | `/reviews` | Submit review summary |
+| `POST` | `/certificates` | Submit certificate summary |
 
 ## Project Structure
 
@@ -292,10 +292,10 @@ proof-at-home/
 ├── src/
 │   ├── client/                     # Rust CLI
 │   │   └── src/
-│   │       ├── main.rs             # clap entry point (init/donate/prove/status/review/submit-package)
-│   │       ├── commands/           # CLI subcommands (including review)
+│   │       ├── main.rs             # clap entry point (init/donate/prove/status/certify/submit-package)
+│   │       ├── commands/           # CLI subcommands (including certify)
 │   │       ├── prover/             # Claude invocation + coqc/lean verification
-│   │       ├── reviewer/           # AI comparison, report templates, review types
+│   │       ├── certifier/          # AI comparison, report templates, certification types
 │   │       ├── server_client/      # HTTP client for the conjecture server
 │   │       ├── budget/             # Cost tracking and budget enforcement
 │   │       ├── archive/            # tar.gz + SHA-256
@@ -303,7 +303,7 @@ proof-at-home/
 │   │       └── nft/                # OpenSea-compatible metadata generation
 │   └── server/                     # Go HTTP server (stdlib only)
 │       ├── main.go
-│       ├── handlers/               # Route handlers (conjectures, certificates, reviews)
+│       ├── handlers/               # Route handlers (conjectures, contributions, certificates)
 │       ├── store/                  # In-memory store
 │       └── data/                   # Structs
 ├── .claude/commands/               # Parameterized prove-lemma strategies

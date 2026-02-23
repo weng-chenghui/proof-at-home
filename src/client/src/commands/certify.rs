@@ -4,30 +4,30 @@ use colored::Colorize;
 use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
 
+use crate::certifier::comparison;
+use crate::certifier::templates;
+use crate::certifier::types::*;
 use crate::config::Config;
-use crate::nft::metadata::generate_review_nft_metadata;
-use crate::nft::metadata::ReviewInfo;
-use crate::reviewer::comparison;
-use crate::reviewer::templates;
-use crate::reviewer::types::*;
+use crate::nft::metadata::generate_certificate_nft_metadata;
+use crate::nft::metadata::CertificateInfo;
 use crate::server_client::api::ServerClient;
 use crate::signing;
 
-/// Resolve the reviews base directory: ~/.proof-at-home/reviews/
-fn reviews_dir() -> Result<PathBuf> {
-    let dir = Config::config_dir()?.join("reviews");
+/// Resolve the certifications base directory: ~/.proof-at-home/certifications/
+fn certifications_dir() -> Result<PathBuf> {
+    let dir = Config::config_dir()?.join("certifications");
     std::fs::create_dir_all(&dir)?;
     Ok(dir)
 }
 
-/// Path to the active review pointer file
-fn active_review_path() -> Result<PathBuf> {
-    Ok(Config::config_dir()?.join("active_review"))
+/// Path to the active certification pointer file
+fn active_certification_path() -> Result<PathBuf> {
+    Ok(Config::config_dir()?.join("active_certification"))
 }
 
-/// Get the active review session ID (if any)
-fn get_active_review_id() -> Result<Option<String>> {
-    let path = active_review_path()?;
+/// Get the active certification session ID (if any)
+fn get_active_certification_id() -> Result<Option<String>> {
+    let path = active_certification_path()?;
     if path.exists() {
         let id = std::fs::read_to_string(&path)?.trim().to_string();
         if id.is_empty() {
@@ -40,44 +40,44 @@ fn get_active_review_id() -> Result<Option<String>> {
     }
 }
 
-/// Set the active review session ID
-fn set_active_review_id(id: &str) -> Result<()> {
-    let path = active_review_path()?;
+/// Set the active certification session ID
+fn set_active_certification_id(id: &str) -> Result<()> {
+    let path = active_certification_path()?;
     std::fs::write(&path, id)?;
     Ok(())
 }
 
-/// Load a review state from its directory
-fn load_review_state(review_dir: &Path) -> Result<ReviewState> {
-    let state_path = review_dir.join("review_state.json");
+/// Load a certification state from its directory
+fn load_certification_state(certification_dir: &Path) -> Result<CertificationState> {
+    let state_path = certification_dir.join("certification_state.json");
     let content = std::fs::read_to_string(&state_path)
         .with_context(|| format!("Failed to read {}", state_path.display()))?;
-    let state: ReviewState =
-        serde_json::from_str(&content).context("Failed to parse review_state.json")?;
+    let state: CertificationState =
+        serde_json::from_str(&content).context("Failed to parse certification_state.json")?;
     Ok(state)
 }
 
-/// Save a review state to its directory
-fn save_review_state(review_dir: &Path, state: &ReviewState) -> Result<()> {
-    let state_path = review_dir.join("review_state.json");
+/// Save a certification state to its directory
+fn save_certification_state(certification_dir: &Path, state: &CertificationState) -> Result<()> {
+    let state_path = certification_dir.join("certification_state.json");
     let content = serde_json::to_string_pretty(state)?;
     std::fs::write(&state_path, content)?;
     Ok(())
 }
 
-/// Get the active review directory and loaded state
-fn get_active_review() -> Result<(PathBuf, ReviewState)> {
-    let review_id = get_active_review_id()?
-        .context("No active review. Run `proof-at-home review start` first.")?;
-    let review_dir = reviews_dir()?.join(&review_id);
-    if !review_dir.exists() {
+/// Get the active certification directory and loaded state
+fn get_active_certification() -> Result<(PathBuf, CertificationState)> {
+    let certification_id = get_active_certification_id()?
+        .context("No active certification. Run `proof-at-home certify start` first.")?;
+    let certification_dir = certifications_dir()?.join(&certification_id);
+    if !certification_dir.exists() {
         anyhow::bail!(
-            "Review directory not found: {}. Run `proof-at-home review start`.",
-            review_dir.display()
+            "Certification directory not found: {}. Run `proof-at-home certify start`.",
+            certification_dir.display()
         );
     }
-    let state = load_review_state(&review_dir)?;
-    Ok((review_dir, state))
+    let state = load_certification_state(&certification_dir)?;
+    Ok((certification_dir, state))
 }
 
 // ── Subcommand dispatch ──
@@ -85,59 +85,59 @@ fn get_active_review() -> Result<(PathBuf, ReviewState)> {
 use clap::Subcommand;
 
 #[derive(Subcommand)]
-pub enum ReviewAction {
-    /// Start a new review session (optionally fetch packages from server)
+pub enum CertifyAction {
+    /// Start a new certification session (optionally fetch packages from server)
     Start,
-    /// Import a local proof archive into the active review session
+    /// Import a local proof archive into the active certification session
     Import {
         /// Path to a proof archive (.tar.gz)
         path: PathBuf,
     },
-    /// List packages loaded in the active review session
+    /// List packages loaded in the active certification session
     List,
     /// AI-compare proofs across packages
     AiCompare,
-    /// Generate or edit review report from template
+    /// Generate or edit certification report from template
     Report {
         /// Template variant: default, minimal, detailed
         #[arg(long, default_value = "default")]
         template: String,
     },
-    /// Seal review package with NFT metadata
+    /// Seal certification package with NFT metadata
     Seal,
 }
 
-pub async fn run_review(action: ReviewAction) -> Result<()> {
+pub async fn run_certify(action: CertifyAction) -> Result<()> {
     match action {
-        ReviewAction::Start => cmd_start().await,
-        ReviewAction::Import { path } => cmd_import(&path).await,
-        ReviewAction::List => cmd_list(),
-        ReviewAction::AiCompare => cmd_ai_compare().await,
-        ReviewAction::Report { template } => cmd_report(&template),
-        ReviewAction::Seal => cmd_seal().await,
+        CertifyAction::Start => cmd_start().await,
+        CertifyAction::Import { path } => cmd_import(&path).await,
+        CertifyAction::List => cmd_list(),
+        CertifyAction::AiCompare => cmd_ai_compare().await,
+        CertifyAction::Report { template } => cmd_report(&template),
+        CertifyAction::Seal => cmd_seal().await,
     }
 }
 
-// ── review start ──
+// ── certify start ──
 
 async fn cmd_start() -> Result<()> {
     let config = Config::load()?;
-    let review_id = uuid::Uuid::new_v4().to_string();
-    let review_dir = reviews_dir()?.join(&review_id);
-    let packages_dir = review_dir.join("packages");
+    let certification_id = uuid::Uuid::new_v4().to_string();
+    let certification_dir = certifications_dir()?.join(&certification_id);
+    let packages_dir = certification_dir.join("packages");
     std::fs::create_dir_all(&packages_dir)?;
 
-    let mut state = ReviewState {
-        review_id: review_id.clone(),
-        reviewer_username: config.identity.username.clone(),
+    let mut state = CertificationState {
+        certification_id: certification_id.clone(),
+        certifier_username: config.identity.username.clone(),
         created_at: Utc::now().to_rfc3339(),
         packages: Vec::new(),
-        status: ReviewStatus::Open,
+        status: CertificationStatus::Open,
     };
 
     // Try to fetch available packages from server
     let server = ServerClient::new(&config.api.server_url, &config.api.auth_token);
-    let available = match server.fetch_review_packages().await {
+    let available = match server.fetch_certificate_packages().await {
         Ok(pkgs) => pkgs,
         Err(e) => {
             eprintln!(
@@ -145,7 +145,7 @@ async fn cmd_start() -> Result<()> {
                 "Warning".yellow(),
                 e
             );
-            eprintln!("You can import local archives with `proof-at-home review import <path>`.");
+            eprintln!("You can import local archives with `proof-at-home certify import <path>`.");
             Vec::new()
         }
     };
@@ -209,36 +209,40 @@ async fn cmd_start() -> Result<()> {
         }
     }
 
-    save_review_state(&review_dir, &state)?;
-    set_active_review_id(&review_id)?;
+    save_certification_state(&certification_dir, &state)?;
+    set_active_certification_id(&certification_id)?;
 
-    println!("\n{} Review created: {}", "✓".green(), review_id);
-    println!("  Directory: {}", review_dir.display());
+    println!(
+        "\n{} Certification created: {}",
+        "✓".green(),
+        certification_id
+    );
+    println!("  Directory: {}", certification_dir.display());
     println!("  Packages loaded: {}", state.packages.len());
     if state.packages.is_empty() {
         println!(
             "\n  Import local archives with: {}",
-            "proof-at-home review import <path>".cyan()
+            "proof-at-home certify import <path>".cyan()
         );
     }
 
     Ok(())
 }
 
-// ── review import ──
+// ── certify import ──
 
 async fn cmd_import(path: &Path) -> Result<()> {
-    let (review_dir, mut state) = get_active_review()?;
+    let (certification_dir, mut state) = get_active_certification()?;
 
-    if state.status == ReviewStatus::Sealed {
-        anyhow::bail!("Cannot import into a sealed review.");
+    if state.status == CertificationStatus::Sealed {
+        anyhow::bail!("Cannot import into a sealed certification.");
     }
 
     if !path.exists() {
         anyhow::bail!("Archive not found: {}", path.display());
     }
 
-    let packages_dir = review_dir.join("packages");
+    let packages_dir = certification_dir.join("packages");
 
     // Derive a contribution ID from the archive filename or generate one
     let archive_stem = path
@@ -283,7 +287,7 @@ async fn cmd_import(path: &Path) -> Result<()> {
         import_source: format!("local:{}", path.display()),
     });
 
-    save_review_state(&review_dir, &state)?;
+    save_certification_state(&certification_dir, &state)?;
 
     println!(
         "{} Imported {} ({} proof files)",
@@ -295,12 +299,15 @@ async fn cmd_import(path: &Path) -> Result<()> {
     Ok(())
 }
 
-// ── review list ──
+// ── certify list ──
 
 fn cmd_list() -> Result<()> {
-    let (_review_dir, state) = get_active_review()?;
+    let (_certification_dir, state) = get_active_certification()?;
 
-    println!("Review: {} (status: {})\n", state.review_id, state.status);
+    println!(
+        "Certification: {} (status: {})\n",
+        state.certification_id, state.status
+    );
 
     if state.packages.is_empty() {
         println!("  No packages loaded.");
@@ -336,26 +343,26 @@ fn cmd_list() -> Result<()> {
     Ok(())
 }
 
-// ── review ai-compare ──
+// ── certify ai-compare ──
 
 async fn cmd_ai_compare() -> Result<()> {
     let config = Config::load()?;
-    let (review_dir, mut state) = get_active_review()?;
+    let (certification_dir, mut state) = get_active_certification()?;
 
     if state.packages.len() < 2 {
         anyhow::bail!("Need at least 2 packages to compare. Import more packages first.");
     }
 
-    let result = comparison::run_comparison(&config, &state, &review_dir).await?;
+    let result = comparison::run_comparison(&config, &state, &certification_dir).await?;
 
     // Write ai_comparison.json
-    let comp_path = review_dir.join("ai_comparison.json");
+    let comp_path = certification_dir.join("ai_comparison.json");
     let content = serde_json::to_string_pretty(&result)?;
     std::fs::write(&comp_path, content)?;
 
     // Update session status
-    state.status = ReviewStatus::Compared;
-    save_review_state(&review_dir, &state)?;
+    state.status = CertificationStatus::Compared;
+    save_certification_state(&certification_dir, &state)?;
 
     // Print results table
     println!("\n{}", "=== AI Comparison Results ===".bold());
@@ -402,15 +409,15 @@ async fn cmd_ai_compare() -> Result<()> {
     Ok(())
 }
 
-// ── review report ──
+// ── certify report ──
 
 fn cmd_report(template_variant: &str) -> Result<()> {
-    let (review_dir, state) = get_active_review()?;
-    let report_path = review_dir.join("review_report.toml");
+    let (certification_dir, state) = get_active_certification()?;
+    let report_path = certification_dir.join("certification_report.toml");
 
     if !report_path.exists() {
         // Load AI comparison if available
-        let comp_path = review_dir.join("ai_comparison.json");
+        let comp_path = certification_dir.join("ai_comparison.json");
         let comparison: Option<ComparisonResult> = if comp_path.exists() {
             let content = std::fs::read_to_string(&comp_path)?;
             serde_json::from_str(&content).ok()
@@ -422,7 +429,7 @@ fn cmd_report(template_variant: &str) -> Result<()> {
             templates::get_template(template_variant, &state, comparison.as_ref());
         std::fs::write(&report_path, &template_content)?;
         println!(
-            "{} Review report template written to: {}",
+            "{} Certification report template written to: {}",
             "✓".green(),
             report_path.display()
         );
@@ -462,16 +469,18 @@ fn cmd_report(template_variant: &str) -> Result<()> {
     Ok(())
 }
 
-// ── review seal ──
+// ── certify seal ──
 
 async fn cmd_seal() -> Result<()> {
     let config = Config::load()?;
-    let (review_dir, mut state) = get_active_review()?;
+    let (certification_dir, mut state) = get_active_certification()?;
 
     // 1. Validate report exists and is valid
-    let report_path = review_dir.join("review_report.toml");
+    let report_path = certification_dir.join("certification_report.toml");
     if !report_path.exists() {
-        anyhow::bail!("review_report.toml not found. Run `proof-at-home review report` first.");
+        anyhow::bail!(
+            "certification_report.toml not found. Run `proof-at-home certify report` first."
+        );
     }
 
     let errors = templates::validate_report(&report_path)?;
@@ -486,7 +495,7 @@ async fn cmd_seal() -> Result<()> {
     let report = templates::parse_report(&report_path)?;
 
     // 2. Check for AI comparison (warn if missing)
-    let comp_path = review_dir.join("ai_comparison.json");
+    let comp_path = certification_dir.join("ai_comparison.json");
     let comparison: Option<ComparisonResult> = if comp_path.exists() {
         let content = std::fs::read_to_string(&comp_path)?;
         serde_json::from_str(&content).ok()
@@ -498,16 +507,16 @@ async fn cmd_seal() -> Result<()> {
         None
     };
 
-    // 3. Build review_summary.json
+    // 3. Build certification_summary.json
     let top_prover = report
-        .package_reviews
+        .package_assessments
         .iter()
         .min_by_key(|r| r.rank)
         .map(|r| r.prover_username.clone())
         .unwrap_or_default();
 
     let package_ranking_summaries: Vec<serde_json::Value> = report
-        .package_reviews
+        .package_assessments
         .iter()
         .map(|r| {
             let overall_score = comparison
@@ -536,9 +545,9 @@ async fn cmd_seal() -> Result<()> {
     let ai_cost = comparison.as_ref().map(|c| c.cost_usd).unwrap_or(0.0);
 
     let summary = serde_json::json!({
-        "reviewer_username": report.reviewer.username,
-        "review_id": state.review_id,
-        "packages_reviewed": state.packages.len(),
+        "certifier_username": report.certifier.username,
+        "certification_id": state.certification_id,
+        "packages_certified": state.packages.len(),
         "conjectures_compared": conjectures_compared,
         "package_rankings": package_ranking_summaries,
         "recommendation": report.summary.recommendation,
@@ -546,18 +555,18 @@ async fn cmd_seal() -> Result<()> {
         "overall_assessment": report.summary.overall_assessment,
     });
 
-    let summary_path = review_dir.join("review_summary.json");
+    let summary_path = certification_dir.join("certification_summary.json");
     std::fs::write(&summary_path, serde_json::to_string_pretty(&summary)?)?;
 
-    // 4. Archive everything into review_package.tar.gz
-    let archive_path = review_dir.join("review_package.tar.gz");
-    create_review_archive(&review_dir, &archive_path)?;
+    // 4. Archive everything into certification_package.tar.gz
+    let archive_path = certification_dir.join("certification_package.tar.gz");
+    create_certification_archive(&certification_dir, &archive_path)?;
 
     // 5. Compute SHA-256
     let archive_sha = compute_sha256(&archive_path)?;
 
     // 5b. Sign archive hash
-    let (reviewer_public_key, archive_signature) = match Config::signing_key_path()
+    let (certifier_public_key, archive_signature) = match Config::signing_key_path()
         .ok()
         .filter(|p| p.exists())
         .and_then(|p| std::fs::read_to_string(&p).ok())
@@ -582,40 +591,40 @@ async fn cmd_seal() -> Result<()> {
     };
 
     // 6. Generate NFT metadata
-    let reviewed_contribution_ids: Vec<String> = state
+    let certified_contribution_ids: Vec<String> = state
         .packages
         .iter()
         .map(|p| p.prover_contribution_id.clone())
         .collect();
 
-    let nft_info = ReviewInfo {
-        reviewer_username: report.reviewer.username.clone(),
-        review_id: state.review_id.clone(),
-        packages_reviewed: state.packages.len() as u32,
+    let nft_info = CertificateInfo {
+        certifier_username: report.certifier.username.clone(),
+        certificate_id: state.certification_id.clone(),
+        packages_certified: state.packages.len() as u32,
         conjectures_compared,
         top_prover: top_prover.clone(),
         recommendation: report.summary.recommendation.clone(),
         archive_sha256: archive_sha.clone(),
         ai_comparison_cost_usd: ai_cost,
-        reviewed_contribution_ids,
-        reviewer_public_key,
+        certified_contribution_ids,
+        certifier_public_key,
         archive_signature,
     };
 
-    let nft_metadata = generate_review_nft_metadata(&nft_info);
-    let nft_path = review_dir.join("review_nft_metadata.json");
+    let nft_metadata = generate_certificate_nft_metadata(&nft_info);
+    let nft_path = certification_dir.join("certification_nft_metadata.json");
     std::fs::write(&nft_path, serde_json::to_string_pretty(&nft_metadata)?)?;
 
     // 7. Submit to server
     let server = ServerClient::new(&config.api.server_url, &config.api.auth_token);
 
-    let server_summary = crate::server_client::api::ReviewSummary {
-        reviewer_username: report.reviewer.username.clone(),
-        review_id: state.review_id.clone(),
-        packages_reviewed: state.packages.len() as u32,
+    let server_summary = crate::server_client::api::CertificateSummary {
+        certifier_username: report.certifier.username.clone(),
+        certificate_id: state.certification_id.clone(),
+        packages_certified: state.packages.len() as u32,
         conjectures_compared,
         package_rankings: report
-            .package_reviews
+            .package_assessments
             .iter()
             .map(|r| {
                 let overall_score = comparison
@@ -640,18 +649,18 @@ async fn cmd_seal() -> Result<()> {
         nft_metadata: nft_metadata.clone(),
     };
 
-    match server.submit_review(&server_summary).await {
-        Ok(()) => println!("{} Review submitted to server.", "✓".green()),
+    match server.submit_certificate(&server_summary).await {
+        Ok(()) => println!("{} Certification submitted to server.", "✓".green()),
         Err(e) => eprintln!("{}: Could not submit to server: {}", "Warning".yellow(), e),
     }
 
     // 8. Mark session as sealed
-    state.status = ReviewStatus::Sealed;
-    save_review_state(&review_dir, &state)?;
+    state.status = CertificationStatus::Sealed;
+    save_certification_state(&certification_dir, &state)?;
 
     // Print summary
-    println!("\n{}", "=== Review Sealed ===".bold());
-    println!("  Review ID:    {}", state.review_id);
+    println!("\n{}", "=== Certification Sealed ===".bold());
+    println!("  Certification ID: {}", state.certification_id);
     println!("  Archive:      {}", archive_path.display());
     println!("  SHA-256:      {}", archive_sha);
     println!("  NFT metadata: {}", nft_path.display());
@@ -701,8 +710,8 @@ fn scan_proof_files(dir: &Path) -> Result<Vec<String>> {
     Ok(ids)
 }
 
-/// Create a tar.gz archive of the review directory contents (excluding the archive itself)
-fn create_review_archive(review_dir: &Path, archive_path: &Path) -> Result<()> {
+/// Create a tar.gz archive of the certification directory contents (excluding the archive itself)
+fn create_certification_archive(certification_dir: &Path, archive_path: &Path) -> Result<()> {
     let file = std::fs::File::create(archive_path)?;
     let encoder = flate2::write::GzEncoder::new(file, flate2::Compression::default());
     let mut tar_builder = tar::Builder::new(encoder);
@@ -711,13 +720,13 @@ fn create_review_archive(review_dir: &Path, archive_path: &Path) -> Result<()> {
     let items = [
         "packages",
         "ai_comparison.json",
-        "review_report.toml",
-        "review_summary.json",
-        "review_audit.jsonl",
+        "certification_report.toml",
+        "certification_summary.json",
+        "certification_audit.jsonl",
     ];
 
     for item in &items {
-        let item_path = review_dir.join(item);
+        let item_path = certification_dir.join(item);
         if !item_path.exists() {
             continue;
         }

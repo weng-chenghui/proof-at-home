@@ -8,9 +8,9 @@ type Store interface {
 	ListConjectures() []data.ConjectureSummary
 	GetConjecture(id string) (data.Conjecture, bool)
 	AddConjectures(conjectures []data.Conjecture) []string
-	AddCertificate(r data.Certificate)
+	AddContributionResult(r data.ContributionResult)
 	AddContribution(cs data.ContributionSummary)
-	ListReviewPackages() []data.ReviewPackageInfo
+	ListCertificatePackages() []data.CertificatePackageInfo
 	GetArchivePath(contributionID string) (string, bool)
-	AddReview(r data.ReviewSummary)
+	AddCertificate(r data.CertificateSummary)
 }

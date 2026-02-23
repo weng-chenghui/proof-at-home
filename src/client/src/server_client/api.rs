@@ -50,7 +50,7 @@ pub struct Conjecture {
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
-pub struct Certificate {
+pub struct ContributionResult {
     pub conjecture_id: String,
     pub username: String,
     pub success: bool,
@@ -130,13 +130,13 @@ impl ServerClient {
         Ok(conjecture)
     }
 
-    pub async fn submit_certificate(&self, result: &Certificate) -> Result<()> {
+    pub async fn submit_contribution_result(&self, result: &ContributionResult) -> Result<()> {
         let resp = self
-            .authed(self.client.post(format!("{}/certificates", self.base_url)))
+            .authed(self.client.post(format!("{}/contributions", self.base_url)))
             .json(result)
             .send()
             .await
-            .context("Failed to submit certificate")?;
+            .context("Failed to submit contribution result")?;
         if !resp.status().is_success() {
             let body = resp.text().await.unwrap_or_default();
             anyhow::bail!("Server returned error: {}", body);
@@ -148,7 +148,7 @@ impl ServerClient {
         let resp = self
             .authed(
                 self.client
-                    .post(format!("{}/certificates/batch", self.base_url)),
+                    .post(format!("{}/contributions/batch", self.base_url)),
             )
             .json(summary)
             .send()
@@ -161,16 +161,16 @@ impl ServerClient {
         Ok(())
     }
 
-    // ── Review endpoints ──
+    // ── Certificate endpoints ──
 
-    /// Fetch available proof packages for review
-    pub async fn fetch_review_packages(&self) -> Result<Vec<ReviewPackageInfo>> {
-        let packages: Vec<ReviewPackageInfo> = self
+    /// Fetch available proof packages for certification
+    pub async fn fetch_certificate_packages(&self) -> Result<Vec<CertificatePackageInfo>> {
+        let packages: Vec<CertificatePackageInfo> = self
             .client
-            .get(format!("{}/review-packages", self.base_url))
+            .get(format!("{}/certificate-packages", self.base_url))
             .send()
             .await
-            .context("Failed to fetch review packages")?
+            .context("Failed to fetch certificate packages")?
             .json()
             .await?;
         Ok(packages)
@@ -181,7 +181,7 @@ impl ServerClient {
         let resp = self
             .client
             .get(format!(
-                "{}/review-packages/{}/archive",
+                "{}/certificate-packages/{}/archive",
                 self.base_url, session_id
             ))
             .send()
@@ -199,14 +199,14 @@ impl ServerClient {
         Ok(())
     }
 
-    /// Submit a review summary to the server
-    pub async fn submit_review(&self, summary: &ReviewSummary) -> Result<()> {
+    /// Submit a certificate summary to the server
+    pub async fn submit_certificate(&self, summary: &CertificateSummary) -> Result<()> {
         let resp = self
-            .authed(self.client.post(format!("{}/reviews", self.base_url)))
+            .authed(self.client.post(format!("{}/certificates", self.base_url)))
             .json(summary)
             .send()
             .await
-            .context("Failed to submit review")?;
+            .context("Failed to submit certificate")?;
         if !resp.status().is_success() {
             let body = resp.text().await.unwrap_or_default();
             anyhow::bail!("Server returned error: {}", body);
@@ -266,10 +266,10 @@ impl ServerClient {
     }
 }
 
-// ── Review-related API types ──
+// ── Certificate-related API types ──
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ReviewPackageInfo {
+pub struct CertificatePackageInfo {
     pub prover_contribution_id: String,
     pub prover_username: String,
     pub prover: String,
@@ -279,14 +279,14 @@ pub struct ReviewPackageInfo {
     #[serde(default)]
     pub proof_status: String,
     #[serde(default)]
-    pub reviewed_by: Vec<String>,
+    pub certified_by: Vec<String>,
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
-pub struct ReviewSummary {
-    pub reviewer_username: String,
-    pub review_id: String,
-    pub packages_reviewed: u32,
+pub struct CertificateSummary {
+    pub certifier_username: String,
+    pub certificate_id: String,
+    pub packages_certified: u32,
     pub conjectures_compared: u32,
     pub package_rankings: Vec<PackageRankingSummary>,
     pub recommendation: String,

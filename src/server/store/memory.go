@@ -11,12 +11,12 @@ import (
 )
 
 type MemoryStore struct {
-	mu            sync.RWMutex
-	conjectures   map[string]data.Conjecture
-	order         []string
-	certificates  []data.Certificate
-	contributions []data.ContributionSummary
-	reviews       []data.ReviewSummary
+	mu                  sync.RWMutex
+	conjectures         map[string]data.Conjecture
+	order               []string
+	contributionResults []data.ContributionResult
+	contributions       []data.ContributionSummary
+	certificates        []data.CertificateSummary
 }
 
 func NewMemoryStore() *MemoryStore {
@@ -108,10 +108,10 @@ func (s *MemoryStore) GetConjecture(id string) (data.Conjecture, bool) {
 	return p, ok
 }
 
-func (s *MemoryStore) AddCertificate(r data.Certificate) {
+func (s *MemoryStore) AddContributionResult(r data.ContributionResult) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.certificates = append(s.certificates, r)
+	s.contributionResults = append(s.contributionResults, r)
 
 	if r.Success {
 		if p, ok := s.conjectures[r.ConjectureID]; ok {
@@ -127,21 +127,21 @@ func (s *MemoryStore) AddContribution(cs data.ContributionSummary) {
 	s.contributions = append(s.contributions, cs)
 }
 
-// ── Review methods ──
+// ── Certificate methods ──
 
-// ListReviewPackages returns all submitted contributions as reviewable packages.
-func (s *MemoryStore) ListReviewPackages() []data.ReviewPackageInfo {
+// ListCertificatePackages returns all submitted contributions as certifiable packages.
+func (s *MemoryStore) ListCertificatePackages() []data.CertificatePackageInfo {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	packages := make([]data.ReviewPackageInfo, 0, len(s.contributions))
+	packages := make([]data.CertificatePackageInfo, 0, len(s.contributions))
 	for _, cs := range s.contributions {
 		// Build conjecture IDs from successful results for this contribution
 		conjectureIDs := cs.ConjectureIDs
 		if len(conjectureIDs) == 0 {
 			// Fallback: scan results for this user
 			seen := map[string]bool{}
-			for _, r := range s.certificates {
+			for _, r := range s.contributionResults {
 				if r.Username == cs.Username && r.Success {
 					if !seen[r.ConjectureID] {
 						conjectureIDs = append(conjectureIDs, r.ConjectureID)
@@ -156,15 +156,15 @@ func (s *MemoryStore) ListReviewPackages() []data.ReviewPackageInfo {
 			prover = "rocq"
 		}
 
-		packages = append(packages, data.ReviewPackageInfo{
+		packages = append(packages, data.CertificatePackageInfo{
 			ProverContributionID: cs.ContributionID,
 			ProverUsername:       cs.Username,
 			Prover:               prover,
 			ConjectureIDs:        conjectureIDs,
-			ArchiveURL:           fmt.Sprintf("/review-packages/%s/archive", cs.ContributionID),
+			ArchiveURL:           fmt.Sprintf("/certificate-packages/%s/archive", cs.ContributionID),
 			ArchiveSHA256:        cs.ArchiveSHA256,
 			ProofStatus:          cs.ProofStatus,
-			ReviewedBy:           cs.ReviewedBy,
+			CertifiedBy:          cs.CertifiedBy,
 		})
 	}
 	return packages
@@ -183,26 +183,26 @@ func (s *MemoryStore) GetArchivePath(contributionID string) (string, bool) {
 	return "", false
 }
 
-// AddReview stores a submitted review and updates reviewed_by on affected contributions.
-func (s *MemoryStore) AddReview(r data.ReviewSummary) {
+// AddCertificate stores a submitted certificate and updates certified_by on affected contributions.
+func (s *MemoryStore) AddCertificate(r data.CertificateSummary) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.reviews = append(s.reviews, r)
+	s.certificates = append(s.certificates, r)
 
-	// Update reviewed_by for each contribution referenced in the review's package rankings
+	// Update certified_by for each contribution referenced in the certificate's package rankings
 	for _, pr := range r.PackageRankings {
 		for i, cs := range s.contributions {
 			if cs.ContributionID == pr.ProverContributionID {
-				// Add reviewer if not already present
+				// Add certifier if not already present
 				found := false
-				for _, reviewer := range cs.ReviewedBy {
-					if reviewer == r.ReviewerUsername {
+				for _, certifier := range cs.CertifiedBy {
+					if certifier == r.CertifierUsername {
 						found = true
 						break
 					}
 				}
 				if !found {
-					s.contributions[i].ReviewedBy = append(s.contributions[i].ReviewedBy, r.ReviewerUsername)
+					s.contributions[i].CertifiedBy = append(s.contributions[i].CertifiedBy, r.CertifierUsername)
 				}
 				break
 			}

@@ -20,7 +20,7 @@ CONJECTURES_DIR=./conjectures ./pah-pocketbase serve
 
 On first run, PocketBase automatically:
 - Creates `pb_data/` with a SQLite database and local file storage
-- Runs migrations to create the `conjectures`, `certificates`, `contributions`, and `reviews` collections
+- Runs migrations to create the `conjectures`, `contribution_results`, `contributions`, and `certificates` collections
 - Seeds conjectures from the `CONJECTURES_DIR` directory
 
 Open `http://127.0.0.1:8090/` for the web UI, `http://127.0.0.1:8090/_/` for the admin dashboard.
@@ -86,7 +86,7 @@ fly scale count 1     # Ensure single instance (SQLite needs this)
 
 Open `/_/` on your deployment. On the first visit, you'll be prompted to create a Superuser email and password. The admin dashboard lets you:
 
-- Browse and edit all collections (conjectures, certificates, contributions, reviews)
+- Browse and edit all collections (conjectures, contribution_results, contributions, certificates)
 - Manage users and authentication settings
 - Configure file storage (local or S3-compatible)
 - View logs and create backups
@@ -110,7 +110,7 @@ Everything runs from the single binary — no Postgres, no Redis, no separate fi
 | Feature | Details |
 |---|---|
 | Database | SQLite, zero configuration |
-| Web UI | Embedded at `/` (conjecture browser, submission forms, review dashboard) |
+| Web UI | Embedded at `/` (conjecture browser, submission forms, certificate dashboard) |
 | Admin UI | Built-in at `/_/` (data browser, user management, logs, backups) |
 | API | 9 backward-compatible endpoints (same as custom server) |
 | Auth | Built-in password, OAuth2, OTP |
@@ -128,8 +128,8 @@ Everything runs from the single binary — no Postgres, no Redis, no separate fi
 
 Two hooks run automatically (defined in `cmd/pocketbase/hooks/hooks.go`):
 
-1. **Auto-prove**: When a `certificates` record is created with `success=true`, the corresponding conjecture's status is set to `"proved"`.
-2. **Review tracking**: When a `reviews` record is created, the `reviewed_by` field on affected contributions is updated with the reviewer's username.
+1. **Auto-prove**: When a `contribution_results` record is created with `success=true`, the corresponding conjecture's status is set to `"proved"`.
+2. **Certificate tracking**: When a `certificates` record is created, the `certified_by` field on affected contributions is updated with the certifier's username.
 
 ### Optional: GCP Cloud Storage
 
@@ -224,11 +224,11 @@ Both deployment options embed a web frontend served from the root URL. No separa
 | Landing | `/` | Navigation cards linking to all sections |
 | Conjectures | `/conjectures.html` | Filterable conjecture list (difficulty, prover) |
 | Conjecture Detail | `/conjecture.html?id=xxx` | Code blocks for preamble, lemma, skeleton, hints |
-| Reviews | `/reviews.html` | Review packages with archive download links |
+| Certificates | `/certificates.html` | Certificate packages with archive download links |
 | Submit Conjecture | `/submit-conjecture.html` | Upload tar.gz or provide git URL |
 | Submit Result | `/submit-result.html` | Single proof result form |
 | Submit Contribution | `/submit-batch.html` | Proof contribution form |
-| Submit Review | `/submit-review.html` | Review form with dynamic package rankings |
+| Submit Certificate | `/submit-certificate.html` | Certificate form with dynamic package rankings |
 | Login | `/login.html` | OAuth login (GitHub, Google, Facebook) for PocketBase deployments |
 | Settings | `/settings.html` | JWT token configuration (stored in browser localStorage) |
 
@@ -246,11 +246,11 @@ Both deployment options serve identical endpoints:
 | `GET` | `/conjectures` | List all conjectures |
 | `GET` | `/conjectures/{id}` | Get a specific conjecture |
 | `POST` | `/conjectures/packages` | Submit conjectures (tar.gz or JSON) |
-| `POST` | `/results` | Submit a proof result |
-| `POST` | `/results/batch` | Submit a contribution summary |
-| `GET` | `/review-packages` | List review packages |
-| `GET` | `/review-packages/{contributionID}/archive` | Download proof archive |
-| `POST` | `/reviews` | Submit a review |
+| `POST` | `/contributions` | Submit a proof result |
+| `POST` | `/contributions/batch` | Submit a contribution summary |
+| `GET` | `/certificate-packages` | List certificate packages |
+| `GET` | `/certificate-packages/{contributionID}/archive` | Download proof archive |
+| `POST` | `/certificates` | Submit a certificate |
 
 When `AUTH_ENABLED=true` (custom server) or using PocketBase auth, POST endpoints require authentication. GET endpoints are always public.
 
@@ -303,7 +303,7 @@ This starts three services:
 |---|---|---|
 | `PORT` | `8080` | HTTP listen port |
 | `CONJECTURES_DIR` | `conjectures` | Directory containing conjecture JSON files |
-| `SEED_REVIEWS` | (empty) | Directory containing seed contribution JSON files |
+| `SEED_CERTIFICATIONS` | (empty) | Directory containing seed contribution JSON files |
 | `STORE_BACKEND` | `memory` | `memory`, `sqlite`, or `postgres` |
 | `DATABASE_URL` | (empty) | PostgreSQL connection string |
 | `DATABASE_PATH` | `proofathome.db` | SQLite file path |
@@ -357,8 +357,8 @@ src/server/                        Custom Go server
     index.html                     Landing page
     conjectures.html               Conjecture browser
     conjecture.html                Conjecture detail
-    reviews.html                   Review dashboard
-    submit-*.html                  Submission forms (conjecture, result, batch, review)
+    certificates.html              Certificate dashboard
+    submit-*.html                  Submission forms (conjecture, contribution, batch, certificate)
     login.html                     OAuth login (PocketBase deployments)
     settings.html                  JWT token configuration
     shared.css                     Shared stylesheet
@@ -373,12 +373,12 @@ src/server/                        Custom Go server
     s3.go                          S3-compatible implementation (minio-go)
     local.go                       Local filesystem fallback
   middleware/auth.go               JWT auth (JWKS, Auth0/Firebase)
-  handlers/                        HTTP handlers (conjectures, certificates, reviews, packages, health)
+  handlers/                        HTTP handlers (conjectures, contributions, certificates, packages, health)
 
 cmd/pocketbase/                    PocketBase deployment
   main.go                          PocketBase entry point + backward-compatible routes + web UI
   migrations/001_collections.go    Collection schema definitions
-  hooks/hooks.go                   Business logic (auto-prove, review tracking)
+  hooks/hooks.go                   Business logic (auto-prove, certificate tracking)
 
 Dockerfile                         Multi-stage build for custom server
 Dockerfile.pocketbase              Multi-stage build for PocketBase

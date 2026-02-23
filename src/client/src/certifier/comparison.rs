@@ -7,8 +7,8 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use crate::certifier::types::*;
 use crate::config::Config;
-use crate::reviewer::types::*;
 
 /// Build the comparison prompt for a single conjecture
 pub fn build_comparison_prompt(
@@ -17,7 +17,7 @@ pub fn build_comparison_prompt(
     proofs: &[(String, String, String)], // (prover_contribution_id, prover_username, proof_script)
 ) -> String {
     let mut prompt = format!(
-        "You are a {} proof reviewer. Compare the following proofs of \"{}\" \
+        "You are a {} proof certifier. Compare the following proofs of \"{}\" \
          from different provers.\n\n## Proofs\n",
         prover, conjecture_title
     );
@@ -63,7 +63,7 @@ Return valid JSON and nothing else (no markdown fences):
 /// Build a rollup summary prompt given per-conjecture results
 pub fn build_rollup_prompt(package_rankings: &[PackageRanking]) -> String {
     let mut prompt = String::from(
-        "You are a proof reviewer. Given the following package-level score averages across \
+        "You are a proof certifier. Given the following package-level score averages across \
          all compared conjectures, write a brief narrative summary (2-3 sentences) for each prover \
          and a final overall ranking explanation.\n\n## Package Rankings\n\n",
     );
@@ -250,20 +250,20 @@ pub async fn call_claude(config: &Config, prompt: &str) -> Result<(String, f64)>
     }
 }
 
-// ── Audit logger for review comparisons ──
+// ── Audit logger for certification comparisons ──
 
-pub struct ReviewAuditLogger {
+pub struct CertificationAuditLogger {
     path: PathBuf,
 }
 
-impl ReviewAuditLogger {
-    pub fn new(review_dir: &Path) -> Self {
+impl CertificationAuditLogger {
+    pub fn new(certification_dir: &Path) -> Self {
         Self {
-            path: review_dir.join("review_audit.jsonl"),
+            path: certification_dir.join("certification_audit.jsonl"),
         }
     }
 
-    pub fn log(&self, entry: &ReviewAuditEntry) {
+    pub fn log(&self, entry: &CertificationAuditEntry) {
         if let Ok(line) = serde_json::to_string(entry) {
             if let Ok(mut f) = OpenOptions::new()
                 .create(true)
@@ -277,7 +277,7 @@ impl ReviewAuditLogger {
 }
 
 #[derive(serde::Serialize)]
-pub struct ReviewAuditEntry {
+pub struct CertificationAuditEntry {
     pub timestamp: String,
     pub action: String,
     pub conjecture_id: String,
@@ -340,11 +340,11 @@ fn extract_json(response: &str) -> &str {
 /// Run the full AI comparison pipeline
 pub async fn run_comparison(
     config: &Config,
-    state: &ReviewState,
-    review_dir: &Path,
+    state: &CertificationState,
+    certification_dir: &Path,
 ) -> Result<ComparisonResult> {
-    let audit = ReviewAuditLogger::new(review_dir);
-    let packages_dir = review_dir.join("packages");
+    let audit = CertificationAuditLogger::new(certification_dir);
+    let packages_dir = certification_dir.join("packages");
     let mut total_cost = 0.0;
 
     // Collect all proof files per conjecture per prover
@@ -427,7 +427,7 @@ pub async fn run_comparison(
         let (response, cost) = call_claude(config, &prompt).await?;
         total_cost += cost;
 
-        audit.log(&ReviewAuditEntry {
+        audit.log(&CertificationAuditEntry {
             timestamp: Utc::now().to_rfc3339(),
             action: "conjecture_comparison".into(),
             conjecture_id: (*conjecture_id).clone(),
@@ -506,7 +506,7 @@ pub async fn run_comparison(
         let (rollup_response, rollup_cost) = call_claude(config, &rollup_prompt).await?;
         total_cost += rollup_cost;
 
-        audit.log(&ReviewAuditEntry {
+        audit.log(&CertificationAuditEntry {
             timestamp: Utc::now().to_rfc3339(),
             action: "rollup_summary".into(),
             conjecture_id: String::new(),

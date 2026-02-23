@@ -19,11 +19,18 @@ pub async fn run_publish(kind: &str, id: &str) -> Result<()> {
             let dir = Config::contributions_dir()?.join(id);
             (dir, "proofs.tar.gz", "nft_metadata.json")
         }
-        "review" => {
-            let dir = Config::config_dir()?.join("reviews").join(id);
-            (dir, "review_package.tar.gz", "review_nft_metadata.json")
+        "certificate" => {
+            let dir = Config::config_dir()?.join("certifications").join(id);
+            (
+                dir,
+                "certification_package.tar.gz",
+                "certification_nft_metadata.json",
+            )
         }
-        _ => bail!("Unknown type '{}'. Use 'contribution' or 'review'.", kind),
+        _ => bail!(
+            "Unknown type '{}'. Use 'contribution' or 'certificate'.",
+            kind
+        ),
     };
 
     if !base_dir.exists() {
@@ -43,7 +50,7 @@ pub async fn run_publish(kind: &str, id: &str) -> Result<()> {
             if kind == "contribution" {
                 "prove"
             } else {
-                "review seal"
+                "certify seal"
             }
         );
     }

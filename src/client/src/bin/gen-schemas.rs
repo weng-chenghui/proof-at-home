@@ -3,12 +3,12 @@ use std::fs;
 use std::path::Path;
 
 // Re-use types from the main crate
+use proof_at_home::certifier::types::{CertificationReport, CertificationState, ComparisonResult};
 use proof_at_home::nft::metadata::{
-    ContributionInfo, NftReviewMetadata, NftSessionMetadata, ReviewInfo,
+    CertificateInfo, ContributionInfo, NftCertificateMetadata, NftSessionMetadata,
 };
-use proof_at_home::reviewer::types::{ComparisonResult, ReviewReport, ReviewState};
 use proof_at_home::server_client::api::{
-    Certificate, Conjecture, ContributionSummary, ReviewSummary,
+    CertificateSummary, Conjecture, ContributionResult, ContributionSummary,
 };
 
 fn write_schema<T: schemars::JsonSchema>(dir: &Path, filename: &str) {
@@ -26,16 +26,16 @@ fn main() {
     println!("Generating JSON schemas...\n");
 
     write_schema::<ContributionInfo>(out_dir, "contribution-nft-metadata.schema.json");
-    write_schema::<ReviewInfo>(out_dir, "review-nft-metadata.schema.json");
+    write_schema::<CertificateInfo>(out_dir, "certificate-nft-metadata.schema.json");
     write_schema::<NftSessionMetadata>(out_dir, "nft-session-output.schema.json");
-    write_schema::<NftReviewMetadata>(out_dir, "nft-review-output.schema.json");
+    write_schema::<NftCertificateMetadata>(out_dir, "nft-certificate-output.schema.json");
     write_schema::<Conjecture>(out_dir, "conjecture.schema.json");
     write_schema::<ContributionSummary>(out_dir, "contribution-summary.schema.json");
-    write_schema::<ReviewState>(out_dir, "review-state.schema.json");
+    write_schema::<CertificationState>(out_dir, "certification-state.schema.json");
     write_schema::<ComparisonResult>(out_dir, "ai-comparison.schema.json");
-    write_schema::<ReviewSummary>(out_dir, "review-summary.schema.json");
-    write_schema::<ReviewReport>(out_dir, "review-report.schema.json");
-    write_schema::<Certificate>(out_dir, "certificate.schema.json");
+    write_schema::<CertificateSummary>(out_dir, "certificate-summary.schema.json");
+    write_schema::<CertificationReport>(out_dir, "certification-report.schema.json");
+    write_schema::<ContributionResult>(out_dir, "contribution-result.schema.json");
 
     println!("\nDone. {} schemas written to {}", 11, out_dir.display());
 }

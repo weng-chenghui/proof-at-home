@@ -22,7 +22,7 @@
                     <th>Prover</th>
                     <th>Conjectures</th>
                     <th>Status</th>
-                    <th>Reviewed By</th>
+                    <th>Certified By</th>
                     <th>Archive</th>
                 </tr>
             </thead>
@@ -33,7 +33,7 @@
     <script>
         async function load() {
             try {
-                const packages = await api('GET', '/review-packages');
+                const packages = await api('GET', '/certificate-packages');
                 const tbody = document.getElementById('tbody');
                 tbody.innerHTML = (packages || []).map(p => `
                     <tr>
@@ -42,12 +42,12 @@
                         <td>${escapeHtml(p.prover)}</td>
                         <td>${(p.conjecture_ids || []).length}</td>
                         <td>${escapeHtml(p.proof_status || 'pending')}</td>
-                        <td>${(p.reviewed_by || []).join(', ') || '—'}</td>
-                        <td><a href="/review-packages/${encodeURIComponent(p.prover_contribution_id)}/archive" download>Download</a></td>
+                        <td>${(p.certified_by || []).join(', ') || '—'}</td>
+                        <td><a href="/certificate-packages/${encodeURIComponent(p.prover_contribution_id)}/archive" download>Download</a></td>
                     </tr>
                 `).join('');
             } catch (e) {
-                showMsg('msg', 'Failed to load review packages: ' + (e.error || e.message || 'unknown error'), true);
+                showMsg('msg', 'Failed to load certificate packages: ' + (e.error || e.message || 'unknown error'), true);
             }
         }
         document.addEventListener('DOMContentLoaded', load);

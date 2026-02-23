@@ -12,7 +12,7 @@ use crate::nft::metadata::{generate_nft_metadata, ContributionInfo};
 use crate::prover::claude;
 use crate::prover::env_manager::{EnvManager, ResolvedEnv};
 use crate::server_client::api::{
-    Certificate, Conjecture, ContributionSummary, Dependencies, ServerClient,
+    Conjecture, ContributionResult, ContributionSummary, Dependencies, ServerClient,
 };
 use crate::signing;
 
@@ -219,7 +219,7 @@ pub async fn run_prove() -> Result<()> {
 
         // Submit individual result
         let _ = server
-            .submit_certificate(&Certificate {
+            .submit_contribution_result(&ContributionResult {
                 conjecture_id: conjecture.id.clone(),
                 username: config.identity.username.clone(),
                 success: result.success,

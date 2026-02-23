@@ -38,8 +38,8 @@ func init() {
 			return err
 		}
 
-		// ── certificates ──
-		results := core.NewBaseCollection("certificates")
+		// ── contribution_results ──
+		results := core.NewBaseCollection("contribution_results")
 		results.Fields.Add(
 			&core.TextField{Name: "conjecture_id", Required: true, Max: 200},
 			&core.TextField{Name: "username", Required: true, Max: 200},
@@ -50,8 +50,8 @@ func init() {
 			&core.TextField{Name: "error_output"},
 		)
 		results.Indexes = types.JSONArray[string]{
-			"CREATE INDEX idx_certificates_conjecture_id ON certificates (conjecture_id)",
-			"CREATE INDEX idx_certificates_username ON certificates (username)",
+			"CREATE INDEX idx_contribution_results_conjecture_id ON contribution_results (conjecture_id)",
+			"CREATE INDEX idx_contribution_results_username ON contribution_results (username)",
 		}
 		results.ViewRule = types.Pointer("")
 		results.ListRule = types.Pointer("")
@@ -79,7 +79,7 @@ func init() {
 				MimeTypes: []string{"application/gzip", "application/x-gzip", "application/octet-stream"},
 			},
 			&core.TextField{Name: "proof_status", Max: 100},
-			&core.JSONField{Name: "reviewed_by"},
+			&core.JSONField{Name: "certified_by"},
 		)
 		contributions.Indexes = types.JSONArray[string]{
 			"CREATE UNIQUE INDEX idx_contributions_contribution_id ON contributions (contribution_id)",
@@ -92,32 +92,46 @@ func init() {
 			return err
 		}
 
-		// ── reviews ──
-		reviews := core.NewBaseCollection("reviews")
-		reviews.Fields.Add(
-			&core.TextField{Name: "review_id", Required: true, Max: 200},
-			&core.TextField{Name: "reviewer_username", Required: true, Max: 200},
-			&core.NumberField{Name: "packages_reviewed", OnlyInt: true},
+		// ── certificates ──
+		certificates := core.NewBaseCollection("certificates")
+		certificates.Fields.Add(
+			&core.TextField{Name: "certificate_id", Required: true, Max: 200},
+			&core.TextField{Name: "certifier_username", Required: true, Max: 200},
+			&core.NumberField{Name: "packages_certified", OnlyInt: true},
 			&core.NumberField{Name: "conjectures_compared", OnlyInt: true},
 			&core.JSONField{Name: "package_rankings"},
 			&core.TextField{Name: "recommendation"},
 			&core.TextField{Name: "archive_sha256", Max: 100},
 			&core.JSONField{Name: "nft_metadata"},
 		)
-		reviews.Indexes = types.JSONArray[string]{
-			"CREATE UNIQUE INDEX idx_reviews_review_id ON reviews (review_id)",
+		certificates.Indexes = types.JSONArray[string]{
+			"CREATE UNIQUE INDEX idx_certificates_certificate_id ON certificates (certificate_id)",
 		}
-		reviews.ViewRule = types.Pointer("")
-		reviews.ListRule = types.Pointer("")
-		reviews.CreateRule = types.Pointer("@request.auth.id != ''")
-		if err := app.Save(reviews); err != nil {
+		certificates.ViewRule = types.Pointer("")
+		certificates.ListRule = types.Pointer("")
+		certificates.CreateRule = types.Pointer("@request.auth.id != ''")
+		if err := app.Save(certificates); err != nil {
+			return err
+		}
+
+		// ── user profile fields ──
+		users, err := app.FindCollectionByNameOrId("users")
+		if err != nil {
+			return err
+		}
+		users.Fields.Add(
+			&core.TextField{Name: "username", Max: 200},
+			&core.TextField{Name: "real_name", Max: 200},
+			&core.TextField{Name: "affiliation", Max: 300},
+		)
+		if err := app.Save(users); err != nil {
 			return err
 		}
 
 		return nil
 	}, func(app core.App) error {
 		// Rollback: delete collections in reverse dependency order
-		for _, name := range []string{"reviews", "contributions", "certificates", "conjectures"} {
+		for _, name := range []string{"certificates", "contributions", "contribution_results", "conjectures"} {
 			c, _ := app.FindCollectionByNameOrId(name)
 			if c != nil {
 				app.Delete(c)

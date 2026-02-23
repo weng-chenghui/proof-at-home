@@ -9,7 +9,7 @@ import (
 // Register adds all business logic hooks to the PocketBase app.
 func Register(app core.App) {
 	// When a successful proof result is created, mark the conjecture as "proved"
-	app.OnRecordAfterCreateSuccess("certificates").BindFunc(func(e *core.RecordEvent) error {
+	app.OnRecordAfterCreateSuccess("contribution_results").BindFunc(func(e *core.RecordEvent) error {
 		if !e.Record.GetBool("success") {
 			return e.Next()
 		}
@@ -38,9 +38,9 @@ func Register(app core.App) {
 		return e.Next()
 	})
 
-	// When a review is created, update reviewed_by on affected contributions
-	app.OnRecordAfterCreateSuccess("reviews").BindFunc(func(e *core.RecordEvent) error {
-		reviewer := e.Record.GetString("reviewer_username")
+	// When a certificate is created, update certified_by on affected contributions
+	app.OnRecordAfterCreateSuccess("certificates").BindFunc(func(e *core.RecordEvent) error {
+		certifier := e.Record.GetString("certifier_username")
 		rankings := e.Record.Get("package_rankings")
 
 		// package_rankings is a JSON array of {prover_contribution_id, rank, overall_score}
@@ -64,28 +64,28 @@ func Register(app core.App) {
 				"cid": contributionID,
 			})
 			if err != nil {
-				slog.Warn("Could not find contribution to update reviewed_by",
+				slog.Warn("Could not find contribution to update certified_by",
 					"contribution_id", contributionID, "error", err)
 				continue
 			}
 
-			// Get current reviewed_by list and add reviewer if not present
-			reviewedBy := contribution.Get("reviewed_by")
-			reviewers, _ := reviewedBy.([]any)
+			// Get current certified_by list and add certifier if not present
+			certifiedBy := contribution.Get("certified_by")
+			certifiers, _ := certifiedBy.([]any)
 
 			found := false
-			for _, r := range reviewers {
-				if r == reviewer {
+			for _, r := range certifiers {
+				if r == certifier {
 					found = true
 					break
 				}
 			}
 
 			if !found {
-				reviewers = append(reviewers, reviewer)
-				contribution.Set("reviewed_by", reviewers)
+				certifiers = append(certifiers, certifier)
+				contribution.Set("certified_by", certifiers)
 				if err := e.App.Save(contribution); err != nil {
-					slog.Error("Failed to update contribution reviewed_by",
+					slog.Error("Failed to update contribution certified_by",
 						"contribution_id", contributionID, "error", err)
 				}
 			}

@@ -1,12 +1,12 @@
 use anyhow::{Context, Result};
 use std::path::Path;
 
-use crate::reviewer::types::*;
+use crate::certifier::types::*;
 
-/// Generate a review report TOML template, pre-filled with session info and optional AI rankings
+/// Generate a certification report TOML template, pre-filled with session info and optional AI rankings
 pub fn get_template(
     variant: &str,
-    session: &ReviewState,
+    session: &CertificationState,
     comparison: Option<&ComparisonResult>,
 ) -> String {
     match variant {
@@ -16,18 +16,21 @@ pub fn get_template(
     }
 }
 
-fn build_default_template(session: &ReviewState, comparison: Option<&ComparisonResult>) -> String {
+fn build_default_template(
+    session: &CertificationState,
+    comparison: Option<&ComparisonResult>,
+) -> String {
     let mut out = String::from(
-        "# Proof@Home Review Report\n\
+        "# Proof@Home Certification Report\n\
          # Fill in the fields below. Fields marked [required] must be completed before sealing.\n\n",
     );
 
     out.push_str(&format!(
-        "[reviewer]\n\
+        "[certifier]\n\
          username = \"{}\"          # [required] Your username\n\
          date = \"{}\"              # [auto-filled]\n\
-         review_id = \"{}\"         # [auto-filled]\n\n",
-        session.reviewer_username, session.created_at, session.review_id,
+         certification_id = \"{}\"         # [auto-filled]\n\n",
+        session.certifier_username, session.created_at, session.certification_id,
     ));
 
     out.push_str(
@@ -37,7 +40,7 @@ fn build_default_template(session: &ReviewState, comparison: Option<&ComparisonR
          confidence = \"\"          # [required] One of: \"high\", \"medium\", \"low\"\n\n",
     );
 
-    // Package reviews — pre-fill with AI rankings if available
+    // Package assessments — pre-fill with AI rankings if available
     for pkg in &session.packages {
         let (rank, strengths, weaknesses) = if let Some(comp) = comparison {
             let pr = comp
@@ -53,7 +56,7 @@ fn build_default_template(session: &ReviewState, comparison: Option<&ComparisonR
         };
 
         out.push_str(&format!(
-            "[[package_reviews]]\n\
+            "[[package_assessments]]\n\
              prover_contribution_id = \"{}\"\n\
              prover_username = \"{}\"\n\
              rank = {}               # [required] 1 = best\n\
@@ -67,15 +70,18 @@ fn build_default_template(session: &ReviewState, comparison: Option<&ComparisonR
     out
 }
 
-fn build_minimal_template(session: &ReviewState, comparison: Option<&ComparisonResult>) -> String {
-    let mut out = String::from("# Proof@Home Review Report (Minimal)\n\n");
+fn build_minimal_template(
+    session: &CertificationState,
+    comparison: Option<&ComparisonResult>,
+) -> String {
+    let mut out = String::from("# Proof@Home Certification Report (Minimal)\n\n");
 
     out.push_str(&format!(
-        "[reviewer]\n\
+        "[certifier]\n\
          username = \"{}\"\n\
          date = \"{}\"\n\
-         review_id = \"{}\"\n\n",
-        session.reviewer_username, session.created_at, session.review_id,
+         certification_id = \"{}\"\n\n",
+        session.certifier_username, session.created_at, session.certification_id,
     ));
 
     out.push_str(
@@ -96,7 +102,7 @@ fn build_minimal_template(session: &ReviewState, comparison: Option<&ComparisonR
             .unwrap_or(0);
 
         out.push_str(&format!(
-            "[[package_reviews]]\n\
+            "[[package_assessments]]\n\
              prover_contribution_id = \"{}\"\n\
              prover_username = \"{}\"\n\
              rank = {}\n\
@@ -110,7 +116,10 @@ fn build_minimal_template(session: &ReviewState, comparison: Option<&ComparisonR
     out
 }
 
-fn build_detailed_template(session: &ReviewState, comparison: Option<&ComparisonResult>) -> String {
+fn build_detailed_template(
+    session: &CertificationState,
+    comparison: Option<&ComparisonResult>,
+) -> String {
     let mut out = build_default_template(session, comparison);
 
     // Add per-conjecture commentary sections
@@ -140,18 +149,18 @@ fn build_detailed_template(session: &ReviewState, comparison: Option<&Comparison
     out
 }
 
-/// Validate a review report TOML file. Returns a list of validation errors (empty = valid).
+/// Validate a certification report TOML file. Returns a list of validation errors (empty = valid).
 pub fn validate_report(report_path: &Path) -> Result<Vec<String>> {
     let content = std::fs::read_to_string(report_path)
         .with_context(|| format!("Failed to read {}", report_path.display()))?;
 
-    let report: ReviewReport =
-        toml::from_str(&content).context("Failed to parse review_report.toml")?;
+    let report: CertificationReport =
+        toml::from_str(&content).context("Failed to parse certification_report.toml")?;
 
     let mut errors = Vec::new();
 
-    if report.reviewer.username.is_empty() {
-        errors.push("reviewer.username is required".into());
+    if report.certifier.username.is_empty() {
+        errors.push("certifier.username is required".into());
     }
 
     if report.summary.overall_assessment.is_empty() {
@@ -174,32 +183,32 @@ pub fn validate_report(report_path: &Path) -> Result<Vec<String>> {
         ));
     }
 
-    for (i, pr) in report.package_reviews.iter().enumerate() {
+    for (i, pr) in report.package_assessments.iter().enumerate() {
         if pr.prover_contribution_id.is_empty() {
             errors.push(format!(
-                "package_reviews[{}].prover_contribution_id is required",
+                "package_assessments[{}].prover_contribution_id is required",
                 i
             ));
         }
         if pr.rank == 0 {
-            errors.push(format!("package_reviews[{}].rank must be > 0", i));
+            errors.push(format!("package_assessments[{}].rank must be > 0", i));
         }
         if pr.strengths.is_empty() {
-            errors.push(format!("package_reviews[{}].strengths is required", i));
+            errors.push(format!("package_assessments[{}].strengths is required", i));
         }
         if pr.weaknesses.is_empty() {
-            errors.push(format!("package_reviews[{}].weaknesses is required", i));
+            errors.push(format!("package_assessments[{}].weaknesses is required", i));
         }
     }
 
     Ok(errors)
 }
 
-/// Parse a review report TOML file into a ReviewReport struct
-pub fn parse_report(report_path: &Path) -> Result<ReviewReport> {
+/// Parse a certification report TOML file into a CertificationReport struct
+pub fn parse_report(report_path: &Path) -> Result<CertificationReport> {
     let content = std::fs::read_to_string(report_path)
         .with_context(|| format!("Failed to read {}", report_path.display()))?;
-    let report: ReviewReport =
-        toml::from_str(&content).context("Failed to parse review_report.toml")?;
+    let report: CertificationReport =
+        toml::from_str(&content).context("Failed to parse certification_report.toml")?;
     Ok(report)
 }

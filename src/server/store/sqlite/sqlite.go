@@ -139,10 +139,10 @@ func (s *SQLiteStore) AddConjectures(conjectures []data.Conjecture) []string {
 	return added
 }
 
-func (s *SQLiteStore) AddCertificate(r data.Certificate) {
+func (s *SQLiteStore) AddContributionResult(r data.ContributionResult) {
 	tx, err := s.db.Begin()
 	if err != nil {
-		slog.Error("AddCertificate begin tx failed", "error", err)
+		slog.Error("AddContributionResult begin tx failed", "error", err)
 		return
 	}
 	defer tx.Rollback()
@@ -153,31 +153,31 @@ func (s *SQLiteStore) AddCertificate(r data.Certificate) {
 	}
 
 	_, err = tx.Exec(
-		`INSERT INTO certificates (conjecture_id, username, success, proof_script, cost_usd, attempts, error_output)
+		`INSERT INTO contribution_results (conjecture_id, username, success, proof_script, cost_usd, attempts, error_output)
 		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
 		r.ConjectureID, r.Username, successInt, r.ProofScript, r.CostUSD, r.Attempts, r.ErrorOutput,
 	)
 	if err != nil {
-		slog.Error("AddCertificate insert failed", "error", err)
+		slog.Error("AddContributionResult insert failed", "error", err)
 		return
 	}
 
 	if r.Success {
 		_, err = tx.Exec(`UPDATE conjectures SET status = 'proved' WHERE id = ?`, r.ConjectureID)
 		if err != nil {
-			slog.Error("AddCertificate update status failed", "error", err)
+			slog.Error("AddContributionResult update status failed", "error", err)
 			return
 		}
 	}
 
 	if err := tx.Commit(); err != nil {
-		slog.Error("AddCertificate commit failed", "error", err)
+		slog.Error("AddContributionResult commit failed", "error", err)
 	}
 }
 
 func (s *SQLiteStore) AddContribution(cs data.ContributionSummary) {
 	conjectureIDsJSON, _ := json.Marshal(cs.ConjectureIDs)
-	reviewedByJSON, _ := json.Marshal(cs.ReviewedBy)
+	certifiedByJSON, _ := json.Marshal(cs.CertifiedBy)
 	var nftJSON *string
 	if cs.NFTMetadata != nil {
 		b, _ := json.Marshal(cs.NFTMetadata)
@@ -187,7 +187,7 @@ func (s *SQLiteStore) AddContribution(cs data.ContributionSummary) {
 
 	_, err := s.db.Exec(
 		`INSERT INTO contributions (contribution_id, username, conjectures_attempted, conjectures_proved, total_cost_usd,
-		 archive_sha256, nft_metadata, prover, conjecture_ids, archive_path, proof_status, reviewed_by)
+		 archive_sha256, nft_metadata, prover, conjecture_ids, archive_path, proof_status, certified_by)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		 ON CONFLICT (contribution_id) DO UPDATE SET
 		   conjectures_attempted = excluded.conjectures_attempted,
@@ -199,45 +199,45 @@ func (s *SQLiteStore) AddContribution(cs data.ContributionSummary) {
 		   conjecture_ids = excluded.conjecture_ids,
 		   archive_path = excluded.archive_path,
 		   proof_status = excluded.proof_status,
-		   reviewed_by = excluded.reviewed_by`,
+		   certified_by = excluded.certified_by`,
 		cs.ContributionID, cs.Username, cs.ConjecturesAttempted, cs.ConjecturesProved,
 		cs.TotalCostUSD, cs.ArchiveSHA256, nftJSON, cs.Prover,
-		string(conjectureIDsJSON), cs.ArchivePath, cs.ProofStatus, string(reviewedByJSON),
+		string(conjectureIDsJSON), cs.ArchivePath, cs.ProofStatus, string(certifiedByJSON),
 	)
 	if err != nil {
 		slog.Error("AddContribution insert failed", "error", err)
 	}
 }
 
-func (s *SQLiteStore) ListReviewPackages() []data.ReviewPackageInfo {
+func (s *SQLiteStore) ListCertificatePackages() []data.CertificatePackageInfo {
 	rows, err := s.db.Query(
-		`SELECT contribution_id, username, prover, conjecture_ids, archive_sha256, proof_status, reviewed_by
+		`SELECT contribution_id, username, prover, conjecture_ids, archive_sha256, proof_status, certified_by
 		 FROM contributions ORDER BY created_at`)
 	if err != nil {
-		slog.Error("ListReviewPackages query failed", "error", err)
+		slog.Error("ListCertificatePackages query failed", "error", err)
 		return nil
 	}
 	defer rows.Close()
 
-	var packages []data.ReviewPackageInfo
+	var packages []data.CertificatePackageInfo
 	for rows.Next() {
 		var contributionID, username, prover, archiveSHA256, proofStatus string
-		var conjectureIDsStr, reviewedByStr string
+		var conjectureIDsStr, certifiedByStr string
 
-		if err := rows.Scan(&contributionID, &username, &prover, &conjectureIDsStr, &archiveSHA256, &proofStatus, &reviewedByStr); err != nil {
-			slog.Error("ListReviewPackages scan failed", "error", err)
+		if err := rows.Scan(&contributionID, &username, &prover, &conjectureIDsStr, &archiveSHA256, &proofStatus, &certifiedByStr); err != nil {
+			slog.Error("ListCertificatePackages scan failed", "error", err)
 			continue
 		}
 
 		var conjectureIDs []string
-		var reviewedBy []string
+		var certifiedBy []string
 		json.Unmarshal([]byte(conjectureIDsStr), &conjectureIDs)
-		json.Unmarshal([]byte(reviewedByStr), &reviewedBy)
+		json.Unmarshal([]byte(certifiedByStr), &certifiedBy)
 
 		if len(conjectureIDs) == 0 {
 			// Fallback: scan results for this user
 			resultRows, err := s.db.Query(
-				`SELECT DISTINCT conjecture_id FROM certificates WHERE username = ? AND success = 1`, username)
+				`SELECT DISTINCT conjecture_id FROM contribution_results WHERE username = ? AND success = 1`, username)
 			if err == nil {
 				for resultRows.Next() {
 					var pid string
@@ -253,15 +253,15 @@ func (s *SQLiteStore) ListReviewPackages() []data.ReviewPackageInfo {
 			prover = "rocq"
 		}
 
-		packages = append(packages, data.ReviewPackageInfo{
+		packages = append(packages, data.CertificatePackageInfo{
 			ProverContributionID: contributionID,
 			ProverUsername:       username,
 			Prover:               prover,
 			ConjectureIDs:        conjectureIDs,
-			ArchiveURL:           fmt.Sprintf("/review-packages/%s/archive", contributionID),
+			ArchiveURL:           fmt.Sprintf("/certificate-packages/%s/archive", contributionID),
 			ArchiveSHA256:        archiveSHA256,
 			ProofStatus:          proofStatus,
-			ReviewedBy:           reviewedBy,
+			CertifiedBy:          certifiedBy,
 		})
 	}
 	return packages
@@ -276,10 +276,10 @@ func (s *SQLiteStore) GetArchivePath(contributionID string) (string, bool) {
 	return path, true
 }
 
-func (s *SQLiteStore) AddReview(r data.ReviewSummary) {
+func (s *SQLiteStore) AddCertificate(r data.CertificateSummary) {
 	tx, err := s.db.Begin()
 	if err != nil {
-		slog.Error("AddReview begin tx failed", "error", err)
+		slog.Error("AddCertificate begin tx failed", "error", err)
 		return
 	}
 	defer tx.Rollback()
@@ -293,50 +293,50 @@ func (s *SQLiteStore) AddReview(r data.ReviewSummary) {
 	}
 
 	_, err = tx.Exec(
-		`INSERT INTO reviews (review_id, reviewer_username, packages_reviewed, conjectures_compared, package_rankings, recommendation, archive_sha256, nft_metadata)
+		`INSERT INTO certificates (certificate_id, certifier_username, packages_certified, conjectures_compared, package_rankings, recommendation, archive_sha256, nft_metadata)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		r.ReviewID, r.ReviewerUsername, r.PackagesReviewed, r.ConjecturesCompared,
+		r.CertificateID, r.CertifierUsername, r.PackagesCertified, r.ConjecturesCompared,
 		string(rankingsJSON), r.Recommendation, r.ArchiveSHA256, nftJSON,
 	)
 	if err != nil {
-		slog.Error("AddReview insert failed", "error", err)
+		slog.Error("AddCertificate insert failed", "error", err)
 		return
 	}
 
-	// Update reviewed_by for each contribution referenced in the review
+	// Update certified_by for each contribution referenced in the certificate
 	for _, pr := range r.PackageRankings {
-		// Read current reviewed_by, add reviewer, write back
+		// Read current certified_by, add certifier, write back
 		var currentJSON string
-		err := tx.QueryRow(`SELECT reviewed_by FROM contributions WHERE contribution_id = ?`, pr.ProverContributionID).Scan(&currentJSON)
+		err := tx.QueryRow(`SELECT certified_by FROM contributions WHERE contribution_id = ?`, pr.ProverContributionID).Scan(&currentJSON)
 		if err != nil {
-			slog.Error("AddReview read reviewed_by failed", "error", err, "contribution_id", pr.ProverContributionID)
+			slog.Error("AddCertificate read certified_by failed", "error", err, "contribution_id", pr.ProverContributionID)
 			continue
 		}
 
 		var current []string
 		json.Unmarshal([]byte(currentJSON), &current)
 
-		// Add reviewer if not already present
+		// Add certifier if not already present
 		found := false
-		for _, reviewer := range current {
-			if reviewer == r.ReviewerUsername {
+		for _, certifier := range current {
+			if certifier == r.CertifierUsername {
 				found = true
 				break
 			}
 		}
 		if !found {
-			current = append(current, r.ReviewerUsername)
+			current = append(current, r.CertifierUsername)
 			updatedJSON, _ := json.Marshal(current)
-			_, err = tx.Exec(`UPDATE contributions SET reviewed_by = ? WHERE contribution_id = ?`,
+			_, err = tx.Exec(`UPDATE contributions SET certified_by = ? WHERE contribution_id = ?`,
 				string(updatedJSON), pr.ProverContributionID)
 			if err != nil {
-				slog.Error("AddReview update reviewed_by failed", "error", err, "contribution_id", pr.ProverContributionID)
+				slog.Error("AddCertificate update certified_by failed", "error", err, "contribution_id", pr.ProverContributionID)
 			}
 		}
 	}
 
 	if err := tx.Commit(); err != nil {
-		slog.Error("AddReview commit failed", "error", err)
+		slog.Error("AddCertificate commit failed", "error", err)
 	}
 }
 

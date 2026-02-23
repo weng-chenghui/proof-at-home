@@ -23,7 +23,7 @@ type ConjectureSummary struct {
 	Status     string `json:"status"`
 }
 
-type Certificate struct {
+type ContributionResult struct {
 	ConjectureID string  `json:"conjecture_id"`
 	Username     string  `json:"username"`
 	Success      bool    `json:"success"`
@@ -45,12 +45,12 @@ type ContributionSummary struct {
 	ConjectureIDs        []string    `json:"conjecture_ids,omitempty"`
 	ArchivePath          string      `json:"archive_path,omitempty"`
 	ProofStatus          string      `json:"proof_status,omitempty"`
-	ReviewedBy           []string    `json:"reviewed_by,omitempty"`
+	CertifiedBy          []string    `json:"certified_by,omitempty"`
 }
 
-// ── Review types ──
+// ── Certificate types ──
 
-type ReviewPackageInfo struct {
+type CertificatePackageInfo struct {
 	ProverContributionID string   `json:"prover_contribution_id"`
 	ProverUsername       string   `json:"prover_username"`
 	Prover               string   `json:"prover"`
@@ -58,13 +58,13 @@ type ReviewPackageInfo struct {
 	ArchiveURL           string   `json:"archive_url"`
 	ArchiveSHA256        string   `json:"archive_sha256"`
 	ProofStatus          string   `json:"proof_status,omitempty"`
-	ReviewedBy           []string `json:"reviewed_by,omitempty"`
+	CertifiedBy          []string `json:"certified_by,omitempty"`
 }
 
-type ReviewSummary struct {
-	ReviewerUsername    string                  `json:"reviewer_username"`
-	ReviewID            string                  `json:"review_id"`
-	PackagesReviewed    int                     `json:"packages_reviewed"`
+type CertificateSummary struct {
+	CertifierUsername   string                  `json:"certifier_username"`
+	CertificateID       string                  `json:"certificate_id"`
+	PackagesCertified   int                     `json:"packages_certified"`
 	ConjecturesCompared int                     `json:"conjectures_compared"`
 	PackageRankings     []PackageRankingSummary `json:"package_rankings"`
 	Recommendation      string                  `json:"recommendation"`

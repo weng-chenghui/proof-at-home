@@ -2,27 +2,27 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ReviewState {
-    pub review_id: String,
-    pub reviewer_username: String,
+pub struct CertificationState {
+    pub certification_id: String,
+    pub certifier_username: String,
     pub created_at: String,
     pub packages: Vec<CertificatePackage>,
-    pub status: ReviewStatus,
+    pub status: CertificationStatus,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema)]
-pub enum ReviewStatus {
+pub enum CertificationStatus {
     Open,
     Compared,
     Sealed,
 }
 
-impl std::fmt::Display for ReviewStatus {
+impl std::fmt::Display for CertificationStatus {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ReviewStatus::Open => write!(f, "open"),
-            ReviewStatus::Compared => write!(f, "compared"),
-            ReviewStatus::Sealed => write!(f, "sealed"),
+            CertificationStatus::Open => write!(f, "open"),
+            CertificationStatus::Compared => write!(f, "compared"),
+            CertificationStatus::Sealed => write!(f, "sealed"),
         }
     }
 }
@@ -105,19 +105,19 @@ pub struct ComparisonResult {
     pub package_rankings: Vec<PackageRanking>,
 }
 
-/// Parsed review report from TOML
+/// Parsed certification report from TOML
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ReviewReport {
-    pub reviewer: ReviewerInfo,
+pub struct CertificationReport {
+    pub certifier: CertifierInfo,
     pub summary: ReportSummary,
-    pub package_reviews: Vec<PackageReview>,
+    pub package_assessments: Vec<PackageAssessment>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ReviewerInfo {
+pub struct CertifierInfo {
     pub username: String,
     pub date: String,
-    pub review_id: String,
+    pub certification_id: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -128,7 +128,7 @@ pub struct ReportSummary {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct PackageReview {
+pub struct PackageAssessment {
     pub prover_contribution_id: String,
     pub prover_username: String,
     pub rank: u32,

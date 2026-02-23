@@ -122,7 +122,7 @@ function initNav() {
         <a class="nav-brand" href="/">proof-at-home</a>
         <div class="nav-links">
             <a href="/conjectures.html">Conjectures</a>
-            <a href="/reviews.html">Certificates</a>
+            <a href="/certificates.html">Certificates</a>
             <a href="/nft-gallery.html">NFT Gallery</a>
             <a href="/submit-conjecture.html">Submit Conjecture</a>
         </div>

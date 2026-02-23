@@ -90,19 +90,19 @@
     <nav id="navbar"></nav>
     <div class="container">
         <h1>NFT Gallery</h1>
-        <p class="text-secondary" style="margin-bottom:1.5rem;font-size:0.9rem">Contribution and review records. Published entries have metadata pinned to IPFS.</p>
+        <p class="text-secondary" style="margin-bottom:1.5rem;font-size:0.9rem">Contribution and certificate records. Published entries have metadata pinned to IPFS.</p>
 
         <div class="tab-bar">
             <button class="active" onclick="filterTab('all', this)">All</button>
             <button onclick="filterTab('contribution', this)">Contributions</button>
-            <button onclick="filterTab('review', this)">Reviews</button>
+            <button onclick="filterTab('certificate', this)">Certificates</button>
         </div>
 
         <div id="msg" class="msg" style="display:none"></div>
         <div id="gallery" class="nft-grid"></div>
         <div id="empty" class="empty-state" style="display:none">
             <h2>No records yet</h2>
-            <p>Use the CLI to submit contributions and reviews.</p>
+            <p>Use the CLI to submit contributions and certificates.</p>
         </div>
     </div>
     <script src="/shared.js"></script>
@@ -131,7 +131,7 @@
             gallery.innerHTML = filtered.map(c => {
                 const typeBadge = c.type === 'contribution'
                     ? '<span class="badge badge-type badge-contribution">Contribution</span>'
-                    : '<span class="badge badge-type badge-review">Review</span>';
+                    : '<span class="badge badge-type badge-review">Certificate</span>';
                 const statusBadge = c.published
                     ? '<span class="badge badge-type badge-published">Published</span>'
                     : '<span class="badge badge-type badge-draft">Draft</span>';
@@ -146,7 +146,7 @@
                     if (cost) stats += `<span>$${cost} donated</span>`;
                     if (assistant) stats += `<span>${escapeHtml(assistant)}</span>`;
                 } else {
-                    const pkgs = getAttr(c.nft, 'Packages Reviewed');
+                    const pkgs = getAttr(c.nft, 'Packages Certified');
                     const conjectures = getAttr(c.nft, 'Conjectures Compared');
                     const rec = getAttr(c.nft, 'Recommendation');
                     if (pkgs !== null) stats += `<span><strong>${pkgs}</strong> packages</span>`;
@@ -184,9 +184,9 @@
 
         async function load() {
             try {
-                const [contributions, reviews] = await Promise.all([
+                const [contributions, certificates] = await Promise.all([
                     api('GET', '/contributions').catch(() => []),
-                    api('GET', '/reviews-list').catch(() => [])
+                    api('GET', '/certificates-list').catch(() => [])
                 ]);
 
                 allCards = [];
@@ -204,13 +204,13 @@
                     });
                 });
 
-                (reviews || []).forEach(r => {
+                (certificates || []).forEach(r => {
                     const nft = r.nft_metadata;
                     const archiveCid = getAttr(nft, 'Archive IPFS CID');
                     allCards.push({
-                        type: 'review',
-                        name: (nft && nft.name) || `Review ${r.review_id || ''}`,
-                        username: r.reviewer_username || getAttr(nft, 'Reviewer') || 'Unknown',
+                        type: 'certificate',
+                        name: (nft && nft.name) || `Certificate ${r.certificate_id || ''}`,
+                        username: r.certifier_username || getAttr(nft, 'Certifier') || 'Unknown',
                         nft: nft,
                         published: !!archiveCid,
                         ipfs_cid: archiveCid

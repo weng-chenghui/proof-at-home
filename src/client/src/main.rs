@@ -1,11 +1,11 @@
 mod archive;
 mod budget;
+mod certifier;
 mod commands;
 mod config;
 mod ipfs;
 mod nft;
 mod prover;
-mod reviewer;
 mod server_client;
 mod signing;
 
@@ -37,10 +37,10 @@ enum Commands {
     Prove,
     /// Show configuration and lifetime stats
     Status,
-    /// Review and compare proof packages from provers
-    Review {
+    /// Certify and compare proof packages from provers
+    Certify {
         #[command(subcommand)]
-        action: commands::review::ReviewAction,
+        action: commands::certify::CertifyAction,
     },
     /// Submit a conjecture package (directory, tar.gz, or git URL)
     SubmitPackage {
@@ -49,9 +49,9 @@ enum Commands {
     },
     /// Publish NFT metadata and archive to IPFS for on-chain minting
     Publish {
-        /// Type: "contribution" or "review"
+        /// Type: "contribution" or "certificate"
         kind: String,
-        /// Contribution or review ID
+        /// Contribution or certificate ID
         id: String,
     },
 }
@@ -67,7 +67,7 @@ async fn main() {
         Commands::Donate => commands::donate::run_donate(),
         Commands::Prove => commands::run::run_prove().await,
         Commands::Status => commands::status::run_status(),
-        Commands::Review { action } => commands::review::run_review(action).await,
+        Commands::Certify { action } => commands::certify::run_certify(action).await,
         Commands::SubmitPackage { source } => {
             commands::submit_package::run_submit_package(&source).await
         }
