@@ -41,8 +41,8 @@ forge create contracts/ProofAtHome.sol:ProofAtHome \
 
 ## Minting Flow
 
-1. Run a proof session: `proof-at-home run`
-2. Publish to IPFS: `proof-at-home publish session <session-id>`
+1. Run a proof contribution: `proof-at-home prove`
+2. Publish to IPFS: `proof-at-home publish contribution <contribution-id>`
 3. Note the token URI from the output
 4. Call `mint(recipientAddress, tokenURI)` on the deployed contract
 

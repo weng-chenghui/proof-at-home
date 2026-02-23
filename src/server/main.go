@@ -44,13 +44,13 @@ func main() {
 			os.Exit(1)
 		}
 
-		if err := pg.LoadProblems(cfg.ProblemsDir); err != nil {
-			slog.Error("Failed to load problems", "error", err)
+		if err := pg.LoadConjectures(cfg.ProblemsDir); err != nil {
+			slog.Error("Failed to load conjectures", "error", err)
 			os.Exit(1)
 		}
 
 		if cfg.SeedReviews != "" {
-			if err := pg.LoadSeedSessions(cfg.SeedReviews); err != nil {
+			if err := pg.LoadSeedContributions(cfg.SeedReviews); err != nil {
 				slog.Warn("Failed to load seed review data", "error", err)
 			} else {
 				slog.Info("Seed review data loaded", "dir", cfg.SeedReviews)
@@ -73,13 +73,13 @@ func main() {
 			os.Exit(1)
 		}
 
-		if err := lite.LoadProblems(cfg.ProblemsDir); err != nil {
-			slog.Error("Failed to load problems", "error", err)
+		if err := lite.LoadConjectures(cfg.ProblemsDir); err != nil {
+			slog.Error("Failed to load conjectures", "error", err)
 			os.Exit(1)
 		}
 
 		if cfg.SeedReviews != "" {
-			if err := lite.LoadSeedSessions(cfg.SeedReviews); err != nil {
+			if err := lite.LoadSeedContributions(cfg.SeedReviews); err != nil {
 				slog.Warn("Failed to load seed review data", "error", err)
 			} else {
 				slog.Info("Seed review data loaded", "dir", cfg.SeedReviews)
@@ -91,13 +91,13 @@ func main() {
 
 	default:
 		mem := store.NewMemoryStore()
-		if err := mem.LoadProblems(cfg.ProblemsDir); err != nil {
-			slog.Error("Failed to load problems", "error", err)
+		if err := mem.LoadConjectures(cfg.ProblemsDir); err != nil {
+			slog.Error("Failed to load conjectures", "error", err)
 			os.Exit(1)
 		}
 
 		if cfg.SeedReviews != "" {
-			if err := mem.LoadSeedSessions(cfg.SeedReviews); err != nil {
+			if err := mem.LoadSeedContributions(cfg.SeedReviews); err != nil {
 				slog.Warn("Failed to load seed review data", "error", err)
 			} else {
 				slog.Info("Seed review data loaded", "dir", cfg.SeedReviews)
@@ -127,8 +127,8 @@ func main() {
 		slog.Info("Using S3 object storage", "endpoint", cfg.S3Endpoint, "bucket", cfg.S3Bucket)
 	}
 
-	problemHandler := &handlers.ProblemHandler{Store: st}
-	resultHandler := &handlers.ResultHandler{Store: st}
+	conjectureHandler := &handlers.ConjectureHandler{Store: st}
+	certificateHandler := &handlers.CertificateHandler{Store: st}
 	reviewHandler := &handlers.ReviewHandler{Store: st, Storage: objStorage}
 	packageHandler := &handlers.PackageHandler{Store: st}
 
@@ -149,10 +149,10 @@ func main() {
 	r.Get("/health", healthHandler.Check)
 
 	// Public GET endpoints
-	r.Get("/problems", problemHandler.List)
-	r.Get("/problems/{id}", problemHandler.Get)
+	r.Get("/conjectures", conjectureHandler.List)
+	r.Get("/conjectures/{id}", conjectureHandler.Get)
 	r.Get("/review-packages", reviewHandler.List)
-	r.Get("/review-packages/{sessionID}/archive", reviewHandler.DownloadArchive)
+	r.Get("/review-packages/{contributionID}/archive", reviewHandler.DownloadArchive)
 
 	// POST endpoints — optionally protected by auth
 	r.Group(func(r chi.Router) {
@@ -164,9 +164,9 @@ func main() {
 			slog.Info("JWT authentication enabled", "issuer", cfg.AuthIssuer)
 		}
 
-		r.Post("/problems/packages", packageHandler.Submit)
-		r.Post("/results", resultHandler.Submit)
-		r.Post("/results/batch", resultHandler.SubmitBatch)
+		r.Post("/conjectures/packages", packageHandler.Submit)
+		r.Post("/certificates", certificateHandler.Submit)
+		r.Post("/certificates/batch", certificateHandler.SubmitBatch)
 		r.Post("/reviews", reviewHandler.SubmitReview)
 	})
 

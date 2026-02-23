@@ -20,7 +20,7 @@ PROBLEMS_DIR=./problems ./pah-pocketbase serve
 
 On first run, PocketBase automatically:
 - Creates `pb_data/` with a SQLite database and local file storage
-- Runs migrations to create the `problems`, `proof_results`, `sessions`, and `reviews` collections
+- Runs migrations to create the `problems`, `proof_results`, `contributions`, and `reviews` collections
 - Seeds problems from the `PROBLEMS_DIR` directory
 
 Open `http://127.0.0.1:8090/` for the web UI, `http://127.0.0.1:8090/_/` for the admin dashboard.
@@ -86,7 +86,7 @@ fly scale count 1     # Ensure single instance (SQLite needs this)
 
 Open `/_/` on your deployment. On the first visit, you'll be prompted to create a Superuser email and password. The admin dashboard lets you:
 
-- Browse and edit all collections (problems, results, sessions, reviews)
+- Browse and edit all collections (problems, results, contributions, reviews)
 - Manage users and authentication settings
 - Configure file storage (local or S3-compatible)
 - View logs and create backups
@@ -129,7 +129,7 @@ Everything runs from the single binary — no Postgres, no Redis, no separate fi
 Two hooks run automatically (defined in `cmd/pocketbase/hooks/hooks.go`):
 
 1. **Auto-prove**: When a `proof_results` record is created with `success=true`, the corresponding problem's status is set to `"proved"`.
-2. **Review tracking**: When a `reviews` record is created, the `reviewed_by` field on affected sessions is updated with the reviewer's username.
+2. **Review tracking**: When a `reviews` record is created, the `reviewed_by` field on affected contributions is updated with the reviewer's username.
 
 ### Optional: GCP Cloud Storage
 
@@ -227,7 +227,7 @@ Both deployment options embed a web frontend served from the root URL. No separa
 | Reviews | `/reviews.html` | Review packages with archive download links |
 | Submit Problem | `/submit-problem.html` | Upload tar.gz or provide git URL |
 | Submit Result | `/submit-result.html` | Single proof result form |
-| Submit Batch | `/submit-batch.html` | Session summary form |
+| Submit Contribution | `/submit-batch.html` | Proof contribution form |
 | Submit Review | `/submit-review.html` | Review form with dynamic package rankings |
 | Login | `/login.html` | OAuth login (GitHub, Google, Facebook) for PocketBase deployments |
 | Settings | `/settings.html` | JWT token configuration (stored in browser localStorage) |
@@ -247,9 +247,9 @@ Both deployment options serve identical endpoints:
 | `GET` | `/problems/{id}` | Get a specific problem |
 | `POST` | `/problems/packages` | Submit problems (tar.gz or JSON) |
 | `POST` | `/results` | Submit a proof result |
-| `POST` | `/results/batch` | Submit a session summary |
+| `POST` | `/results/batch` | Submit a contribution summary |
 | `GET` | `/review-packages` | List review packages |
-| `GET` | `/review-packages/{sessionID}/archive` | Download proof archive |
+| `GET` | `/review-packages/{contributionID}/archive` | Download proof archive |
 | `POST` | `/reviews` | Submit a review |
 
 When `AUTH_ENABLED=true` (custom server) or using PocketBase auth, POST endpoints require authentication. GET endpoints are always public.
@@ -303,7 +303,7 @@ This starts three services:
 |---|---|---|
 | `PORT` | `8080` | HTTP listen port |
 | `PROBLEMS_DIR` | `problems` | Directory containing problem JSON files |
-| `SEED_REVIEWS` | (empty) | Directory containing seed session JSON files |
+| `SEED_REVIEWS` | (empty) | Directory containing seed contribution JSON files |
 | `STORE_BACKEND` | `memory` | `memory`, `sqlite`, or `postgres` |
 | `DATABASE_URL` | (empty) | PostgreSQL connection string |
 | `DATABASE_PATH` | `proofathome.db` | SQLite file path |

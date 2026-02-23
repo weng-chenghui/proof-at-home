@@ -54,19 +54,19 @@ func (s *SQLiteStore) Close() error {
 	return s.db.Close()
 }
 
-func (s *SQLiteStore) ListProblems() []data.ProblemSummary {
-	rows, err := s.db.Query(`SELECT id, title, difficulty, proof_assistant, status FROM problems ORDER BY id`)
+func (s *SQLiteStore) ListConjectures() []data.ConjectureSummary {
+	rows, err := s.db.Query(`SELECT id, title, difficulty, prover, status FROM conjectures ORDER BY id`)
 	if err != nil {
-		slog.Error("ListProblems query failed", "error", err)
+		slog.Error("ListConjectures query failed", "error", err)
 		return nil
 	}
 	defer rows.Close()
 
-	var summaries []data.ProblemSummary
+	var summaries []data.ConjectureSummary
 	for rows.Next() {
-		var p data.ProblemSummary
-		if err := rows.Scan(&p.ID, &p.Title, &p.Difficulty, &p.ProofAssistant, &p.Status); err != nil {
-			slog.Error("ListProblems scan failed", "error", err)
+		var p data.ConjectureSummary
+		if err := rows.Scan(&p.ID, &p.Title, &p.Difficulty, &p.Prover, &p.Status); err != nil {
+			slog.Error("ListConjectures scan failed", "error", err)
 			continue
 		}
 		summaries = append(summaries, p)
@@ -74,22 +74,22 @@ func (s *SQLiteStore) ListProblems() []data.ProblemSummary {
 	return summaries
 }
 
-func (s *SQLiteStore) GetProblem(id string) (data.Problem, bool) {
-	var p data.Problem
+func (s *SQLiteStore) GetConjecture(id string) (data.Conjecture, bool) {
+	var p data.Conjecture
 	var hints, deps sql.NullString
 
 	err := s.db.QueryRow(
-		`SELECT id, title, difficulty, proof_assistant, status, preamble, lemma_statement, hints, skeleton, dependencies
-		 FROM problems WHERE id = ?`, id,
-	).Scan(&p.ID, &p.Title, &p.Difficulty, &p.ProofAssistant, &p.Status,
+		`SELECT id, title, difficulty, prover, status, preamble, lemma_statement, hints, skeleton, dependencies
+		 FROM conjectures WHERE id = ?`, id,
+	).Scan(&p.ID, &p.Title, &p.Difficulty, &p.Prover, &p.Status,
 		&p.Preamble, &p.LemmaStatement, &hints, &p.Skeleton, &deps)
 
 	if err == sql.ErrNoRows {
-		return data.Problem{}, false
+		return data.Conjecture{}, false
 	}
 	if err != nil {
-		slog.Error("GetProblem query failed", "error", err, "id", id)
-		return data.Problem{}, false
+		slog.Error("GetConjecture query failed", "error", err, "id", id)
+		return data.Conjecture{}, false
 	}
 
 	if hints.Valid {
@@ -102,9 +102,9 @@ func (s *SQLiteStore) GetProblem(id string) (data.Problem, bool) {
 	return p, true
 }
 
-func (s *SQLiteStore) AddProblems(problems []data.Problem) []string {
+func (s *SQLiteStore) AddConjectures(conjectures []data.Conjecture) []string {
 	var added []string
-	for _, p := range problems {
+	for _, p := range conjectures {
 		if p.ID == "" {
 			continue
 		}
@@ -120,14 +120,14 @@ func (s *SQLiteStore) AddProblems(problems []data.Problem) []string {
 		}
 
 		res, err := s.db.Exec(
-			`INSERT INTO problems (id, title, difficulty, proof_assistant, status, preamble, lemma_statement, hints, skeleton, dependencies)
+			`INSERT INTO conjectures (id, title, difficulty, prover, status, preamble, lemma_statement, hints, skeleton, dependencies)
 			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 			 ON CONFLICT (id) DO NOTHING`,
-			p.ID, p.Title, p.Difficulty, p.ProofAssistant, p.Status,
+			p.ID, p.Title, p.Difficulty, p.Prover, p.Status,
 			p.Preamble, p.LemmaStatement, string(hintsJSON), p.Skeleton, depsJSON,
 		)
 		if err != nil {
-			slog.Error("AddProblems insert failed", "error", err, "id", p.ID)
+			slog.Error("AddConjectures insert failed", "error", err, "id", p.ID)
 			continue
 		}
 
@@ -139,10 +139,10 @@ func (s *SQLiteStore) AddProblems(problems []data.Problem) []string {
 	return added
 }
 
-func (s *SQLiteStore) AddResult(r data.ProofResult) {
+func (s *SQLiteStore) AddCertificate(r data.Certificate) {
 	tx, err := s.db.Begin()
 	if err != nil {
-		slog.Error("AddResult begin tx failed", "error", err)
+		slog.Error("AddCertificate begin tx failed", "error", err)
 		return
 	}
 	defer tx.Rollback()
@@ -153,66 +153,66 @@ func (s *SQLiteStore) AddResult(r data.ProofResult) {
 	}
 
 	_, err = tx.Exec(
-		`INSERT INTO proof_results (problem_id, username, success, proof_script, cost_usd, attempts, error_output)
+		`INSERT INTO certificates (conjecture_id, username, success, proof_script, cost_usd, attempts, error_output)
 		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		r.ProblemID, r.Username, successInt, r.ProofScript, r.CostUSD, r.Attempts, r.ErrorOutput,
+		r.ConjectureID, r.Username, successInt, r.ProofScript, r.CostUSD, r.Attempts, r.ErrorOutput,
 	)
 	if err != nil {
-		slog.Error("AddResult insert failed", "error", err)
+		slog.Error("AddCertificate insert failed", "error", err)
 		return
 	}
 
 	if r.Success {
-		_, err = tx.Exec(`UPDATE problems SET status = 'proved' WHERE id = ?`, r.ProblemID)
+		_, err = tx.Exec(`UPDATE conjectures SET status = 'proved' WHERE id = ?`, r.ConjectureID)
 		if err != nil {
-			slog.Error("AddResult update status failed", "error", err)
+			slog.Error("AddCertificate update status failed", "error", err)
 			return
 		}
 	}
 
 	if err := tx.Commit(); err != nil {
-		slog.Error("AddResult commit failed", "error", err)
+		slog.Error("AddCertificate commit failed", "error", err)
 	}
 }
 
-func (s *SQLiteStore) AddSession(ss data.SessionSummary) {
-	problemIDsJSON, _ := json.Marshal(ss.ProblemIDs)
-	reviewedByJSON, _ := json.Marshal(ss.ReviewedBy)
+func (s *SQLiteStore) AddContribution(cs data.ContributionSummary) {
+	conjectureIDsJSON, _ := json.Marshal(cs.ConjectureIDs)
+	reviewedByJSON, _ := json.Marshal(cs.ReviewedBy)
 	var nftJSON *string
-	if ss.NFTMetadata != nil {
-		b, _ := json.Marshal(ss.NFTMetadata)
+	if cs.NFTMetadata != nil {
+		b, _ := json.Marshal(cs.NFTMetadata)
 		n := string(b)
 		nftJSON = &n
 	}
 
 	_, err := s.db.Exec(
-		`INSERT INTO sessions (session_id, username, problems_attempted, problems_proved, total_cost_usd,
-		 archive_sha256, nft_metadata, proof_assistant, problem_ids, archive_path, proof_status, reviewed_by)
+		`INSERT INTO contributions (contribution_id, username, conjectures_attempted, conjectures_proved, total_cost_usd,
+		 archive_sha256, nft_metadata, prover, conjecture_ids, archive_path, proof_status, reviewed_by)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-		 ON CONFLICT (session_id) DO UPDATE SET
-		   problems_attempted = excluded.problems_attempted,
-		   problems_proved = excluded.problems_proved,
+		 ON CONFLICT (contribution_id) DO UPDATE SET
+		   conjectures_attempted = excluded.conjectures_attempted,
+		   conjectures_proved = excluded.conjectures_proved,
 		   total_cost_usd = excluded.total_cost_usd,
 		   archive_sha256 = excluded.archive_sha256,
 		   nft_metadata = excluded.nft_metadata,
-		   proof_assistant = excluded.proof_assistant,
-		   problem_ids = excluded.problem_ids,
+		   prover = excluded.prover,
+		   conjecture_ids = excluded.conjecture_ids,
 		   archive_path = excluded.archive_path,
 		   proof_status = excluded.proof_status,
 		   reviewed_by = excluded.reviewed_by`,
-		ss.SessionID, ss.Username, ss.ProblemsAttempted, ss.ProblemsProved,
-		ss.TotalCostUSD, ss.ArchiveSHA256, nftJSON, ss.ProofAssistant,
-		string(problemIDsJSON), ss.ArchivePath, ss.ProofStatus, string(reviewedByJSON),
+		cs.ContributionID, cs.Username, cs.ConjecturesAttempted, cs.ConjecturesProved,
+		cs.TotalCostUSD, cs.ArchiveSHA256, nftJSON, cs.Prover,
+		string(conjectureIDsJSON), cs.ArchivePath, cs.ProofStatus, string(reviewedByJSON),
 	)
 	if err != nil {
-		slog.Error("AddSession insert failed", "error", err)
+		slog.Error("AddContribution insert failed", "error", err)
 	}
 }
 
 func (s *SQLiteStore) ListReviewPackages() []data.ReviewPackageInfo {
 	rows, err := s.db.Query(
-		`SELECT session_id, username, proof_assistant, problem_ids, archive_sha256, proof_status, reviewed_by
-		 FROM sessions ORDER BY created_at`)
+		`SELECT contribution_id, username, prover, conjecture_ids, archive_sha256, proof_status, reviewed_by
+		 FROM contributions ORDER BY created_at`)
 	if err != nil {
 		slog.Error("ListReviewPackages query failed", "error", err)
 		return nil
@@ -221,55 +221,55 @@ func (s *SQLiteStore) ListReviewPackages() []data.ReviewPackageInfo {
 
 	var packages []data.ReviewPackageInfo
 	for rows.Next() {
-		var sessionID, username, proofAssistant, archiveSHA256, proofStatus string
-		var problemIDsStr, reviewedByStr string
+		var contributionID, username, prover, archiveSHA256, proofStatus string
+		var conjectureIDsStr, reviewedByStr string
 
-		if err := rows.Scan(&sessionID, &username, &proofAssistant, &problemIDsStr, &archiveSHA256, &proofStatus, &reviewedByStr); err != nil {
+		if err := rows.Scan(&contributionID, &username, &prover, &conjectureIDsStr, &archiveSHA256, &proofStatus, &reviewedByStr); err != nil {
 			slog.Error("ListReviewPackages scan failed", "error", err)
 			continue
 		}
 
-		var problemIDs []string
+		var conjectureIDs []string
 		var reviewedBy []string
-		json.Unmarshal([]byte(problemIDsStr), &problemIDs)
+		json.Unmarshal([]byte(conjectureIDsStr), &conjectureIDs)
 		json.Unmarshal([]byte(reviewedByStr), &reviewedBy)
 
-		if len(problemIDs) == 0 {
+		if len(conjectureIDs) == 0 {
 			// Fallback: scan results for this user
 			resultRows, err := s.db.Query(
-				`SELECT DISTINCT problem_id FROM proof_results WHERE username = ? AND success = 1`, username)
+				`SELECT DISTINCT conjecture_id FROM certificates WHERE username = ? AND success = 1`, username)
 			if err == nil {
 				for resultRows.Next() {
 					var pid string
 					if resultRows.Scan(&pid) == nil {
-						problemIDs = append(problemIDs, pid)
+						conjectureIDs = append(conjectureIDs, pid)
 					}
 				}
 				resultRows.Close()
 			}
 		}
 
-		if proofAssistant == "" {
-			proofAssistant = "rocq"
+		if prover == "" {
+			prover = "rocq"
 		}
 
 		packages = append(packages, data.ReviewPackageInfo{
-			ProverSessionID: sessionID,
-			ProverUsername:  username,
-			ProofAssistant:  proofAssistant,
-			ProblemIDs:      problemIDs,
-			ArchiveURL:      fmt.Sprintf("/review-packages/%s/archive", sessionID),
-			ArchiveSHA256:   archiveSHA256,
-			ProofStatus:     proofStatus,
-			ReviewedBy:      reviewedBy,
+			ProverContributionID: contributionID,
+			ProverUsername:       username,
+			Prover:               prover,
+			ConjectureIDs:        conjectureIDs,
+			ArchiveURL:           fmt.Sprintf("/review-packages/%s/archive", contributionID),
+			ArchiveSHA256:        archiveSHA256,
+			ProofStatus:          proofStatus,
+			ReviewedBy:           reviewedBy,
 		})
 	}
 	return packages
 }
 
-func (s *SQLiteStore) GetArchivePath(sessionID string) (string, bool) {
+func (s *SQLiteStore) GetArchivePath(contributionID string) (string, bool) {
 	var path string
-	err := s.db.QueryRow(`SELECT archive_path FROM sessions WHERE session_id = ?`, sessionID).Scan(&path)
+	err := s.db.QueryRow(`SELECT archive_path FROM contributions WHERE contribution_id = ?`, contributionID).Scan(&path)
 	if err != nil {
 		return "", false
 	}
@@ -293,9 +293,9 @@ func (s *SQLiteStore) AddReview(r data.ReviewSummary) {
 	}
 
 	_, err = tx.Exec(
-		`INSERT INTO reviews (review_id, reviewer_username, packages_reviewed, problems_compared, package_rankings, recommendation, archive_sha256, nft_metadata)
+		`INSERT INTO reviews (review_id, reviewer_username, packages_reviewed, conjectures_compared, package_rankings, recommendation, archive_sha256, nft_metadata)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		r.ReviewID, r.ReviewerUsername, r.PackagesReviewed, r.ProblemsCompared,
+		r.ReviewID, r.ReviewerUsername, r.PackagesReviewed, r.ConjecturesCompared,
 		string(rankingsJSON), r.Recommendation, r.ArchiveSHA256, nftJSON,
 	)
 	if err != nil {
@@ -303,13 +303,13 @@ func (s *SQLiteStore) AddReview(r data.ReviewSummary) {
 		return
 	}
 
-	// Update reviewed_by for each session referenced in the review
+	// Update reviewed_by for each contribution referenced in the review
 	for _, pr := range r.PackageRankings {
 		// Read current reviewed_by, add reviewer, write back
 		var currentJSON string
-		err := tx.QueryRow(`SELECT reviewed_by FROM sessions WHERE session_id = ?`, pr.ProverSessionID).Scan(&currentJSON)
+		err := tx.QueryRow(`SELECT reviewed_by FROM contributions WHERE contribution_id = ?`, pr.ProverContributionID).Scan(&currentJSON)
 		if err != nil {
-			slog.Error("AddReview read reviewed_by failed", "error", err, "session_id", pr.ProverSessionID)
+			slog.Error("AddReview read reviewed_by failed", "error", err, "contribution_id", pr.ProverContributionID)
 			continue
 		}
 
@@ -327,10 +327,10 @@ func (s *SQLiteStore) AddReview(r data.ReviewSummary) {
 		if !found {
 			current = append(current, r.ReviewerUsername)
 			updatedJSON, _ := json.Marshal(current)
-			_, err = tx.Exec(`UPDATE sessions SET reviewed_by = ? WHERE session_id = ?`,
-				string(updatedJSON), pr.ProverSessionID)
+			_, err = tx.Exec(`UPDATE contributions SET reviewed_by = ? WHERE contribution_id = ?`,
+				string(updatedJSON), pr.ProverContributionID)
 			if err != nil {
-				slog.Error("AddReview update reviewed_by failed", "error", err, "session_id", pr.ProverSessionID)
+				slog.Error("AddReview update reviewed_by failed", "error", err, "contribution_id", pr.ProverContributionID)
 			}
 		}
 	}
@@ -340,11 +340,11 @@ func (s *SQLiteStore) AddReview(r data.ReviewSummary) {
 	}
 }
 
-// LoadProblems loads problem JSON files from a directory into the database.
-func (s *SQLiteStore) LoadProblems(dir string) error {
+// LoadConjectures loads conjecture JSON files from a directory into the database.
+func (s *SQLiteStore) LoadConjectures(dir string) error {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return fmt.Errorf("reading problems dir: %w", err)
+		return fmt.Errorf("reading conjectures dir: %w", err)
 	}
 
 	for _, entry := range entries {
@@ -357,7 +357,7 @@ func (s *SQLiteStore) LoadProblems(dir string) error {
 			return fmt.Errorf("reading %s: %w", path, err)
 		}
 
-		var p data.Problem
+		var p data.Conjecture
 		if err := json.Unmarshal(raw, &p); err != nil {
 			return fmt.Errorf("parsing %s: %w", path, err)
 		}
@@ -366,13 +366,13 @@ func (s *SQLiteStore) LoadProblems(dir string) error {
 			p.Status = "open"
 		}
 
-		s.AddProblems([]data.Problem{p})
+		s.AddConjectures([]data.Conjecture{p})
 	}
 	return nil
 }
 
-// LoadSeedSessions loads seed session JSON files from a directory.
-func (s *SQLiteStore) LoadSeedSessions(dir string) error {
+// LoadSeedContributions loads seed contribution JSON files from a directory.
+func (s *SQLiteStore) LoadSeedContributions(dir string) error {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return fmt.Errorf("reading seed dir: %w", err)
@@ -388,16 +388,16 @@ func (s *SQLiteStore) LoadSeedSessions(dir string) error {
 			return fmt.Errorf("reading %s: %w", path, err)
 		}
 
-		var ss data.SessionSummary
-		if err := json.Unmarshal(raw, &ss); err != nil {
+		var cs data.ContributionSummary
+		if err := json.Unmarshal(raw, &cs); err != nil {
 			return fmt.Errorf("parsing %s: %w", path, err)
 		}
 
-		if ss.ArchivePath != "" && !filepath.IsAbs(ss.ArchivePath) {
-			ss.ArchivePath = filepath.Join(dir, ss.ArchivePath)
+		if cs.ArchivePath != "" && !filepath.IsAbs(cs.ArchivePath) {
+			cs.ArchivePath = filepath.Join(dir, cs.ArchivePath)
 		}
 
-		s.AddSession(ss)
+		s.AddContribution(cs)
 	}
 	return nil
 }

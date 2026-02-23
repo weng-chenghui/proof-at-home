@@ -121,10 +121,10 @@ function initNav() {
     nav.innerHTML = `
         <a class="nav-brand" href="/">proof-at-home</a>
         <div class="nav-links">
-            <a href="/problems.html">Problems</a>
-            <a href="/reviews.html">Packages</a>
+            <a href="/conjectures.html">Conjectures</a>
+            <a href="/reviews.html">Certificates</a>
             <a href="/nft-gallery.html">NFT Gallery</a>
-            <a href="/submit-problem.html">Submit Problem</a>
+            <a href="/submit-conjecture.html">Submit Conjecture</a>
         </div>
         ${userSection}
     `;

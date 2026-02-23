@@ -21,9 +21,9 @@ type PackageHandler struct {
 }
 
 type packageSubmitResponse struct {
-	Status          string   `json:"status"`
-	AddedProblemIDs []string `json:"added_problem_ids"`
-	Count           int      `json:"count"`
+	Status             string   `json:"status"`
+	AddedConjectureIDs []string `json:"added_conjecture_ids"`
+	Count              int      `json:"count"`
 }
 
 func (h *PackageHandler) Submit(w http.ResponseWriter, r *http.Request) {
@@ -50,12 +50,12 @@ func (h *PackageHandler) Submit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := packageSubmitResponse{
-		Status:          "accepted",
-		AddedProblemIDs: added,
-		Count:           len(added),
+		Status:             "accepted",
+		AddedConjectureIDs: added,
+		Count:              len(added),
 	}
-	if resp.AddedProblemIDs == nil {
-		resp.AddedProblemIDs = []string{}
+	if resp.AddedConjectureIDs == nil {
+		resp.AddedConjectureIDs = []string{}
 	}
 	json.NewEncoder(w).Encode(resp)
 }
@@ -71,12 +71,12 @@ func (h *PackageHandler) handleTarGz(r *http.Request) ([]string, error) {
 		return nil, fmt.Errorf("extracting tar.gz: %w", err)
 	}
 
-	problems, err := loadProblemsFromDir(tmpDir)
+	conjectures, err := loadConjecturesFromDir(tmpDir)
 	if err != nil {
 		return nil, err
 	}
 
-	return h.Store.AddProblems(problems), nil
+	return h.Store.AddConjectures(conjectures), nil
 }
 
 func (h *PackageHandler) handleGitURL(r *http.Request) ([]string, error) {
@@ -101,12 +101,12 @@ func (h *PackageHandler) handleGitURL(r *http.Request) ([]string, error) {
 		return nil, fmt.Errorf("git clone failed: %s: %w", string(out), err)
 	}
 
-	problems, err := loadProblemsFromDir(tmpDir)
+	conjectures, err := loadConjecturesFromDir(tmpDir)
 	if err != nil {
 		return nil, err
 	}
 
-	return h.Store.AddProblems(problems), nil
+	return h.Store.AddConjectures(conjectures), nil
 }
 
 func extractTarGz(r io.Reader, destDir string) error {
@@ -156,8 +156,8 @@ func extractTarGz(r io.Reader, destDir string) error {
 	return nil
 }
 
-func loadProblemsFromDir(dir string) ([]data.Problem, error) {
-	var problems []data.Problem
+func loadConjecturesFromDir(dir string) ([]data.Conjecture, error) {
+	var conjectures []data.Conjecture
 	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil // skip errors
@@ -169,18 +169,18 @@ func loadProblemsFromDir(dir string) ([]data.Problem, error) {
 		if err != nil {
 			return nil
 		}
-		var p data.Problem
-		if err := json.Unmarshal(raw, &p); err != nil {
+		var c data.Conjecture
+		if err := json.Unmarshal(raw, &c); err != nil {
 			return nil // skip invalid files
 		}
-		if p.ID == "" {
-			return nil // skip problems without ID
+		if c.ID == "" {
+			return nil // skip conjectures without ID
 		}
-		problems = append(problems, p)
+		conjectures = append(conjectures, c)
 		return nil
 	})
 	if err != nil {
 		return nil, fmt.Errorf("walking directory: %w", err)
 	}
-	return problems, nil
+	return conjectures, nil
 }

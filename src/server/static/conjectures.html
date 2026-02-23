@@ -3,13 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Problems — proof-at-home</title>
+    <title>Conjectures — proof-at-home</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/shared.css">
 </head>
 <body>
     <nav id="navbar"></nav>
     <div class="container">
-        <h1>Problems</h1>
+        <h1>Conjectures</h1>
 
         <div class="filter-bar">
             <select id="filterDifficulty">
@@ -19,7 +22,7 @@
                 <option value="hard">Hard</option>
             </select>
             <select id="filterAssistant">
-                <option value="">All proof assistants</option>
+                <option value="">All provers</option>
             </select>
         </div>
 
@@ -30,7 +33,7 @@
                     <th>ID</th>
                     <th>Title</th>
                     <th>Difficulty</th>
-                    <th>Proof Assistant</th>
+                    <th>Prover</th>
                     <th>Status</th>
                 </tr>
             </thead>
@@ -39,21 +42,21 @@
     </div>
     <script src="/shared.js"></script>
     <script>
-        let allProblems = [];
+        let allConjectures = [];
 
         async function load() {
             try {
-                allProblems = await api('GET', '/problems');
+                allConjectures = await api('GET', '/conjectures');
                 populateAssistantFilter();
                 render();
             } catch (e) {
-                showMsg('msg', 'Failed to load problems: ' + (e.error || e.message || 'unknown error'), true);
+                showMsg('msg', 'Failed to load conjectures: ' + (e.error || e.message || 'unknown error'), true);
             }
         }
 
         function populateAssistantFilter() {
             const sel = document.getElementById('filterAssistant');
-            const assistants = [...new Set(allProblems.map(p => p.proof_assistant).filter(Boolean))].sort();
+            const assistants = [...new Set(allConjectures.map(p => p.prover).filter(Boolean))].sort();
             assistants.forEach(a => {
                 const opt = document.createElement('option');
                 opt.value = a;
@@ -65,17 +68,17 @@
         function render() {
             const diff = document.getElementById('filterDifficulty').value;
             const asst = document.getElementById('filterAssistant').value;
-            const filtered = allProblems.filter(p =>
+            const filtered = allConjectures.filter(p =>
                 (!diff || p.difficulty === diff) &&
-                (!asst || p.proof_assistant === asst)
+                (!asst || p.prover === asst)
             );
             const tbody = document.getElementById('tbody');
             tbody.innerHTML = filtered.map(p => `
                 <tr>
-                    <td><a href="/problem.html?id=${encodeURIComponent(p.id)}">${escapeHtml(p.id)}</a></td>
+                    <td><a href="/conjecture.html?id=${encodeURIComponent(p.id)}">${escapeHtml(p.id)}</a></td>
                     <td>${escapeHtml(p.title)}</td>
                     <td>${difficultyBadge(p.difficulty)}</td>
-                    <td>${escapeHtml(p.proof_assistant)}</td>
+                    <td>${escapeHtml(p.prover)}</td>
                     <td>${statusDot(p.status)}</td>
                 </tr>
             `).join('');

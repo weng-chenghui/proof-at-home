@@ -7,12 +7,12 @@ End-to-end guide for publishing proof-of-contribution NFTs on-chain.
 The publishing flow has three stages:
 
 ```
-proof-at-home run          →  local proof archive + NFT metadata
+proof-at-home prove        →  local proof archive + NFT metadata
 proof-at-home publish      →  IPFS-pinned archive + mint-ready script
 ./mint.sh                  →  on-chain ERC-721 NFT
 ```
 
-Each stage produces artifacts in the session directory (`~/.proof-at-home/sessions/<id>/`).
+Each stage produces artifacts in the contribution directory (`~/.proof-at-home/contributions/<id>/`).
 
 ---
 
@@ -81,22 +81,22 @@ api_key = "your-pinata-jwt-token"
 3. Enable "pinFileToIPFS" and "pinJSONToIPFS" permissions
 4. Copy the JWT token
 
-### Step 2: Run a Proof Session
+### Step 2: Run a Proof Contribution
 
 ```bash
-proof-at-home run
+proof-at-home prove
 ```
 
 This creates:
-- `~/.proof-at-home/sessions/<session-id>/proofs.tar.gz` — proof archive
-- `~/.proof-at-home/sessions/<session-id>/nft_metadata.json` — NFT metadata
+- `~/.proof-at-home/contributions/<contribution-id>/proofs.tar.gz` — proof archive
+- `~/.proof-at-home/contributions/<contribution-id>/nft_metadata.json` — NFT metadata
 
-Note the session ID from the output.
+Note the contribution ID from the output.
 
 ### Step 3: Publish to IPFS
 
 ```bash
-proof-at-home publish session <session-id>
+proof-at-home publish contribution <contribution-id>
 ```
 
 This:
@@ -106,7 +106,7 @@ This:
 4. Generates `mint_ready.json` with CIDs and token URI
 5. Generates `mint.sh` — a ready-to-run minting script
 
-Output files in the session directory:
+Output files in the contribution directory:
 ```
 mint_ready.json              # CIDs and token URI
 mint.sh                      # Executable minting script
@@ -150,7 +150,7 @@ export DEPLOYER_KEY="0x..."           # Contract owner's private key
 Then run the generated script:
 
 ```bash
-cd ~/.proof-at-home/sessions/<session-id>
+cd ~/.proof-at-home/contributions/<contribution-id>
 ./mint.sh
 ```
 
@@ -192,12 +192,12 @@ print("Signature valid")
 
 ## File Reference
 
-After publishing, the session directory contains:
+After publishing, the contribution directory contains:
 
 | File                        | Created by      | Description                          |
 |-----------------------------|-----------------|--------------------------------------|
-| `proofs.tar.gz`             | `run`           | Proof archive                        |
-| `nft_metadata.json`         | `run`           | Original NFT metadata (local)        |
+| `proofs.tar.gz`             | `prove`         | Proof archive                        |
+| `nft_metadata.json`         | `prove`         | Original NFT metadata (local)        |
 | `nft_metadata_published.json` | `publish`     | Final metadata with IPFS CIDs        |
 | `mint_ready.json`           | `publish`       | CIDs and token URI for minting       |
 | `mint.sh`                   | `publish`       | Executable minting script            |

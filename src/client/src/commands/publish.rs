@@ -15,15 +15,15 @@ pub async fn run_publish(kind: &str, id: &str) -> Result<()> {
     }
 
     let (base_dir, archive_name, nft_name) = match kind {
-        "session" => {
-            let dir = Config::sessions_dir()?.join(id);
+        "contribution" => {
+            let dir = Config::contributions_dir()?.join(id);
             (dir, "proofs.tar.gz", "nft_metadata.json")
         }
         "review" => {
             let dir = Config::config_dir()?.join("reviews").join(id);
             (dir, "review_package.tar.gz", "review_nft_metadata.json")
         }
-        _ => bail!("Unknown type '{}'. Use 'session' or 'review'.", kind),
+        _ => bail!("Unknown type '{}'. Use 'contribution' or 'review'.", kind),
     };
 
     if !base_dir.exists() {
@@ -40,8 +40,8 @@ pub async fn run_publish(kind: &str, id: &str) -> Result<()> {
         bail!(
             "NFT metadata not found: {}. Run the {} first.",
             nft_path.display(),
-            if kind == "session" {
-                "session"
+            if kind == "contribution" {
+                "prove"
             } else {
                 "review seal"
             }

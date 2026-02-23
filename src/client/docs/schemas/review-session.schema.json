@@ -35,8 +35,8 @@
       "required": [
         "archive_sha256",
         "import_source",
-        "problem_ids",
-        "proof_assistant",
+        "conjecture_ids",
+        "prover",
         "prover_session_id",
         "prover_username"
       ],
@@ -47,13 +47,13 @@
         "import_source": {
           "type": "string"
         },
-        "problem_ids": {
+        "conjecture_ids": {
           "type": "array",
           "items": {
             "type": "string"
           }
         },
-        "proof_assistant": {
+        "prover": {
           "type": "string"
         },
         "prover_session_id": {

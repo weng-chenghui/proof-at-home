@@ -24,9 +24,9 @@ func (h *ReviewHandler) List(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ReviewHandler) DownloadArchive(w http.ResponseWriter, r *http.Request) {
-	sessionID := chi.URLParam(r, "sessionID")
+	contributionID := chi.URLParam(r, "contributionID")
 
-	archivePath, ok := h.Store.GetArchivePath(sessionID)
+	archivePath, ok := h.Store.GetArchivePath(contributionID)
 	if !ok || archivePath == "" {
 		w.Header().Set("Content-Type", "application/json")
 		http.Error(w, `{"error":"archive not found"}`, http.StatusNotFound)

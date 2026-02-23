@@ -75,8 +75,8 @@ fn tar_directory(dir: &Path) -> Result<Vec<u8>> {
 }
 
 fn print_result(resp: &crate::server_client::api::PackageSubmitResponse) {
-    println!("{} {} problem(s) added", "✓".green(), resp.count);
-    if !resp.added_problem_ids.is_empty() {
-        println!("  IDs: {}", resp.added_problem_ids.join(", "));
+    println!("{} {} conjecture(s) added", "✓".green(), resp.count);
+    if !resp.added_conjecture_ids.is_empty() {
+        println!("  IDs: {}", resp.added_conjecture_ids.join(", "));
     }
 }

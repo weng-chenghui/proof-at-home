@@ -11,20 +11,20 @@
 </head>
 <body>
     <nav id="navbar"></nav>
-    <div class="container">
+    <div class="container container-wide">
         <div class="hero">
             <h1>proof-at-home</h1>
-            <p>Distributed formal proof verification. Browse problems, prove lemmas with AI, and review proof packages from the community.</p>
+            <p>Distributed formal proof verification. Browse conjectures, prove lemmas with AI, and review certificates from the community.</p>
         </div>
 
         <div class="workflow">
             <div class="workflow-step">
                 <div class="workflow-number">1</div>
                 <div class="workflow-content">
-                    <h3>Browse Problems</h3>
-                    <p>Find open proof problems to work on, filtered by difficulty and proof assistant.</p>
+                    <h3>Browse Conjectures</h3>
+                    <p>Find open conjectures to work on, filtered by difficulty and prover.</p>
                     <div class="workflow-actions">
-                        <a href="/problems.html" class="btn">Browse Problems</a>
+                        <a href="/conjectures.html" class="btn">Browse Conjectures</a>
                     </div>
                 </div>
             </div>
@@ -33,9 +33,9 @@
                 <div class="workflow-number">2</div>
                 <div class="workflow-content">
                     <h3>Prove &amp; Submit</h3>
-                    <p>Run the CLI to prove lemmas with AI and submit your results. Install with <code>cargo install pah</code>.</p>
+                    <p>Run the CLI to prove conjectures with AI and submit certificates. Install with <code>cargo install pah</code>.</p>
                     <div class="workflow-actions">
-                        <a href="/problems.html" class="btn">Browse Problems</a>
+                        <a href="/getting-started.html" class="btn">Start Proving</a>
                     </div>
                 </div>
             </div>
@@ -44,19 +44,22 @@
                 <div class="workflow-number">3</div>
                 <div class="workflow-content">
                     <h3>Review</h3>
-                    <p>Review proof packages from other provers and rank their submissions.</p>
+                    <p>Compare and rank certificates submitted by other provers.</p>
                     <div class="workflow-actions">
-                        <a href="/reviews.html" class="btn">Browse Packages</a>
+                        <a href="/reviews.html" class="btn">Browse Certificates</a>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <div class="workflow-separator">
-            <h3>For problem authors</h3>
-            <p>Upload problem packages for provers to work on.</p>
-            <div class="workflow-actions">
-                <a href="/submit-problem.html" class="btn btn-secondary">Submit Problem Package</a>
+            <div class="workflow-step workflow-step-author">
+                <div class="workflow-number">4</div>
+                <div class="workflow-content">
+                    <h3>For conjecture authors</h3>
+                    <p>Upload conjecture packages for provers to work on.</p>
+                    <div class="workflow-actions">
+                        <a href="/submit-conjecture.html" class="btn btn-secondary">Submit Conjecture Package</a>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

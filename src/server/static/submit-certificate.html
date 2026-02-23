@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Submit Certificate — proof-at-home</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/shared.css">
+</head>
+<body>
+    <nav id="navbar"></nav>
+    <div class="container">
+        <h1>Submit Certificate</h1>
+        <div id="msg" class="msg" style="display:none"></div>
+
+        <form id="form" onsubmit="return submitForm(event)">
+            <div class="form-group">
+                <label for="conjecture_id">Conjecture</label>
+                <select id="conjecture_id" required>
+                    <option value="">Loading conjectures...</option>
+                </select>
+                <div class="hint">Select the conjecture you proved</div>
+                <div id="conjecture-preview" class="conjecture-preview" style="display:none"></div>
+            </div>
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" required>
+            </div>
+            <div class="form-group checkbox-group">
+                <input type="checkbox" id="success">
+                <label for="success">Proof successful</label>
+            </div>
+            <div class="form-group">
+                <label for="proof_script">Proof Script</label>
+                <textarea id="proof_script" rows="8"></textarea>
+                <div class="hint">The complete proof code accepted by the prover</div>
+            </div>
+            <div class="form-group">
+                <label for="cost_usd">Cost (USD)</label>
+                <input type="number" id="cost_usd" step="0.01" min="0" value="0">
+                <div class="hint">API cost incurred during proving (e.g. from Claude API usage)</div>
+            </div>
+            <div class="form-group">
+                <label for="attempts">Attempts</label>
+                <input type="number" id="attempts" min="0" value="1">
+            </div>
+            <div class="form-group">
+                <label for="error_output">Error Output</label>
+                <textarea id="error_output" rows="4"></textarea>
+                <div class="hint">Compiler/checker error messages (if proof failed)</div>
+            </div>
+            <button type="submit">Submit Result</button>
+        </form>
+    </div>
+    <script src="/shared.js"></script>
+    <script>
+        let conjecturesCache = [];
+
+        async function loadConjectures() {
+            try {
+                const problems = await api('GET', '/conjectures');
+                conjecturesCache = problems || [];
+                const sel = document.getElementById('conjecture_id');
+                sel.innerHTML = '<option value="">— Select a conjecture —</option>';
+                conjecturesCache.forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = p.id;
+                    const parts = [p.id];
+                    if (p.title) parts.push(p.title);
+                    if (p.difficulty) parts.push('[' + p.difficulty + ']');
+                    if (p.prover) parts.push('[' + p.prover + ']');
+                    opt.textContent = parts.join(' — ');
+                    sel.appendChild(opt);
+                });
+            } catch {
+                const sel = document.getElementById('conjecture_id');
+                sel.innerHTML = '<option value="">Failed to load conjectures</option>';
+            }
+        }
+
+        function showConjecturePreview() {
+            const id = document.getElementById('conjecture_id').value;
+            const preview = document.getElementById('conjecture-preview');
+            if (!id) { preview.style.display = 'none'; return; }
+            const p = conjecturesCache.find(x => x.id === id);
+            if (!p) { preview.style.display = 'none'; return; }
+            let html = `<div class="conjecture-preview-title">${escapeHtml(p.title || p.id)}</div>`;
+            if (p.difficulty) html += difficultyBadge(p.difficulty) + ' ';
+            if (p.prover) html += `<span class="text-muted">${escapeHtml(p.prover)}</span>`;
+            if (p.lemma_statement) html += `<pre><code>${escapeHtml(p.lemma_statement)}</code></pre>`;
+            preview.innerHTML = html;
+            preview.style.display = 'block';
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (loginGate('form')) return;
+            autoFillUsername('username');
+            loadConjectures();
+            document.getElementById('conjecture_id').addEventListener('change', showConjecturePreview);
+        });
+
+        async function submitForm(e) {
+            e.preventDefault();
+            hideMsg('msg');
+            const body = {
+                conjecture_id: document.getElementById('conjecture_id').value.trim(),
+                username: document.getElementById('username').value.trim(),
+                success: document.getElementById('success').checked,
+                proof_script: document.getElementById('proof_script').value,
+                cost_usd: parseFloat(document.getElementById('cost_usd').value) || 0,
+                attempts: parseInt(document.getElementById('attempts').value) || 0,
+                error_output: document.getElementById('error_output').value
+            };
+            try {
+                await api('POST', '/certificates', body);
+                showMsg('msg', 'Result submitted successfully.', false);
+            } catch (e) {
+                showMsg('msg', 'Error: ' + (e.error || e.message || 'submission failed'), true);
+            }
+            return false;
+        }
+    </script>
+</body>
+</html>

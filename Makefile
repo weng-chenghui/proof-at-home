@@ -1,4 +1,4 @@
-.PHONY: build build-client build-server clean run-server run-init run-donate run run-status test help
+.PHONY: build build-client build-server build-pocketbase clean run-server run-pocketbase run-init run-donate run-prove run-status test help
 
 # Paths
 CLIENT_BIN = target/release/proof-at-home
@@ -9,13 +9,16 @@ help: ## Show this help
 
 # ── Build ──────────────────────────────────────────────
 
-build: build-client build-server ## Build everything (release)
+build: build-client build-server build-pocketbase ## Build everything (release)
 
 build-client: ## Build Rust CLI (release)
 	cargo build --release
 
 build-server: ## Build Go server
 	go build -o target/proof-at-home-server ./src/server
+
+build-pocketbase: ## Build PocketBase server
+	go build -o pah-pocketbase ./cmd/pocketbase
 
 build-debug: ## Build Rust CLI (debug, faster compile)
 	cargo build
@@ -25,14 +28,23 @@ build-debug: ## Build Rust CLI (debug, faster compile)
 run-server: build-server ## Start the problem server
 	PROBLEMS_DIR=problems ./target/proof-at-home-server
 
-run-init: build-debug ## Run setup wizard
+run-pocketbase: build-pocketbase ## Start the PocketBase server
+	PROBLEMS_DIR=./problems ./pah-pocketbase serve
+
+run-login: build-debug ## Log in with auth token from web UI
+	$(CLIENT_DEBUG) login
+
+run-setup: build-debug ## Configure CLI settings
+	$(CLIENT_DEBUG) setup
+
+run-init: build-debug ## Run setup wizard (deprecated)
 	$(CLIENT_DEBUG) init
 
 run-donate: build-debug ## Set donation budget
 	$(CLIENT_DEBUG) donate
 
-run: build-debug ## Start a proof session
-	$(CLIENT_DEBUG) run
+run-prove: build-debug ## Start a proof contribution
+	$(CLIENT_DEBUG) prove
 
 run-status: build-debug ## Show config and stats
 	$(CLIENT_DEBUG) status
@@ -58,7 +70,7 @@ lint: ## Run clippy + go vet
 
 clean: ## Remove build artifacts
 	cargo clean
-	rm -f target/proof-at-home-server
+	rm -f target/proof-at-home-server pah-pocketbase
 
 health: ## Ping the server health endpoint
 	@curl -sf http://localhost:8080/health && echo "" || echo "Server not running"

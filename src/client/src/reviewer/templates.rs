@@ -6,7 +6,7 @@ use crate::reviewer::types::*;
 /// Generate a review report TOML template, pre-filled with session info and optional AI rankings
 pub fn get_template(
     variant: &str,
-    session: &ReviewSession,
+    session: &ReviewState,
     comparison: Option<&ComparisonResult>,
 ) -> String {
     match variant {
@@ -16,10 +16,7 @@ pub fn get_template(
     }
 }
 
-fn build_default_template(
-    session: &ReviewSession,
-    comparison: Option<&ComparisonResult>,
-) -> String {
+fn build_default_template(session: &ReviewState, comparison: Option<&ComparisonResult>) -> String {
     let mut out = String::from(
         "# Proof@Home Review Report\n\
          # Fill in the fields below. Fields marked [required] must be completed before sealing.\n\n",
@@ -46,7 +43,7 @@ fn build_default_template(
             let pr = comp
                 .package_rankings
                 .iter()
-                .find(|r| r.prover_session_id == pkg.prover_session_id);
+                .find(|r| r.prover_contribution_id == pkg.prover_contribution_id);
             match pr {
                 Some(r) => (r.rank, r.summary.clone(), String::new()),
                 None => (0, String::new(), String::new()),
@@ -57,23 +54,20 @@ fn build_default_template(
 
         out.push_str(&format!(
             "[[package_reviews]]\n\
-             prover_session_id = \"{}\"\n\
+             prover_contribution_id = \"{}\"\n\
              prover_username = \"{}\"\n\
              rank = {}               # [required] 1 = best\n\
              strengths = \"{}\"      # [required] Key strengths of this proof package\n\
              weaknesses = \"{}\"     # [required] Key weaknesses\n\
              notes = \"\"            # Optional additional notes\n\n",
-            pkg.prover_session_id, pkg.prover_username, rank, strengths, weaknesses,
+            pkg.prover_contribution_id, pkg.prover_username, rank, strengths, weaknesses,
         ));
     }
 
     out
 }
 
-fn build_minimal_template(
-    session: &ReviewSession,
-    comparison: Option<&ComparisonResult>,
-) -> String {
+fn build_minimal_template(session: &ReviewState, comparison: Option<&ComparisonResult>) -> String {
     let mut out = String::from("# Proof@Home Review Report (Minimal)\n\n");
 
     out.push_str(&format!(
@@ -96,40 +90,37 @@ fn build_minimal_template(
             .and_then(|c| {
                 c.package_rankings
                     .iter()
-                    .find(|r| r.prover_session_id == pkg.prover_session_id)
+                    .find(|r| r.prover_contribution_id == pkg.prover_contribution_id)
             })
             .map(|r| r.rank)
             .unwrap_or(0);
 
         out.push_str(&format!(
             "[[package_reviews]]\n\
-             prover_session_id = \"{}\"\n\
+             prover_contribution_id = \"{}\"\n\
              prover_username = \"{}\"\n\
              rank = {}\n\
              strengths = \"\"\n\
              weaknesses = \"\"\n\
              notes = \"\"\n\n",
-            pkg.prover_session_id, pkg.prover_username, rank,
+            pkg.prover_contribution_id, pkg.prover_username, rank,
         ));
     }
 
     out
 }
 
-fn build_detailed_template(
-    session: &ReviewSession,
-    comparison: Option<&ComparisonResult>,
-) -> String {
+fn build_detailed_template(session: &ReviewState, comparison: Option<&ComparisonResult>) -> String {
     let mut out = build_default_template(session, comparison);
 
-    // Add per-problem commentary sections
+    // Add per-conjecture commentary sections
     if let Some(comp) = comparison {
-        out.push_str("# ── Per-problem commentary ──\n\n");
-        for pc in &comp.problem_comparisons {
+        out.push_str("# ── Per-conjecture commentary ──\n\n");
+        for pc in &comp.conjecture_comparisons {
             out.push_str(&format!(
-                "# Problem: {} ({})\n\
+                "# Conjecture: {} ({})\n\
                  # AI analysis: {}\n",
-                pc.problem_title, pc.problem_id, pc.analysis,
+                pc.conjecture_title, pc.conjecture_id, pc.analysis,
             ));
             for r in &pc.rankings {
                 out.push_str(&format!(
@@ -138,10 +129,10 @@ fn build_detailed_template(
                 ));
             }
             out.push_str(&format!(
-                "# [[problem_commentary]]\n\
-                 # problem_id = \"{}\"\n\
+                "# [[conjecture_commentary]]\n\
+                 # conjecture_id = \"{}\"\n\
                  # your_notes = \"\"\n\n",
-                pc.problem_id,
+                pc.conjecture_id,
             ));
         }
     }
@@ -184,9 +175,9 @@ pub fn validate_report(report_path: &Path) -> Result<Vec<String>> {
     }
 
     for (i, pr) in report.package_reviews.iter().enumerate() {
-        if pr.prover_session_id.is_empty() {
+        if pr.prover_contribution_id.is_empty() {
             errors.push(format!(
-                "package_reviews[{}].prover_session_id is required",
+                "package_reviews[{}].prover_contribution_id is required",
                 i
             ));
         }

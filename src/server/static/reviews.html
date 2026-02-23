@@ -3,21 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reviews — proof-at-home</title>
+    <title>Certificates — proof-at-home</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/shared.css">
 </head>
 <body>
     <nav id="navbar"></nav>
     <div class="container">
-        <h1>Review Packages</h1>
+        <h1>Certificate Packages</h1>
         <div id="msg" class="msg" style="display:none"></div>
         <table>
             <thead>
                 <tr>
                     <th>Prover</th>
-                    <th>Session ID</th>
-                    <th>Proof Assistant</th>
-                    <th>Problems</th>
+                    <th>Contribution ID</th>
+                    <th>Prover</th>
+                    <th>Conjectures</th>
                     <th>Status</th>
                     <th>Reviewed By</th>
                     <th>Archive</th>
@@ -35,12 +38,12 @@
                 tbody.innerHTML = (packages || []).map(p => `
                     <tr>
                         <td>${escapeHtml(p.prover_username)}</td>
-                        <td>${escapeHtml(p.prover_session_id)}</td>
-                        <td>${escapeHtml(p.proof_assistant)}</td>
-                        <td>${(p.problem_ids || []).length}</td>
+                        <td>${escapeHtml(p.prover_contribution_id)}</td>
+                        <td>${escapeHtml(p.prover)}</td>
+                        <td>${(p.conjecture_ids || []).length}</td>
                         <td>${escapeHtml(p.proof_status || 'pending')}</td>
                         <td>${(p.reviewed_by || []).join(', ') || '—'}</td>
-                        <td><a href="/review-packages/${encodeURIComponent(p.prover_session_id)}/archive" download>Download</a></td>
+                        <td><a href="/review-packages/${encodeURIComponent(p.prover_contribution_id)}/archive" download>Download</a></td>
                     </tr>
                 `).join('');
             } catch (e) {

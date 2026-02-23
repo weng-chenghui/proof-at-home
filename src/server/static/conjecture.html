@@ -3,13 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Problem Detail — proof-at-home</title>
+    <title>Conjecture Detail — proof-at-home</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/shared.css">
 </head>
 <body>
     <nav id="navbar"></nav>
     <div class="container">
-        <p><a href="/problems.html">&larr; Back to Problems</a></p>
+        <p><a href="/conjectures.html">&larr; Back to Conjectures</a></p>
         <div id="msg" class="msg" style="display:none"></div>
         <div id="content"></div>
     </div>
@@ -18,17 +21,17 @@
         async function load() {
             const id = new URLSearchParams(window.location.search).get('id');
             if (!id) {
-                showMsg('msg', 'No problem ID specified.', true);
+                showMsg('msg', 'No conjecture ID specified.', true);
                 return;
             }
             try {
-                const p = await api('GET', '/problems/' + encodeURIComponent(id));
+                const p = await api('GET', '/conjectures/' + encodeURIComponent(id));
                 document.title = p.title + ' — proof-at-home';
                 document.getElementById('content').innerHTML = `
                     <h1>${escapeHtml(p.title)}</h1>
                     <p>
                         ${difficultyBadge(p.difficulty)}
-                        &nbsp; ${escapeHtml(p.proof_assistant)}
+                        &nbsp; ${escapeHtml(p.prover)}
                         &nbsp; ${statusDot(p.status)}
                     </p>
 
@@ -54,7 +57,7 @@
                     ` : ''}
                 `;
             } catch (e) {
-                showMsg('msg', 'Failed to load problem: ' + (e.error || e.message || 'not found'), true);
+                showMsg('msg', 'Failed to load conjecture: ' + (e.error || e.message || 'not found'), true);
             }
         }
         document.addEventListener('DOMContentLoaded', load);

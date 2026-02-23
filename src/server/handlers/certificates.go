@@ -8,34 +8,34 @@ import (
 	"github.com/proof-at-home/server/src/server/store"
 )
 
-type ResultHandler struct {
+type CertificateHandler struct {
 	Store store.Store
 }
 
-func (h *ResultHandler) Submit(w http.ResponseWriter, r *http.Request) {
+func (h *CertificateHandler) Submit(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	var result data.ProofResult
+	var result data.Certificate
 	if err := json.NewDecoder(r.Body).Decode(&result); err != nil {
 		http.Error(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
 		return
 	}
 
-	h.Store.AddResult(result)
+	h.Store.AddCertificate(result)
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]string{"status": "accepted"})
 }
 
-func (h *ResultHandler) SubmitBatch(w http.ResponseWriter, r *http.Request) {
+func (h *CertificateHandler) SubmitBatch(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	var summary data.SessionSummary
+	var summary data.ContributionSummary
 	if err := json.NewDecoder(r.Body).Decode(&summary); err != nil {
 		http.Error(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
 		return
 	}
 
-	h.Store.AddSession(summary)
+	h.Store.AddContribution(summary)
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]string{"status": "accepted"})
 }

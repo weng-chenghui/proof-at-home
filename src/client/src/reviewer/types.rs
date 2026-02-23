@@ -2,11 +2,11 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ReviewSession {
+pub struct ReviewState {
     pub review_id: String,
     pub reviewer_username: String,
     pub created_at: String,
-    pub packages: Vec<ProofPackage>,
+    pub packages: Vec<CertificatePackage>,
     pub status: ReviewStatus,
 }
 
@@ -28,34 +28,34 @@ impl std::fmt::Display for ReviewStatus {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ProofPackage {
-    pub prover_session_id: String,
+pub struct CertificatePackage {
+    pub prover_contribution_id: String,
     pub prover_username: String,
-    pub proof_assistant: String,
-    pub problem_ids: Vec<String>,
+    pub prover: String,
+    pub conjecture_ids: Vec<String>,
     pub archive_sha256: String,
     pub import_source: String,
 }
 
-/// Per-problem comparison of proofs from different provers
+/// Per-conjecture comparison of proofs from different provers
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ProblemComparison {
-    pub problem_id: String,
-    pub problem_title: String,
-    pub rankings: Vec<ProofRanking>,
+pub struct ConjectureComparison {
+    pub conjecture_id: String,
+    pub conjecture_title: String,
+    pub rankings: Vec<CertificateRanking>,
     pub analysis: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ProofRanking {
-    pub prover_session_id: String,
+pub struct CertificateRanking {
+    pub prover_contribution_id: String,
     pub prover_username: String,
-    pub scores: ProofScores,
+    pub scores: CertificateScores,
     pub reasoning: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema)]
-pub struct ProofScores {
+pub struct CertificateScores {
     pub succinctness: u8,
     pub library_reuse: u8,
     pub generality: u8,
@@ -64,13 +64,13 @@ pub struct ProofScores {
     pub overall: u8,
 }
 
-impl ProofScores {
-    pub fn average_with(scores: &[&ProofScores]) -> ProofScores {
+impl CertificateScores {
+    pub fn average_with(scores: &[&CertificateScores]) -> CertificateScores {
         if scores.is_empty() {
-            return ProofScores::default();
+            return CertificateScores::default();
         }
         let n = scores.len() as f64;
-        ProofScores {
+        CertificateScores {
             succinctness: (scores.iter().map(|s| s.succinctness as f64).sum::<f64>() / n).round()
                 as u8,
             library_reuse: (scores.iter().map(|s| s.library_reuse as f64).sum::<f64>() / n).round()
@@ -87,10 +87,10 @@ impl ProofScores {
 /// Package-level rollup
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct PackageRanking {
-    pub prover_session_id: String,
+    pub prover_contribution_id: String,
     pub prover_username: String,
-    pub avg_scores: ProofScores,
-    pub problems_compared: u32,
+    pub avg_scores: CertificateScores,
+    pub conjectures_compared: u32,
     pub rank: u32,
     pub summary: String,
 }
@@ -101,7 +101,7 @@ pub struct ComparisonResult {
     pub timestamp: String,
     pub model: String,
     pub cost_usd: f64,
-    pub problem_comparisons: Vec<ProblemComparison>,
+    pub conjecture_comparisons: Vec<ConjectureComparison>,
     pub package_rankings: Vec<PackageRanking>,
 }
 
@@ -129,7 +129,7 @@ pub struct ReportSummary {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct PackageReview {
-    pub prover_session_id: String,
+    pub prover_contribution_id: String,
     pub prover_username: String,
     pub rank: u32,
     pub strengths: String,

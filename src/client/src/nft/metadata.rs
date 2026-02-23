@@ -4,25 +4,25 @@ use serde::Serialize;
 use serde_json::{json, Value};
 
 #[derive(Debug, Serialize, JsonSchema)]
-pub struct SessionInfo {
+pub struct ContributionInfo {
     pub username: String,
-    pub problems_proved: u32,
-    pub problems_attempted: u32,
+    pub conjectures_proved: u32,
+    pub conjectures_attempted: u32,
     pub cost_donated_usd: f64,
-    pub proof_assistant: String,
-    pub proof_assistant_version: String,
+    pub prover: String,
+    pub prover_version: String,
     pub archive_sha256: String,
     pub proof_status: String,
     pub public_key: String,
     pub archive_signature: String,
 }
 
-/// Generate OpenSea-compatible NFT metadata JSON for a prover session
-pub fn generate_nft_metadata(info: &SessionInfo) -> Value {
+/// Generate OpenSea-compatible NFT metadata JSON for a proof contribution
+pub fn generate_nft_metadata(info: &ContributionInfo) -> Value {
     let date = Utc::now().format("%Y-%m-%d").to_string();
 
     json!({
-        "name": format!("Proof@Home Session — {} — {}", info.username, date),
+        "name": format!("Proof@Home Contribution — {} — {}", info.username, date),
         "description": "Contribution record: formally verified mathematical lemmas for the public domain.",
         "external_url": "",
         "image": "",
@@ -32,24 +32,24 @@ pub fn generate_nft_metadata(info: &SessionInfo) -> Value {
                 "value": info.username
             },
             {
-                "trait_type": "Problems Proved",
-                "value": info.problems_proved
+                "trait_type": "Conjectures Proved",
+                "value": info.conjectures_proved
             },
             {
-                "trait_type": "Problems Attempted",
-                "value": info.problems_attempted
+                "trait_type": "Conjectures Attempted",
+                "value": info.conjectures_attempted
             },
             {
                 "trait_type": "Cost Donated (USD)",
                 "value": format!("{:.2}", info.cost_donated_usd)
             },
             {
-                "trait_type": "Proof Assistant",
-                "value": info.proof_assistant
+                "trait_type": "Prover",
+                "value": info.prover
             },
             {
-                "trait_type": "Proof Assistant Version",
-                "value": info.proof_assistant_version
+                "trait_type": "Prover Version",
+                "value": info.prover_version
             },
             {
                 "trait_type": "Archive SHA-256",
@@ -78,12 +78,12 @@ pub struct ReviewInfo {
     pub reviewer_username: String,
     pub review_id: String,
     pub packages_reviewed: u32,
-    pub problems_compared: u32,
+    pub conjectures_compared: u32,
     pub top_prover: String,
     pub recommendation: String,
     pub archive_sha256: String,
     pub ai_comparison_cost_usd: f64,
-    pub reviewed_session_ids: Vec<String>,
+    pub reviewed_contribution_ids: Vec<String>,
     pub reviewer_public_key: String,
     pub archive_signature: String,
 }
@@ -111,8 +111,8 @@ pub fn generate_review_nft_metadata(info: &ReviewInfo) -> Value {
                 "value": info.packages_reviewed
             },
             {
-                "trait_type": "Problems Compared",
-                "value": info.problems_compared
+                "trait_type": "Conjectures Compared",
+                "value": info.conjectures_compared
             },
             {
                 "trait_type": "Top Prover",
@@ -139,8 +139,8 @@ pub fn generate_review_nft_metadata(info: &ReviewInfo) -> Value {
                 "value": format!("{:.4}", info.ai_comparison_cost_usd)
             },
             {
-                "trait_type": "Reviewed Session IDs",
-                "value": info.reviewed_session_ids.join(", ")
+                "trait_type": "Reviewed Contribution IDs",
+                "value": info.reviewed_contribution_ids.join(", ")
             }
         ]
     })

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Getting Started — proof-at-home</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/shared.css">
+</head>
+<body>
+    <nav id="navbar"></nav>
+    <div class="container">
+        <h1>Getting Started</h1>
+        <p class="text-secondary" style="margin-bottom: 2rem;">Go from zero to your first verified proof contribution in seven steps.</p>
+
+        <div class="workflow-step" style="margin-bottom: 1rem;">
+            <div class="workflow-number">1</div>
+            <div class="workflow-content">
+                <h3>Prerequisites</h3>
+                <p>Make sure you have the following installed:</p>
+                <ul style="margin: 0; padding-left: 1.25rem; font-size: 0.875rem; color: var(--text-secondary); line-height: 1.8;">
+                    <li><a href="https://rustup.rs/">Rust</a> (1.70+) — needed to build the CLI</li>
+                    <li>An <a href="https://console.anthropic.com/">Anthropic API key</a> — powers the AI prover</li>
+                    <li><a href="https://rocq-prover.org/">Rocq</a> for Rocq proofs, or <a href="https://leanprover.github.io/">Lean 4</a> for Lean proofs</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="workflow-step" style="margin-bottom: 1rem;">
+            <div class="workflow-number">2</div>
+            <div class="workflow-content">
+                <h3>Install the CLI</h3>
+                <p>Build from source:</p>
+<pre><code>git clone https://github.com/pah-org/proof-at-home.git
+cd proof-at-home
+cargo build --release</code></pre>
+                <p style="margin-top: 0.75rem;">The binary will be at <code>target/release/proof-at-home</code>. Add it to your PATH or run it directly.</p>
+            </div>
+        </div>
+
+        <div class="workflow-step" style="margin-bottom: 1rem;">
+            <div class="workflow-number">3</div>
+            <div class="workflow-content">
+                <h3>Configure</h3>
+                <p>Run the interactive setup wizard:</p>
+<pre><code>./target/release/proof-at-home init</code></pre>
+                <p style="margin-top: 0.75rem;">This will ask for your name, username, Anthropic API key, and the server URL. Config is saved to <code>~/.proof-at-home/config.toml</code>.</p>
+            </div>
+        </div>
+
+        <div class="workflow-step" style="margin-bottom: 1rem;">
+            <div class="workflow-number">4</div>
+            <div class="workflow-content">
+                <h3>Set your donation budget</h3>
+                <p>Choose how much API credit to donate per run:</p>
+<pre><code>./target/release/proof-at-home donate</code></pre>
+                <p style="margin-top: 0.75rem;">Read and accept the legal agreement, then pick an amount ($1 -- $10 or custom). This caps the API cost for a single contribution run.</p>
+            </div>
+        </div>
+
+        <div class="workflow-step" style="margin-bottom: 1rem;">
+            <div class="workflow-number">5</div>
+            <div class="workflow-content">
+                <h3>Submit your first certificate</h3>
+                <p>Start proving open conjectures:</p>
+<pre><code>./target/release/proof-at-home prove</code></pre>
+                <p style="margin-top: 0.75rem;">The CLI fetches conjectures from the server, calls Claude to generate proofs, verifies each with <code>rocq c</code> or <code>lean</code>, submits certificates, and archives everything with a SHA-256 hash.</p>
+            </div>
+        </div>
+
+        <div class="workflow-step" style="margin-bottom: 1rem;">
+            <div class="workflow-number">6</div>
+            <div class="workflow-content">
+                <h3>Check your contribution</h3>
+                <p>See your stats and contribution history:</p>
+<pre><code>./target/release/proof-at-home status</code></pre>
+                <p style="margin-top: 0.75rem;">This shows your total certificates, budget spent, and contribution IDs.</p>
+            </div>
+        </div>
+
+        <div class="workflow-step" style="margin-bottom: 1rem;">
+            <div class="workflow-number">7</div>
+            <div class="workflow-content">
+                <h3>View in the NFT Gallery</h3>
+                <p>Every contribution generates NFT-compatible metadata. Browse all contributions and their verification hashes in the gallery.</p>
+                <div class="workflow-actions">
+                    <a href="/nft-gallery.html" class="btn">Open NFT Gallery</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="/shared.js"></script>
+</body>
+</html>

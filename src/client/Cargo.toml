@@ -27,6 +27,7 @@ dialoguer  = "0.11"
 indicatif  = "0.17"
 chrono     = { version = "0.4", features = ["serde"] }
 anyhow     = "1"
+base64     = "0.22"
 uuid       = { version = "1", features = ["v4"] }
 colored    = "2"
 ed25519-dalek = { version = "2", features = ["rand_core"] }

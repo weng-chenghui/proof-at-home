@@ -138,19 +138,19 @@
 
                 let stats = '';
                 if (c.type === 'contribution') {
-                    const proved = getAttr(c.nft, 'Problems Proved');
-                    const attempted = getAttr(c.nft, 'Problems Attempted');
+                    const proved = getAttr(c.nft, 'Conjectures Proved');
+                    const attempted = getAttr(c.nft, 'Conjectures Attempted');
                     const cost = getAttr(c.nft, 'Cost Donated (USD)');
-                    const assistant = getAttr(c.nft, 'Proof Assistant');
-                    if (proved !== null) stats += `<span><strong>${proved}</strong>/${attempted || '?'} proved</span>`;
+                    const assistant = getAttr(c.nft, 'Prover');
+                    if (proved !== null) stats += `<span><strong>${proved}</strong>/${attempted || '?'} conjectures proved</span>`;
                     if (cost) stats += `<span>$${cost} donated</span>`;
                     if (assistant) stats += `<span>${escapeHtml(assistant)}</span>`;
                 } else {
                     const pkgs = getAttr(c.nft, 'Packages Reviewed');
-                    const problems = getAttr(c.nft, 'Problems Compared');
+                    const problems = getAttr(c.nft, 'Conjectures Compared');
                     const rec = getAttr(c.nft, 'Recommendation');
                     if (pkgs !== null) stats += `<span><strong>${pkgs}</strong> packages</span>`;
-                    if (problems !== null) stats += `<span><strong>${problems}</strong> problems</span>`;
+                    if (problems !== null) stats += `<span><strong>${problems}</strong> conjectures</span>`;
                     if (rec) stats += `<span>${escapeHtml(rec)}</span>`;
                 }
 

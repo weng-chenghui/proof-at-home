@@ -42,7 +42,7 @@ This asks for your name, username, Anthropic API key, and the server URL. Config
 ./target/release/proof-at-home donate
 ```
 
-Read and accept the legal agreement, then pick an amount ($1–$10 or custom). This is the maximum API cost the tool will spend in a session.
+Read and accept the legal agreement, then pick an amount ($1–$10 or custom). This is the maximum API cost the tool will spend in a contribution run.
 
 ### 4. Start the problem server
 
@@ -63,10 +63,10 @@ curl http://localhost:8080/problems
 # [{"id":"prob_001","title":"Natural number addition is commutative", ...}, ...]
 ```
 
-### 5. Run a proof session
+### 5. Run a proof contribution
 
 ```bash
-./target/release/proof-at-home run
+./target/release/proof-at-home prove
 ```
 
 This will:
@@ -76,7 +76,7 @@ This will:
 3. Verify each proof with `rocq c` or `lean`
 4. Submit results to the server
 5. Stop when your budget is exhausted
-6. Archive all proofs to `~/.proof-at-home/sessions/<session-id>/proofs.tar.gz`
+6. Archive all proofs to `~/.proof-at-home/contributions/<contribution-id>/proofs.tar.gz`
 7. Generate NFT-compatible metadata with the archive's SHA-256 hash
 
 ### 6. Check your stats
@@ -92,7 +92,7 @@ Reviewers evaluate and compare proof packages submitted by different provers. Th
 ### Workflow
 
 ```bash
-# 1. Start a review session (fetches available packages from the server)
+# 1. Start a review (fetches available packages from the server)
 proof-at-home review start
 
 # 2. Or import local proof archives
@@ -114,16 +114,16 @@ proof-at-home review report --template detailed
 proof-at-home review seal
 ```
 
-### Review session directory
+### Review directory
 
-Each session lives under `~/.proof-at-home/reviews/<review-uuid>/`:
+Each review lives under `~/.proof-at-home/reviews/<review-uuid>/`:
 
 ```
 ├── packages/
-│   ├── <prover-session-uuid-1>/     # Extracted proof files
-│   │   ├── proofs.tar.gz            # Original archive
-│   │   └── *.v / *.lean             # Proof scripts
-│   └── <prover-session-uuid-2>/
+│   ├── <prover-contribution-uuid-1>/  # Extracted proof files
+│   │   ├── proofs.tar.gz              # Original archive
+│   │   └── *.v / *.lean              # Proof scripts
+│   └── <prover-contribution-uuid-2>/
 ├── ai_comparison.json               # AI comparison output (per-problem + rollup)
 ├── review_report.toml               # Human-written review report
 ├── review_summary.json              # Machine-readable summary
@@ -171,7 +171,7 @@ The `examples/review-demo/` directory contains dummy proved proofs from three pr
 To run the full review demo:
 
 ```bash
-# 1. Generate proof archives and seed session data
+# 1. Generate proof archives and seed contribution data
 ./scripts/seed-review-demo.sh
 
 # 2. Start the server with seed data
@@ -277,7 +277,7 @@ proof-at-home submit-package https://github.com/example/problems.git
 | `GET` | `/problems` | List all problems (summary) |
 | `GET` | `/problems/{id}` | Full problem details |
 | `POST` | `/results` | Submit one proof result |
-| `POST` | `/results/batch` | Submit session summary with archive hash |
+| `POST` | `/results/batch` | Submit contribution summary with archive hash |
 | `GET` | `/review-packages` | List available proof packages for review |
 | `GET` | `/review-packages/{id}/archive` | Download a prover's archive |
 | `POST` | `/problems/packages` | Submit problem package (tar.gz body or JSON git URL) |
@@ -292,7 +292,7 @@ proof-at-home/
 ├── src/
 │   ├── client/                     # Rust CLI
 │   │   └── src/
-│   │       ├── main.rs             # clap entry point (init/donate/run/status/review/submit-package)
+│   │       ├── main.rs             # clap entry point (init/donate/prove/status/review/submit-package)
 │   │       ├── commands/           # CLI subcommands (including review)
 │   │       ├── prover/             # Claude invocation + coqc/lean verification
 │   │       ├── reviewer/           # AI comparison, report templates, review types
@@ -313,7 +313,7 @@ proof-at-home/
 │       ├── alice/                  # Manual induction style
 │       ├── bob/                    # Automation (lia) style
 │       ├── carol/                  # Library reuse style
-│       └── seed/                   # Seed session JSON for the server
+│       └── seed/                   # Seed contribution JSON for the server
 └── scripts/
     ├── dev-server.sh               # Start the Go server
     └── seed-review-demo.sh         # Package demo proofs + generate seed data
@@ -346,7 +346,7 @@ lake_path = "lake"
 
 [budget]
 donated_usd = 5.0
-session_spent = 0.0
+run_spent = 0.0
 total_spent = 0.0
 ```
 

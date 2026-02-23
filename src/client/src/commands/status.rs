@@ -40,7 +40,7 @@ pub fn run_status() -> Result<()> {
 
     // Show cached environments
     println!("{}", "Cached Environments".bold());
-    let envs_dir = Path::new(&config.proof_assistant.envs_dir);
+    let envs_dir = Path::new(&config.prover.envs_dir);
     if envs_dir.exists() {
         let mut found_any = false;
         for prover in &["rocq", "lean"] {
@@ -74,13 +74,13 @@ pub fn run_status() -> Result<()> {
         if !found_any {
             println!(
                 "  {}",
-                "(none — environments are created on first run)".dimmed()
+                "(none — environments are created on first prove)".dimmed()
             );
         }
     } else {
         println!(
             "  {}",
-            "(none — environments are created on first run)".dimmed()
+            "(none — environments are created on first prove)".dimmed()
         );
     }
     println!();

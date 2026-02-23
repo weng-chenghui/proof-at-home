@@ -3,7 +3,7 @@ use sha2::{Digest, Sha256};
 use std::path::PathBuf;
 use std::process::Command;
 
-use crate::server_client::api::{Dependencies, LeanDeps, Problem, RocqDeps};
+use crate::server_client::api::{Conjecture, Dependencies, LeanDeps, RocqDeps};
 
 /// A fully resolved proof environment ready for compilation.
 #[derive(Debug, Clone)]
@@ -27,13 +27,13 @@ impl EnvManager {
         }
     }
 
-    /// Ensure the environment for a problem is set up and ready.
+    /// Ensure the environment for a conjecture is set up and ready.
     /// Returns a ResolvedEnv with paths and build commands.
-    pub fn ensure_env(&self, problem: &Problem) -> Result<ResolvedEnv> {
-        let deps = problem
+    pub fn ensure_env(&self, conjecture: &Conjecture) -> Result<ResolvedEnv> {
+        let deps = conjecture
             .dependencies
             .as_ref()
-            .context("Problem is missing dependencies field")?;
+            .context("Conjecture is missing dependencies field")?;
 
         match deps {
             Dependencies::Rocq(rocq_deps) => self.ensure_rocq_env(rocq_deps),

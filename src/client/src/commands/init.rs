@@ -60,9 +60,9 @@ pub fn run_init() -> Result<()> {
         .allow_empty(true)
         .interact_text()?;
 
-    // Check proof assistant toolchains
+    // Check prover toolchains
     println!();
-    println!("{}", "Checking proof assistant toolchains...".bold());
+    println!("{}", "Checking prover toolchains...".bold());
 
     // Check opam (for Rocq)
     print!("  opam... ");
@@ -144,7 +144,7 @@ pub fn run_init() -> Result<()> {
             model,
             auth_token,
         },
-        proof_assistant: ProofAssistant {
+        prover: Prover {
             scratch_dir: "/tmp/proof-at-home".to_string(),
             envs_dir: default_envs_dir(),
         },
@@ -173,7 +173,7 @@ pub fn run_init() -> Result<()> {
     );
     println!(
         "{}",
-        "Proof environments will be auto-created when you run problems.".dimmed()
+        "Prover environments will be auto-created when you run conjectures.".dimmed()
     );
     println!(
         "Run {} to set your donation budget.",

@@ -31,11 +31,11 @@ pub enum Dependencies {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct Problem {
+pub struct Conjecture {
     pub id: String,
     pub title: String,
     pub difficulty: String,
-    pub proof_assistant: String,
+    pub prover: String,
     #[serde(default)]
     pub status: String,
     #[serde(default)]
@@ -50,8 +50,8 @@ pub struct Problem {
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
-pub struct ProofResult {
-    pub problem_id: String,
+pub struct Certificate {
+    pub conjecture_id: String,
     pub username: String,
     pub success: bool,
     pub proof_script: String,
@@ -61,11 +61,11 @@ pub struct ProofResult {
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
-pub struct SessionSummary {
+pub struct ContributionSummary {
     pub username: String,
-    pub session_id: String,
-    pub problems_attempted: u32,
-    pub problems_proved: u32,
+    pub contribution_id: String,
+    pub conjectures_attempted: u32,
+    pub conjectures_proved: u32,
     pub total_cost_usd: f64,
     pub archive_sha256: String,
     pub nft_metadata: serde_json::Value,
@@ -106,37 +106,37 @@ impl ServerClient {
         Ok(resp.status == "ok")
     }
 
-    pub async fn fetch_problems(&self) -> Result<Vec<Problem>> {
-        let problems: Vec<Problem> = self
+    pub async fn fetch_conjectures(&self) -> Result<Vec<Conjecture>> {
+        let conjectures: Vec<Conjecture> = self
             .client
-            .get(format!("{}/problems", self.base_url))
+            .get(format!("{}/conjectures", self.base_url))
             .send()
             .await
-            .context("Failed to fetch problems")?
+            .context("Failed to fetch conjectures")?
             .json()
             .await?;
-        Ok(problems)
+        Ok(conjectures)
     }
 
-    pub async fn fetch_problem(&self, id: &str) -> Result<Problem> {
-        let problem: Problem = self
+    pub async fn fetch_conjecture(&self, id: &str) -> Result<Conjecture> {
+        let conjecture: Conjecture = self
             .client
-            .get(format!("{}/problems/{}", self.base_url, id))
+            .get(format!("{}/conjectures/{}", self.base_url, id))
             .send()
             .await
-            .context("Failed to fetch problem")?
+            .context("Failed to fetch conjecture")?
             .json()
             .await?;
-        Ok(problem)
+        Ok(conjecture)
     }
 
-    pub async fn submit_result(&self, result: &ProofResult) -> Result<()> {
+    pub async fn submit_certificate(&self, result: &Certificate) -> Result<()> {
         let resp = self
-            .authed(self.client.post(format!("{}/results", self.base_url)))
+            .authed(self.client.post(format!("{}/certificates", self.base_url)))
             .json(result)
             .send()
             .await
-            .context("Failed to submit result")?;
+            .context("Failed to submit certificate")?;
         if !resp.status().is_success() {
             let body = resp.text().await.unwrap_or_default();
             anyhow::bail!("Server returned error: {}", body);
@@ -144,13 +144,16 @@ impl ServerClient {
         Ok(())
     }
 
-    pub async fn submit_session(&self, summary: &SessionSummary) -> Result<()> {
+    pub async fn submit_contribution(&self, summary: &ContributionSummary) -> Result<()> {
         let resp = self
-            .authed(self.client.post(format!("{}/results/batch", self.base_url)))
+            .authed(
+                self.client
+                    .post(format!("{}/certificates/batch", self.base_url)),
+            )
             .json(summary)
             .send()
             .await
-            .context("Failed to submit session")?;
+            .context("Failed to submit contribution")?;
         if !resp.status().is_success() {
             let body = resp.text().await.unwrap_or_default();
             anyhow::bail!("Server returned error: {}", body);
@@ -218,17 +221,17 @@ impl ServerClient {
 pub struct PackageSubmitResponse {
     #[allow(dead_code)]
     pub status: String,
-    pub added_problem_ids: Vec<String>,
+    pub added_conjecture_ids: Vec<String>,
     pub count: u32,
 }
 
 impl ServerClient {
-    /// Submit a tar.gz archive of problem JSON files
+    /// Submit a tar.gz archive of conjecture JSON files
     pub async fn submit_package_tar(&self, tar_bytes: Vec<u8>) -> Result<PackageSubmitResponse> {
         let resp = self
             .authed(
                 self.client
-                    .post(format!("{}/problems/packages", self.base_url)),
+                    .post(format!("{}/conjectures/packages", self.base_url)),
             )
             .header("Content-Type", "application/gzip")
             .body(tar_bytes)
@@ -248,7 +251,7 @@ impl ServerClient {
         let resp = self
             .authed(
                 self.client
-                    .post(format!("{}/problems/packages", self.base_url)),
+                    .post(format!("{}/conjectures/packages", self.base_url)),
             )
             .json(&serde_json::json!({ "git_url": git_url }))
             .send()
@@ -267,10 +270,10 @@ impl ServerClient {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ReviewPackageInfo {
-    pub prover_session_id: String,
+    pub prover_contribution_id: String,
     pub prover_username: String,
-    pub proof_assistant: String,
-    pub problem_ids: Vec<String>,
+    pub prover: String,
+    pub conjecture_ids: Vec<String>,
     pub archive_url: String,
     pub archive_sha256: String,
     #[serde(default)]
@@ -284,7 +287,7 @@ pub struct ReviewSummary {
     pub reviewer_username: String,
     pub review_id: String,
     pub packages_reviewed: u32,
-    pub problems_compared: u32,
+    pub conjectures_compared: u32,
     pub package_rankings: Vec<PackageRankingSummary>,
     pub recommendation: String,
     pub archive_sha256: String,
@@ -293,7 +296,7 @@ pub struct ReviewSummary {
 
 #[derive(Debug, Serialize, JsonSchema)]
 pub struct PackageRankingSummary {
-    pub prover_session_id: String,
+    pub prover_contribution_id: String,
     pub rank: u32,
     pub overall_score: f64,
 }

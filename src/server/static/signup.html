@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up — proof-at-home</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/shared.css">
+    <script src="https://cdn.jsdelivr.net/npm/pocketbase@0.36/dist/pocketbase.umd.js"></script>
+</head>
+<body>
+    <nav id="navbar"></nav>
+    <div class="container">
+        <h1>Sign Up</h1>
+        <div id="msg" class="msg" style="display:none"></div>
+
+        <div id="logged-out">
+            <p>Create an account to submit certificates and reviews.</p>
+
+            <div style="display:flex;flex-direction:column;gap:0.75rem;max-width:360px;margin:1.5rem 0;">
+                <button onclick="oauthSignup('github')">Sign up with GitHub</button>
+                <button onclick="oauthSignup('google')">Sign up with Google</button>
+                <button onclick="oauthSignup('facebook')">Sign up with Facebook</button>
+            </div>
+
+            <div style="max-width:360px;margin:1.5rem 0;padding-top:1.25rem;border-top:1px solid var(--border);">
+                <p class="text-muted" style="margin-bottom:0.75rem;font-size:0.85rem;">Or sign up with email</p>
+                <form id="signup-form" onsubmit="return emailSignup(event)">
+                    <div class="form-group">
+                        <label for="username">Username</label>
+                        <input type="text" id="username" required>
+                        <div class="hint">For attribution on certificates and reviews</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="real_name">Real Name</label>
+                        <input type="text" id="real_name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="email">Email</label>
+                        <input type="text" id="email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="affiliation">Affiliation</label>
+                        <input type="text" id="affiliation" placeholder="Optional">
+                        <div class="hint">University, company, or organization (optional)</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" required minlength="8">
+                        <div class="hint">At least 8 characters</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="passwordConfirm">Confirm Password</label>
+                        <input type="password" id="passwordConfirm" required minlength="8">
+                    </div>
+                    <button type="submit">Create Account</button>
+                </form>
+            </div>
+
+            <p class="text-muted">Already have an account? <a href="/login.html">Log in</a></p>
+        </div>
+
+        <div id="logged-in" style="display:none">
+            <p>Logged in as <strong id="user-display"></strong></p>
+            <button class="btn-danger" onclick="logout()">Logout</button>
+        </div>
+    </div>
+    <script src="/shared.js"></script>
+    <script>
+        const pb = new PocketBase(window.location.origin);
+
+        function updateLoginState() {
+            const token = localStorage.getItem('pah_jwt_token');
+            const loggedOut = document.getElementById('logged-out');
+            const loggedIn = document.getElementById('logged-in');
+            if (token) {
+                loggedOut.style.display = 'none';
+                loggedIn.style.display = 'block';
+                try {
+                    const payload = JSON.parse(atob(token.split('.')[1]));
+                    document.getElementById('user-display').textContent =
+                        payload.email || payload.name || payload.sub || 'authenticated user';
+                } catch {
+                    document.getElementById('user-display').textContent = 'authenticated user';
+                }
+            } else {
+                loggedOut.style.display = 'block';
+                loggedIn.style.display = 'none';
+            }
+        }
+
+        async function emailSignup(e) {
+            e.preventDefault();
+            hideMsg('msg');
+            const username = document.getElementById('username').value.trim();
+            const real_name = document.getElementById('real_name').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const affiliation = document.getElementById('affiliation').value.trim();
+            const password = document.getElementById('password').value;
+            const passwordConfirm = document.getElementById('passwordConfirm').value;
+
+            if (password !== passwordConfirm) {
+                showMsg('msg', 'Passwords do not match.', true);
+                return false;
+            }
+
+            try {
+                const data = { email, password, passwordConfirm, username, real_name };
+                if (affiliation) data.affiliation = affiliation;
+                await pb.collection('users').create(data);
+                // Auto-login after signup
+                await pb.collection('users').authWithPassword(email, password);
+                localStorage.setItem('pah_jwt_token', pb.authStore.token);
+                showMsg('msg', 'Account created! Redirecting...', false);
+                setTimeout(() => { window.location.href = '/'; }, 500);
+            } catch (err) {
+                const msg = err.response?.data
+                    ? Object.values(err.response.data).map(v => v.message).join('. ')
+                    : (err.message || err);
+                showMsg('msg', 'Sign up failed: ' + msg, true);
+            }
+            return false;
+        }
+
+        async function oauthSignup(provider) {
+            hideMsg('msg');
+            try {
+                await pb.collection('users').authWithOAuth2({ provider });
+                localStorage.setItem('pah_jwt_token', pb.authStore.token);
+                showMsg('msg', 'Account created! Redirecting...', false);
+                setTimeout(() => { window.location.href = '/'; }, 500);
+            } catch (err) {
+                showMsg('msg', 'Sign up failed: ' + (err.message || err), true);
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('pah_jwt_token');
+            pb.authStore.clear();
+            showMsg('msg', 'Logged out.', false);
+            updateLoginState();
+        }
+
+        document.addEventListener('DOMContentLoaded', updateLoginState);
+    </script>
+</body>
+</html>

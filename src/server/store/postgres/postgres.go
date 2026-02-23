@@ -59,19 +59,19 @@ func (s *PostgresStore) Close() error {
 	return s.db.Close()
 }
 
-func (s *PostgresStore) ListProblems() []data.ProblemSummary {
-	rows, err := s.db.Query(`SELECT id, title, difficulty, proof_assistant, status FROM problems ORDER BY id`)
+func (s *PostgresStore) ListConjectures() []data.ConjectureSummary {
+	rows, err := s.db.Query(`SELECT id, title, difficulty, prover, status FROM conjectures ORDER BY id`)
 	if err != nil {
-		slog.Error("ListProblems query failed", "error", err)
+		slog.Error("ListConjectures query failed", "error", err)
 		return nil
 	}
 	defer rows.Close()
 
-	var summaries []data.ProblemSummary
+	var summaries []data.ConjectureSummary
 	for rows.Next() {
-		var p data.ProblemSummary
-		if err := rows.Scan(&p.ID, &p.Title, &p.Difficulty, &p.ProofAssistant, &p.Status); err != nil {
-			slog.Error("ListProblems scan failed", "error", err)
+		var p data.ConjectureSummary
+		if err := rows.Scan(&p.ID, &p.Title, &p.Difficulty, &p.Prover, &p.Status); err != nil {
+			slog.Error("ListConjectures scan failed", "error", err)
 			continue
 		}
 		summaries = append(summaries, p)
@@ -79,22 +79,22 @@ func (s *PostgresStore) ListProblems() []data.ProblemSummary {
 	return summaries
 }
 
-func (s *PostgresStore) GetProblem(id string) (data.Problem, bool) {
-	var p data.Problem
+func (s *PostgresStore) GetConjecture(id string) (data.Conjecture, bool) {
+	var p data.Conjecture
 	var hints, deps []byte
 
 	err := s.db.QueryRow(
-		`SELECT id, title, difficulty, proof_assistant, status, preamble, lemma_statement, hints, skeleton, dependencies
-		 FROM problems WHERE id = $1`, id,
-	).Scan(&p.ID, &p.Title, &p.Difficulty, &p.ProofAssistant, &p.Status,
+		`SELECT id, title, difficulty, prover, status, preamble, lemma_statement, hints, skeleton, dependencies
+		 FROM conjectures WHERE id = $1`, id,
+	).Scan(&p.ID, &p.Title, &p.Difficulty, &p.Prover, &p.Status,
 		&p.Preamble, &p.LemmaStatement, &hints, &p.Skeleton, &deps)
 
 	if err == sql.ErrNoRows {
-		return data.Problem{}, false
+		return data.Conjecture{}, false
 	}
 	if err != nil {
-		slog.Error("GetProblem query failed", "error", err, "id", id)
-		return data.Problem{}, false
+		slog.Error("GetConjecture query failed", "error", err, "id", id)
+		return data.Conjecture{}, false
 	}
 
 	if hints != nil {
@@ -107,9 +107,9 @@ func (s *PostgresStore) GetProblem(id string) (data.Problem, bool) {
 	return p, true
 }
 
-func (s *PostgresStore) AddProblems(problems []data.Problem) []string {
+func (s *PostgresStore) AddConjectures(conjectures []data.Conjecture) []string {
 	var added []string
-	for _, p := range problems {
+	for _, p := range conjectures {
 		if p.ID == "" {
 			continue
 		}
@@ -124,14 +124,14 @@ func (s *PostgresStore) AddProblems(problems []data.Problem) []string {
 		}
 
 		res, err := s.db.Exec(
-			`INSERT INTO problems (id, title, difficulty, proof_assistant, status, preamble, lemma_statement, hints, skeleton, dependencies)
+			`INSERT INTO conjectures (id, title, difficulty, prover, status, preamble, lemma_statement, hints, skeleton, dependencies)
 			 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 			 ON CONFLICT (id) DO NOTHING`,
-			p.ID, p.Title, p.Difficulty, p.ProofAssistant, p.Status,
+			p.ID, p.Title, p.Difficulty, p.Prover, p.Status,
 			p.Preamble, p.LemmaStatement, hintsJSON, p.Skeleton, depsJSON,
 		)
 		if err != nil {
-			slog.Error("AddProblems insert failed", "error", err, "id", p.ID)
+			slog.Error("AddConjectures insert failed", "error", err, "id", p.ID)
 			continue
 		}
 
@@ -143,73 +143,73 @@ func (s *PostgresStore) AddProblems(problems []data.Problem) []string {
 	return added
 }
 
-func (s *PostgresStore) AddResult(r data.ProofResult) {
+func (s *PostgresStore) AddCertificate(r data.Certificate) {
 	tx, err := s.db.Begin()
 	if err != nil {
-		slog.Error("AddResult begin tx failed", "error", err)
+		slog.Error("AddCertificate begin tx failed", "error", err)
 		return
 	}
 	defer tx.Rollback()
 
 	_, err = tx.Exec(
-		`INSERT INTO proof_results (problem_id, username, success, proof_script, cost_usd, attempts, error_output)
+		`INSERT INTO certificates (conjecture_id, username, success, proof_script, cost_usd, attempts, error_output)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-		r.ProblemID, r.Username, r.Success, r.ProofScript, r.CostUSD, r.Attempts, r.ErrorOutput,
+		r.ConjectureID, r.Username, r.Success, r.ProofScript, r.CostUSD, r.Attempts, r.ErrorOutput,
 	)
 	if err != nil {
-		slog.Error("AddResult insert failed", "error", err)
+		slog.Error("AddCertificate insert failed", "error", err)
 		return
 	}
 
 	if r.Success {
-		_, err = tx.Exec(`UPDATE problems SET status = 'proved' WHERE id = $1`, r.ProblemID)
+		_, err = tx.Exec(`UPDATE conjectures SET status = 'proved' WHERE id = $1`, r.ConjectureID)
 		if err != nil {
-			slog.Error("AddResult update status failed", "error", err)
+			slog.Error("AddCertificate update status failed", "error", err)
 			return
 		}
 	}
 
 	if err := tx.Commit(); err != nil {
-		slog.Error("AddResult commit failed", "error", err)
+		slog.Error("AddCertificate commit failed", "error", err)
 	}
 }
 
-func (s *PostgresStore) AddSession(ss data.SessionSummary) {
-	problemIDsJSON, _ := json.Marshal(ss.ProblemIDs)
-	reviewedByJSON, _ := json.Marshal(ss.ReviewedBy)
+func (s *PostgresStore) AddContribution(cs data.ContributionSummary) {
+	conjectureIDsJSON, _ := json.Marshal(cs.ConjectureIDs)
+	reviewedByJSON, _ := json.Marshal(cs.ReviewedBy)
 	var nftJSON []byte
-	if ss.NFTMetadata != nil {
-		nftJSON, _ = json.Marshal(ss.NFTMetadata)
+	if cs.NFTMetadata != nil {
+		nftJSON, _ = json.Marshal(cs.NFTMetadata)
 	}
 
 	_, err := s.db.Exec(
-		`INSERT INTO sessions (session_id, username, problems_attempted, problems_proved, total_cost_usd,
-		 archive_sha256, nft_metadata, proof_assistant, problem_ids, archive_path, proof_status, reviewed_by)
+		`INSERT INTO contributions (contribution_id, username, conjectures_attempted, conjectures_proved, total_cost_usd,
+		 archive_sha256, nft_metadata, prover, conjecture_ids, archive_path, proof_status, reviewed_by)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-		 ON CONFLICT (session_id) DO UPDATE SET
-		   problems_attempted = EXCLUDED.problems_attempted,
-		   problems_proved = EXCLUDED.problems_proved,
+		 ON CONFLICT (contribution_id) DO UPDATE SET
+		   conjectures_attempted = EXCLUDED.conjectures_attempted,
+		   conjectures_proved = EXCLUDED.conjectures_proved,
 		   total_cost_usd = EXCLUDED.total_cost_usd,
 		   archive_sha256 = EXCLUDED.archive_sha256,
 		   nft_metadata = EXCLUDED.nft_metadata,
-		   proof_assistant = EXCLUDED.proof_assistant,
-		   problem_ids = EXCLUDED.problem_ids,
+		   prover = EXCLUDED.prover,
+		   conjecture_ids = EXCLUDED.conjecture_ids,
 		   archive_path = EXCLUDED.archive_path,
 		   proof_status = EXCLUDED.proof_status,
 		   reviewed_by = EXCLUDED.reviewed_by`,
-		ss.SessionID, ss.Username, ss.ProblemsAttempted, ss.ProblemsProved,
-		ss.TotalCostUSD, ss.ArchiveSHA256, nftJSON, ss.ProofAssistant,
-		problemIDsJSON, ss.ArchivePath, ss.ProofStatus, reviewedByJSON,
+		cs.ContributionID, cs.Username, cs.ConjecturesAttempted, cs.ConjecturesProved,
+		cs.TotalCostUSD, cs.ArchiveSHA256, nftJSON, cs.Prover,
+		conjectureIDsJSON, cs.ArchivePath, cs.ProofStatus, reviewedByJSON,
 	)
 	if err != nil {
-		slog.Error("AddSession insert failed", "error", err)
+		slog.Error("AddContribution insert failed", "error", err)
 	}
 }
 
 func (s *PostgresStore) ListReviewPackages() []data.ReviewPackageInfo {
 	rows, err := s.db.Query(
-		`SELECT session_id, username, proof_assistant, problem_ids, archive_sha256, proof_status, reviewed_by
-		 FROM sessions ORDER BY created_at`)
+		`SELECT contribution_id, username, prover, conjecture_ids, archive_sha256, proof_status, reviewed_by
+		 FROM contributions ORDER BY created_at`)
 	if err != nil {
 		slog.Error("ListReviewPackages query failed", "error", err)
 		return nil
@@ -218,55 +218,55 @@ func (s *PostgresStore) ListReviewPackages() []data.ReviewPackageInfo {
 
 	var packages []data.ReviewPackageInfo
 	for rows.Next() {
-		var sessionID, username, proofAssistant, archiveSHA256, proofStatus string
-		var problemIDsJSON, reviewedByJSON []byte
+		var contributionID, username, prover, archiveSHA256, proofStatus string
+		var conjectureIDsJSON, reviewedByJSON []byte
 
-		if err := rows.Scan(&sessionID, &username, &proofAssistant, &problemIDsJSON, &archiveSHA256, &proofStatus, &reviewedByJSON); err != nil {
+		if err := rows.Scan(&contributionID, &username, &prover, &conjectureIDsJSON, &archiveSHA256, &proofStatus, &reviewedByJSON); err != nil {
 			slog.Error("ListReviewPackages scan failed", "error", err)
 			continue
 		}
 
-		var problemIDs []string
+		var conjectureIDs []string
 		var reviewedBy []string
-		json.Unmarshal(problemIDsJSON, &problemIDs)
+		json.Unmarshal(conjectureIDsJSON, &conjectureIDs)
 		json.Unmarshal(reviewedByJSON, &reviewedBy)
 
-		if len(problemIDs) == 0 {
+		if len(conjectureIDs) == 0 {
 			// Fallback: scan results for this user
 			resultRows, err := s.db.Query(
-				`SELECT DISTINCT problem_id FROM proof_results WHERE username = $1 AND success = true`, username)
+				`SELECT DISTINCT conjecture_id FROM certificates WHERE username = $1 AND success = true`, username)
 			if err == nil {
 				for resultRows.Next() {
 					var pid string
 					if resultRows.Scan(&pid) == nil {
-						problemIDs = append(problemIDs, pid)
+						conjectureIDs = append(conjectureIDs, pid)
 					}
 				}
 				resultRows.Close()
 			}
 		}
 
-		if proofAssistant == "" {
-			proofAssistant = "rocq"
+		if prover == "" {
+			prover = "rocq"
 		}
 
 		packages = append(packages, data.ReviewPackageInfo{
-			ProverSessionID: sessionID,
-			ProverUsername:  username,
-			ProofAssistant:  proofAssistant,
-			ProblemIDs:      problemIDs,
-			ArchiveURL:      fmt.Sprintf("/review-packages/%s/archive", sessionID),
-			ArchiveSHA256:   archiveSHA256,
-			ProofStatus:     proofStatus,
-			ReviewedBy:      reviewedBy,
+			ProverContributionID: contributionID,
+			ProverUsername:       username,
+			Prover:               prover,
+			ConjectureIDs:        conjectureIDs,
+			ArchiveURL:           fmt.Sprintf("/review-packages/%s/archive", contributionID),
+			ArchiveSHA256:        archiveSHA256,
+			ProofStatus:          proofStatus,
+			ReviewedBy:           reviewedBy,
 		})
 	}
 	return packages
 }
 
-func (s *PostgresStore) GetArchivePath(sessionID string) (string, bool) {
+func (s *PostgresStore) GetArchivePath(contributionID string) (string, bool) {
 	var path string
-	err := s.db.QueryRow(`SELECT archive_path FROM sessions WHERE session_id = $1`, sessionID).Scan(&path)
+	err := s.db.QueryRow(`SELECT archive_path FROM contributions WHERE contribution_id = $1`, contributionID).Scan(&path)
 	if err != nil {
 		return "", false
 	}
@@ -288,9 +288,9 @@ func (s *PostgresStore) AddReview(r data.ReviewSummary) {
 	}
 
 	_, err = tx.Exec(
-		`INSERT INTO reviews (review_id, reviewer_username, packages_reviewed, problems_compared, package_rankings, recommendation, archive_sha256, nft_metadata)
+		`INSERT INTO reviews (review_id, reviewer_username, packages_reviewed, conjectures_compared, package_rankings, recommendation, archive_sha256, nft_metadata)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-		r.ReviewID, r.ReviewerUsername, r.PackagesReviewed, r.ProblemsCompared,
+		r.ReviewID, r.ReviewerUsername, r.PackagesReviewed, r.ConjecturesCompared,
 		rankingsJSON, r.Recommendation, r.ArchiveSHA256, nftJSON,
 	)
 	if err != nil {
@@ -298,21 +298,21 @@ func (s *PostgresStore) AddReview(r data.ReviewSummary) {
 		return
 	}
 
-	// Update reviewed_by for each session referenced in the review
+	// Update reviewed_by for each contribution referenced in the review
 	for _, pr := range r.PackageRankings {
 		_, err = tx.Exec(
-			`UPDATE sessions SET reviewed_by = (
+			`UPDATE contributions SET reviewed_by = (
 				SELECT jsonb_agg(DISTINCT val)
 				FROM (
 					SELECT jsonb_array_elements_text(reviewed_by) AS val
 					UNION
 					SELECT $1
 				) sub
-			) WHERE session_id = $2`,
-			r.ReviewerUsername, pr.ProverSessionID,
+			) WHERE contribution_id = $2`,
+			r.ReviewerUsername, pr.ProverContributionID,
 		)
 		if err != nil {
-			slog.Error("AddReview update reviewed_by failed", "error", err, "session_id", pr.ProverSessionID)
+			slog.Error("AddReview update reviewed_by failed", "error", err, "contribution_id", pr.ProverContributionID)
 		}
 	}
 
@@ -321,11 +321,11 @@ func (s *PostgresStore) AddReview(r data.ReviewSummary) {
 	}
 }
 
-// LoadProblems loads problem JSON files from a directory into the database.
-func (s *PostgresStore) LoadProblems(dir string) error {
+// LoadConjectures loads conjecture JSON files from a directory into the database.
+func (s *PostgresStore) LoadConjectures(dir string) error {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return fmt.Errorf("reading problems dir: %w", err)
+		return fmt.Errorf("reading conjectures dir: %w", err)
 	}
 
 	for _, entry := range entries {
@@ -338,7 +338,7 @@ func (s *PostgresStore) LoadProblems(dir string) error {
 			return fmt.Errorf("reading %s: %w", path, err)
 		}
 
-		var p data.Problem
+		var p data.Conjecture
 		if err := json.Unmarshal(raw, &p); err != nil {
 			return fmt.Errorf("parsing %s: %w", path, err)
 		}
@@ -347,13 +347,13 @@ func (s *PostgresStore) LoadProblems(dir string) error {
 			p.Status = "open"
 		}
 
-		s.AddProblems([]data.Problem{p})
+		s.AddConjectures([]data.Conjecture{p})
 	}
 	return nil
 }
 
-// LoadSeedSessions loads seed session JSON files from a directory.
-func (s *PostgresStore) LoadSeedSessions(dir string) error {
+// LoadSeedContributions loads seed contribution JSON files from a directory.
+func (s *PostgresStore) LoadSeedContributions(dir string) error {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return fmt.Errorf("reading seed dir: %w", err)
@@ -369,16 +369,16 @@ func (s *PostgresStore) LoadSeedSessions(dir string) error {
 			return fmt.Errorf("reading %s: %w", path, err)
 		}
 
-		var ss data.SessionSummary
-		if err := json.Unmarshal(raw, &ss); err != nil {
+		var cs data.ContributionSummary
+		if err := json.Unmarshal(raw, &cs); err != nil {
 			return fmt.Errorf("parsing %s: %w", path, err)
 		}
 
-		if ss.ArchivePath != "" && !filepath.IsAbs(ss.ArchivePath) {
-			ss.ArchivePath = filepath.Join(dir, ss.ArchivePath)
+		if cs.ArchivePath != "" && !filepath.IsAbs(cs.ArchivePath) {
+			cs.ArchivePath = filepath.Join(dir, cs.ArchivePath)
 		}
 
-		s.AddSession(ss)
+		s.AddContribution(cs)
 	}
 	return nil
 }

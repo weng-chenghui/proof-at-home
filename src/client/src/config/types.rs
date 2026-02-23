@@ -7,7 +7,7 @@ use std::path::PathBuf;
 pub struct Config {
     pub identity: Identity,
     pub api: Api,
-    pub proof_assistant: ProofAssistant,
+    pub prover: Prover,
     pub budget: Budget,
     #[serde(default)]
     pub ipfs: Ipfs,
@@ -47,7 +47,7 @@ fn default_model() -> String {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ProofAssistant {
+pub struct Prover {
     #[serde(default = "default_scratch_dir")]
     pub scratch_dir: String,
     #[serde(default = "default_envs_dir")]
@@ -71,7 +71,7 @@ pub struct Budget {
     #[serde(default)]
     pub donated_usd: f64,
     #[serde(default)]
-    pub session_spent: f64,
+    pub run_spent: f64,
     #[serde(default)]
     pub total_spent: f64,
 }
@@ -80,7 +80,7 @@ impl Default for Budget {
     fn default() -> Self {
         Self {
             donated_usd: 0.0,
-            session_spent: 0.0,
+            run_spent: 0.0,
             total_spent: 0.0,
         }
     }
@@ -96,8 +96,8 @@ impl Config {
         Ok(Self::config_dir()?.join("config.toml"))
     }
 
-    pub fn sessions_dir() -> Result<PathBuf> {
-        Ok(Self::config_dir()?.join("sessions"))
+    pub fn contributions_dir() -> Result<PathBuf> {
+        Ok(Self::config_dir()?.join("contributions"))
     }
 
     pub fn signing_key_path() -> Result<PathBuf> {

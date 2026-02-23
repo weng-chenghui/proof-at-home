@@ -47,37 +47,37 @@ fn set_active_review_id(id: &str) -> Result<()> {
     Ok(())
 }
 
-/// Load a review session from its directory
-fn load_session(review_dir: &Path) -> Result<ReviewSession> {
-    let session_path = review_dir.join("review_session.json");
-    let content = std::fs::read_to_string(&session_path)
-        .with_context(|| format!("Failed to read {}", session_path.display()))?;
-    let session: ReviewSession =
-        serde_json::from_str(&content).context("Failed to parse review_session.json")?;
-    Ok(session)
+/// Load a review state from its directory
+fn load_review_state(review_dir: &Path) -> Result<ReviewState> {
+    let state_path = review_dir.join("review_state.json");
+    let content = std::fs::read_to_string(&state_path)
+        .with_context(|| format!("Failed to read {}", state_path.display()))?;
+    let state: ReviewState =
+        serde_json::from_str(&content).context("Failed to parse review_state.json")?;
+    Ok(state)
 }
 
-/// Save a review session to its directory
-fn save_session(review_dir: &Path, session: &ReviewSession) -> Result<()> {
-    let session_path = review_dir.join("review_session.json");
-    let content = serde_json::to_string_pretty(session)?;
-    std::fs::write(&session_path, content)?;
+/// Save a review state to its directory
+fn save_review_state(review_dir: &Path, state: &ReviewState) -> Result<()> {
+    let state_path = review_dir.join("review_state.json");
+    let content = serde_json::to_string_pretty(state)?;
+    std::fs::write(&state_path, content)?;
     Ok(())
 }
 
-/// Get the active review session directory and loaded session
-fn get_active_session() -> Result<(PathBuf, ReviewSession)> {
+/// Get the active review directory and loaded state
+fn get_active_review() -> Result<(PathBuf, ReviewState)> {
     let review_id = get_active_review_id()?
-        .context("No active review session. Run `proof-at-home review start` first.")?;
+        .context("No active review. Run `proof-at-home review start` first.")?;
     let review_dir = reviews_dir()?.join(&review_id);
     if !review_dir.exists() {
         anyhow::bail!(
-            "Review session directory not found: {}. Run `proof-at-home review start`.",
+            "Review directory not found: {}. Run `proof-at-home review start`.",
             review_dir.display()
         );
     }
-    let session = load_session(&review_dir)?;
-    Ok((review_dir, session))
+    let state = load_review_state(&review_dir)?;
+    Ok((review_dir, state))
 }
 
 // ── Subcommand dispatch ──
@@ -127,7 +127,7 @@ async fn cmd_start() -> Result<()> {
     let packages_dir = review_dir.join("packages");
     std::fs::create_dir_all(&packages_dir)?;
 
-    let mut session = ReviewSession {
+    let mut state = ReviewState {
         review_id: review_id.clone(),
         reviewer_username: config.identity.username.clone(),
         created_at: Utc::now().to_rfc3339(),
@@ -156,11 +156,11 @@ async fn cmd_start() -> Result<()> {
             .iter()
             .map(|p| {
                 format!(
-                    "{} ({}) — {} problems [{}]",
+                    "{} ({}) — {} conjectures [{}]",
                     p.prover_username,
-                    &p.prover_session_id[..8],
-                    p.problem_ids.len(),
-                    p.proof_assistant,
+                    &p.prover_contribution_id[..8],
+                    p.conjecture_ids.len(),
+                    p.prover,
                 )
             })
             .collect();
@@ -172,17 +172,17 @@ async fn cmd_start() -> Result<()> {
 
         for idx in selections {
             let pkg_info = &available[idx];
-            let dest_dir = packages_dir.join(&pkg_info.prover_session_id);
+            let dest_dir = packages_dir.join(&pkg_info.prover_contribution_id);
             std::fs::create_dir_all(&dest_dir)?;
 
             print!(
                 "  Downloading {} ({})...",
                 pkg_info.prover_username,
-                &pkg_info.prover_session_id[..8]
+                &pkg_info.prover_contribution_id[..8]
             );
             let archive_dest = dest_dir.join("proofs.tar.gz");
             match server
-                .download_package(&pkg_info.prover_session_id, &archive_dest)
+                .download_package(&pkg_info.prover_contribution_id, &archive_dest)
                 .await
             {
                 Ok(()) => {
@@ -193,11 +193,11 @@ async fn cmd_start() -> Result<()> {
                     // Compute SHA-256
                     let sha = compute_sha256(&archive_dest)?;
 
-                    session.packages.push(ProofPackage {
-                        prover_session_id: pkg_info.prover_session_id.clone(),
+                    state.packages.push(CertificatePackage {
+                        prover_contribution_id: pkg_info.prover_contribution_id.clone(),
                         prover_username: pkg_info.prover_username.clone(),
-                        proof_assistant: pkg_info.proof_assistant.clone(),
-                        problem_ids: pkg_info.problem_ids.clone(),
+                        prover: pkg_info.prover.clone(),
+                        conjecture_ids: pkg_info.conjecture_ids.clone(),
                         archive_sha256: sha,
                         import_source: "server".into(),
                     });
@@ -209,13 +209,13 @@ async fn cmd_start() -> Result<()> {
         }
     }
 
-    save_session(&review_dir, &session)?;
+    save_review_state(&review_dir, &state)?;
     set_active_review_id(&review_id)?;
 
-    println!("\n{} Review session created: {}", "✓".green(), review_id);
+    println!("\n{} Review created: {}", "✓".green(), review_id);
     println!("  Directory: {}", review_dir.display());
-    println!("  Packages loaded: {}", session.packages.len());
-    if session.packages.is_empty() {
+    println!("  Packages loaded: {}", state.packages.len());
+    if state.packages.is_empty() {
         println!(
             "\n  Import local archives with: {}",
             "proof-at-home review import <path>".cyan()
@@ -228,10 +228,10 @@ async fn cmd_start() -> Result<()> {
 // ── review import ──
 
 async fn cmd_import(path: &Path) -> Result<()> {
-    let (review_dir, mut session) = get_active_session()?;
+    let (review_dir, mut state) = get_active_review()?;
 
-    if session.status == ReviewStatus::Sealed {
-        anyhow::bail!("Cannot import into a sealed review session.");
+    if state.status == ReviewStatus::Sealed {
+        anyhow::bail!("Cannot import into a sealed review.");
     }
 
     if !path.exists() {
@@ -240,14 +240,14 @@ async fn cmd_import(path: &Path) -> Result<()> {
 
     let packages_dir = review_dir.join("packages");
 
-    // Derive a session ID from the archive filename or generate one
+    // Derive a contribution ID from the archive filename or generate one
     let archive_stem = path
         .file_stem()
         .and_then(|s| s.to_str())
         .unwrap_or("unknown");
     // Strip .tar if double extension
-    let session_id = archive_stem.strip_suffix(".tar").unwrap_or(archive_stem);
-    let dest_dir = packages_dir.join(session_id);
+    let contribution_id = archive_stem.strip_suffix(".tar").unwrap_or(archive_stem);
+    let dest_dir = packages_dir.join(contribution_id);
     std::fs::create_dir_all(&dest_dir)?;
 
     // Copy archive
@@ -261,11 +261,11 @@ async fn cmd_import(path: &Path) -> Result<()> {
     // Compute SHA-256
     let sha = compute_sha256(&archive_dest)?;
 
-    // Scan for proof files to build problem_ids list
-    let problem_ids = scan_proof_files(&dest_dir)?;
+    // Scan for proof files to build conjecture_ids list
+    let conjecture_ids = scan_proof_files(&dest_dir)?;
 
-    // Detect proof assistant
-    let proof_assistant = if problem_ids
+    // Detect prover
+    let prover = if conjecture_ids
         .iter()
         .any(|p| dest_dir.join(format!("{}.lean", p)).exists())
     {
@@ -274,22 +274,22 @@ async fn cmd_import(path: &Path) -> Result<()> {
         "rocq".into()
     };
 
-    session.packages.push(ProofPackage {
-        prover_session_id: session_id.to_string(),
+    state.packages.push(CertificatePackage {
+        prover_contribution_id: contribution_id.to_string(),
         prover_username: String::new(), // unknown for local imports
-        proof_assistant,
-        problem_ids: problem_ids.clone(),
+        prover,
+        conjecture_ids: conjecture_ids.clone(),
         archive_sha256: sha,
         import_source: format!("local:{}", path.display()),
     });
 
-    save_session(&review_dir, &session)?;
+    save_review_state(&review_dir, &state)?;
 
     println!(
         "{} Imported {} ({} proof files)",
         "✓".green(),
-        session_id,
-        problem_ids.len()
+        contribution_id,
+        conjecture_ids.len()
     );
 
     Ok(())
@@ -298,29 +298,26 @@ async fn cmd_import(path: &Path) -> Result<()> {
 // ── review list ──
 
 fn cmd_list() -> Result<()> {
-    let (_review_dir, session) = get_active_session()?;
+    let (_review_dir, state) = get_active_review()?;
 
-    println!(
-        "Review session: {} (status: {})\n",
-        session.review_id, session.status
-    );
+    println!("Review: {} (status: {})\n", state.review_id, state.status);
 
-    if session.packages.is_empty() {
+    if state.packages.is_empty() {
         println!("  No packages loaded.");
         return Ok(());
     }
 
     println!(
         "  {:<40} {:<20} {:<10} {:<8}",
-        "Session ID", "Prover", "Assistant", "Problems"
+        "Contribution ID", "Prover", "Assistant", "Conjectures"
     );
     println!("  {}", "-".repeat(78));
 
-    for pkg in &session.packages {
-        let display_id = if pkg.prover_session_id.len() > 36 {
-            &pkg.prover_session_id[..36]
+    for pkg in &state.packages {
+        let display_id = if pkg.prover_contribution_id.len() > 36 {
+            &pkg.prover_contribution_id[..36]
         } else {
-            &pkg.prover_session_id
+            &pkg.prover_contribution_id
         };
         println!(
             "  {:<40} {:<20} {:<10} {:<8}",
@@ -330,12 +327,12 @@ fn cmd_list() -> Result<()> {
             } else {
                 &pkg.prover_username
             },
-            pkg.proof_assistant,
-            pkg.problem_ids.len(),
+            pkg.prover,
+            pkg.conjecture_ids.len(),
         );
     }
 
-    println!("\n  Total packages: {}", session.packages.len());
+    println!("\n  Total packages: {}", state.packages.len());
     Ok(())
 }
 
@@ -343,13 +340,13 @@ fn cmd_list() -> Result<()> {
 
 async fn cmd_ai_compare() -> Result<()> {
     let config = Config::load()?;
-    let (review_dir, mut session) = get_active_session()?;
+    let (review_dir, mut state) = get_active_review()?;
 
-    if session.packages.len() < 2 {
+    if state.packages.len() < 2 {
         anyhow::bail!("Need at least 2 packages to compare. Import more packages first.");
     }
 
-    let result = comparison::run_comparison(&config, &session, &review_dir).await?;
+    let result = comparison::run_comparison(&config, &state, &review_dir).await?;
 
     // Write ai_comparison.json
     let comp_path = review_dir.join("ai_comparison.json");
@@ -357,8 +354,8 @@ async fn cmd_ai_compare() -> Result<()> {
     std::fs::write(&comp_path, content)?;
 
     // Update session status
-    session.status = ReviewStatus::Compared;
-    save_session(&review_dir, &session)?;
+    state.status = ReviewStatus::Compared;
+    save_review_state(&review_dir, &state)?;
 
     // Print results table
     println!("\n{}", "=== AI Comparison Results ===".bold());
@@ -367,8 +364,8 @@ async fn cmd_ai_compare() -> Result<()> {
         result.model, result.cost_usd
     );
 
-    for pc in &result.problem_comparisons {
-        println!("{} ({})", pc.problem_title.bold(), pc.problem_id);
+    for pc in &result.conjecture_comparisons {
+        println!("{} ({})", pc.conjecture_title.bold(), pc.conjecture_id);
         println!("  {}", pc.analysis);
         for r in &pc.rankings {
             println!(
@@ -389,8 +386,8 @@ async fn cmd_ai_compare() -> Result<()> {
     println!("{}", "=== Package Rankings ===".bold());
     for pr in &result.package_rankings {
         println!(
-            "  #{} {} — overall avg: {} ({} problems)",
-            pr.rank, pr.prover_username, pr.avg_scores.overall, pr.problems_compared
+            "  #{} {} — overall avg: {} ({} conjectures)",
+            pr.rank, pr.prover_username, pr.avg_scores.overall, pr.conjectures_compared
         );
         if !pr.summary.is_empty() {
             println!("     {}", pr.summary);
@@ -408,7 +405,7 @@ async fn cmd_ai_compare() -> Result<()> {
 // ── review report ──
 
 fn cmd_report(template_variant: &str) -> Result<()> {
-    let (review_dir, session) = get_active_session()?;
+    let (review_dir, state) = get_active_review()?;
     let report_path = review_dir.join("review_report.toml");
 
     if !report_path.exists() {
@@ -422,7 +419,7 @@ fn cmd_report(template_variant: &str) -> Result<()> {
         };
 
         let template_content =
-            templates::get_template(template_variant, &session, comparison.as_ref());
+            templates::get_template(template_variant, &state, comparison.as_ref());
         std::fs::write(&report_path, &template_content)?;
         println!(
             "{} Review report template written to: {}",
@@ -469,7 +466,7 @@ fn cmd_report(template_variant: &str) -> Result<()> {
 
 async fn cmd_seal() -> Result<()> {
     let config = Config::load()?;
-    let (review_dir, mut session) = get_active_session()?;
+    let (review_dir, mut state) = get_active_review()?;
 
     // 1. Validate report exists and is valid
     let report_path = review_dir.join("review_report.toml");
@@ -518,31 +515,31 @@ async fn cmd_seal() -> Result<()> {
                 .and_then(|c| {
                     c.package_rankings
                         .iter()
-                        .find(|pr| pr.prover_session_id == r.prover_session_id)
+                        .find(|pr| pr.prover_contribution_id == r.prover_contribution_id)
                 })
                 .map(|pr| pr.avg_scores.overall as f64)
                 .unwrap_or(0.0);
 
             serde_json::json!({
-                "prover_session_id": r.prover_session_id,
+                "prover_contribution_id": r.prover_contribution_id,
                 "rank": r.rank,
                 "overall_score": overall_score,
             })
         })
         .collect();
 
-    let problems_compared = comparison
+    let conjectures_compared = comparison
         .as_ref()
-        .map(|c| c.problem_comparisons.len() as u32)
+        .map(|c| c.conjecture_comparisons.len() as u32)
         .unwrap_or(0);
 
     let ai_cost = comparison.as_ref().map(|c| c.cost_usd).unwrap_or(0.0);
 
     let summary = serde_json::json!({
         "reviewer_username": report.reviewer.username,
-        "review_id": session.review_id,
-        "packages_reviewed": session.packages.len(),
-        "problems_compared": problems_compared,
+        "review_id": state.review_id,
+        "packages_reviewed": state.packages.len(),
+        "conjectures_compared": conjectures_compared,
         "package_rankings": package_ranking_summaries,
         "recommendation": report.summary.recommendation,
         "confidence": report.summary.confidence,
@@ -585,22 +582,22 @@ async fn cmd_seal() -> Result<()> {
     };
 
     // 6. Generate NFT metadata
-    let reviewed_session_ids: Vec<String> = session
+    let reviewed_contribution_ids: Vec<String> = state
         .packages
         .iter()
-        .map(|p| p.prover_session_id.clone())
+        .map(|p| p.prover_contribution_id.clone())
         .collect();
 
     let nft_info = ReviewInfo {
         reviewer_username: report.reviewer.username.clone(),
-        review_id: session.review_id.clone(),
-        packages_reviewed: session.packages.len() as u32,
-        problems_compared,
+        review_id: state.review_id.clone(),
+        packages_reviewed: state.packages.len() as u32,
+        conjectures_compared,
         top_prover: top_prover.clone(),
         recommendation: report.summary.recommendation.clone(),
         archive_sha256: archive_sha.clone(),
         ai_comparison_cost_usd: ai_cost,
-        reviewed_session_ids,
+        reviewed_contribution_ids,
         reviewer_public_key,
         archive_signature,
     };
@@ -614,9 +611,9 @@ async fn cmd_seal() -> Result<()> {
 
     let server_summary = crate::server_client::api::ReviewSummary {
         reviewer_username: report.reviewer.username.clone(),
-        review_id: session.review_id.clone(),
-        packages_reviewed: session.packages.len() as u32,
-        problems_compared,
+        review_id: state.review_id.clone(),
+        packages_reviewed: state.packages.len() as u32,
+        conjectures_compared,
         package_rankings: report
             .package_reviews
             .iter()
@@ -626,13 +623,13 @@ async fn cmd_seal() -> Result<()> {
                     .and_then(|c| {
                         c.package_rankings
                             .iter()
-                            .find(|pr| pr.prover_session_id == r.prover_session_id)
+                            .find(|pr| pr.prover_contribution_id == r.prover_contribution_id)
                     })
                     .map(|pr| pr.avg_scores.overall as f64)
                     .unwrap_or(0.0);
 
                 crate::server_client::api::PackageRankingSummary {
-                    prover_session_id: r.prover_session_id.clone(),
+                    prover_contribution_id: r.prover_contribution_id.clone(),
                     rank: r.rank,
                     overall_score,
                 }
@@ -649,17 +646,17 @@ async fn cmd_seal() -> Result<()> {
     }
 
     // 8. Mark session as sealed
-    session.status = ReviewStatus::Sealed;
-    save_session(&review_dir, &session)?;
+    state.status = ReviewStatus::Sealed;
+    save_review_state(&review_dir, &state)?;
 
     // Print summary
     println!("\n{}", "=== Review Sealed ===".bold());
-    println!("  Review ID:    {}", session.review_id);
+    println!("  Review ID:    {}", state.review_id);
     println!("  Archive:      {}", archive_path.display());
     println!("  SHA-256:      {}", archive_sha);
     println!("  NFT metadata: {}", nft_path.display());
-    println!("  Packages:     {}", session.packages.len());
-    println!("  Compared:     {} problems", problems_compared);
+    println!("  Packages:     {}", state.packages.len());
+    println!("  Compared:     {} conjectures", conjectures_compared);
     println!("  Top prover:   {}", top_prover);
     println!("  Recommendation: {}", report.summary.recommendation);
 
@@ -685,7 +682,7 @@ fn compute_sha256(path: &Path) -> Result<String> {
     Ok(hex::encode(hash))
 }
 
-/// Scan a directory for .v and .lean files, return problem IDs (file stems)
+/// Scan a directory for .v and .lean files, return conjecture IDs (file stems)
 fn scan_proof_files(dir: &Path) -> Result<Vec<String>> {
     let mut ids = Vec::new();
     if let Ok(entries) = std::fs::read_dir(dir) {

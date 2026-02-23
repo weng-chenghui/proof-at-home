@@ -6,10 +6,10 @@
     "archive_sha256",
     "archive_signature",
     "cost_donated_usd",
-    "problems_attempted",
-    "problems_proved",
-    "proof_assistant",
-    "proof_assistant_version",
+    "conjectures_attempted",
+    "conjectures_proved",
+    "prover",
+    "prover_version",
     "proof_status",
     "public_key",
     "username"
@@ -25,20 +25,20 @@
       "type": "number",
       "format": "double"
     },
-    "problems_attempted": {
+    "conjectures_attempted": {
       "type": "integer",
       "format": "uint32",
       "minimum": 0.0
     },
-    "problems_proved": {
+    "conjectures_proved": {
       "type": "integer",
       "format": "uint32",
       "minimum": 0.0
     },
-    "proof_assistant": {
+    "prover": {
       "type": "string"
     },
-    "proof_assistant_version": {
+    "prover_version": {
       "type": "string"
     },
     "proof_status": {

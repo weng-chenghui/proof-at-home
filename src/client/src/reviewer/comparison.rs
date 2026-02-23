@@ -10,22 +10,22 @@ use std::process::Command;
 use crate::config::Config;
 use crate::reviewer::types::*;
 
-/// Build the comparison prompt for a single problem
+/// Build the comparison prompt for a single conjecture
 pub fn build_comparison_prompt(
-    problem_title: &str,
-    proof_assistant: &str,
-    proofs: &[(String, String, String)], // (prover_session_id, prover_username, proof_script)
+    conjecture_title: &str,
+    prover: &str,
+    proofs: &[(String, String, String)], // (prover_contribution_id, prover_username, proof_script)
 ) -> String {
     let mut prompt = format!(
         "You are a {} proof reviewer. Compare the following proofs of \"{}\" \
          from different provers.\n\n## Proofs\n",
-        proof_assistant, problem_title
+        prover, conjecture_title
     );
 
-    for (session_id, username, script) in proofs {
+    for (contribution_id, username, script) in proofs {
         prompt.push_str(&format!(
-            "\n### Prover: {} (session: {})\n```\n{}\n```\n",
-            username, session_id, script
+            "\n### Prover: {} (contribution: {})\n```\n{}\n```\n",
+            username, contribution_id, script
         ));
     }
 
@@ -46,7 +46,7 @@ Return valid JSON and nothing else (no markdown fences):
 {
   "rankings": [
     {
-      "prover_session_id": "...",
+      "prover_contribution_id": "...",
       "prover_username": "...",
       "scores": { "succinctness": N, "library_reuse": N, "generality": N, "modularity": N, "math_strategy": N, "overall": N },
       "reasoning": "1-2 sentence explanation"
@@ -60,21 +60,21 @@ Return valid JSON and nothing else (no markdown fences):
     prompt
 }
 
-/// Build a rollup summary prompt given per-problem results
+/// Build a rollup summary prompt given per-conjecture results
 pub fn build_rollup_prompt(package_rankings: &[PackageRanking]) -> String {
     let mut prompt = String::from(
         "You are a proof reviewer. Given the following package-level score averages across \
-         all compared problems, write a brief narrative summary (2-3 sentences) for each prover \
+         all compared conjectures, write a brief narrative summary (2-3 sentences) for each prover \
          and a final overall ranking explanation.\n\n## Package Rankings\n\n",
     );
 
     for pr in package_rankings {
         prompt.push_str(&format!(
-            "### {} (session: {}) — Rank #{}\n\
+            "### {} (contribution: {}) — Rank #{}\n\
              - Succinctness: {}, Library Reuse: {}, Generality: {}, Modularity: {}, Math Strategy: {}, Overall: {}\n\
-             - Problems compared: {}\n\n",
+             - Conjectures compared: {}\n\n",
             pr.prover_username,
-            pr.prover_session_id,
+            pr.prover_contribution_id,
             pr.rank,
             pr.avg_scores.succinctness,
             pr.avg_scores.library_reuse,
@@ -82,13 +82,13 @@ pub fn build_rollup_prompt(package_rankings: &[PackageRanking]) -> String {
             pr.avg_scores.modularity,
             pr.avg_scores.math_strategy,
             pr.avg_scores.overall,
-            pr.problems_compared,
+            pr.conjectures_compared,
         ));
     }
 
     prompt.push_str(
         "Return valid JSON and nothing else (no markdown fences):\n\
-         {\n  \"summaries\": [\n    { \"prover_session_id\": \"...\", \"summary\": \"...\" }\n  ]\n}\n",
+         {\n  \"summaries\": [\n    { \"prover_contribution_id\": \"...\", \"summary\": \"...\" }\n  ]\n}\n",
     );
 
     prompt
@@ -280,7 +280,7 @@ impl ReviewAuditLogger {
 pub struct ReviewAuditEntry {
     pub timestamp: String,
     pub action: String,
-    pub problem_id: String,
+    pub conjecture_id: String,
     pub model: String,
     pub cost_usd: f64,
     pub provers_compared: u32,
@@ -296,7 +296,7 @@ struct ComparisonResponse {
 
 #[derive(Deserialize)]
 struct ComparisonRanking {
-    prover_session_id: String,
+    prover_contribution_id: String,
     prover_username: String,
     scores: ComparisonScores,
     reasoning: String,
@@ -319,7 +319,7 @@ struct RollupResponse {
 
 #[derive(Deserialize)]
 struct RollupSummary {
-    prover_session_id: String,
+    prover_contribution_id: String,
     summary: String,
 }
 
@@ -340,32 +340,32 @@ fn extract_json(response: &str) -> &str {
 /// Run the full AI comparison pipeline
 pub async fn run_comparison(
     config: &Config,
-    session: &ReviewSession,
+    state: &ReviewState,
     review_dir: &Path,
 ) -> Result<ComparisonResult> {
     let audit = ReviewAuditLogger::new(review_dir);
     let packages_dir = review_dir.join("packages");
     let mut total_cost = 0.0;
 
-    // Collect all proof files per problem per prover
-    // Map: problem_id -> Vec<(session_id, username, script)>
-    let mut problem_proofs: HashMap<String, Vec<(String, String, String)>> = HashMap::new();
-    // Track problem titles: problem_id -> title (use filename as fallback)
-    let mut problem_titles: HashMap<String, String> = HashMap::new();
-    // Detect proof assistant from file extensions
-    let mut proof_assistant = String::from("Rocq");
+    // Collect all proof files per conjecture per prover
+    // Map: conjecture_id -> Vec<(contribution_id, username, script)>
+    let mut conjecture_proofs: HashMap<String, Vec<(String, String, String)>> = HashMap::new();
+    // Track conjecture titles: conjecture_id -> title (use filename as fallback)
+    let mut conjecture_titles: HashMap<String, String> = HashMap::new();
+    // Detect prover from file extensions
+    let mut prover = String::from("Rocq");
 
-    for pkg in &session.packages {
-        let pkg_dir = packages_dir.join(&pkg.prover_session_id);
+    for pkg in &state.packages {
+        let pkg_dir = packages_dir.join(&pkg.prover_contribution_id);
         if !pkg_dir.exists() {
             continue;
         }
 
-        if pkg.proof_assistant.to_lowercase().contains("lean") {
-            proof_assistant = String::from("Lean 4");
+        if pkg.prover.to_lowercase().contains("lean") {
+            prover = String::from("Lean 4");
         }
 
-        for pid in &pkg.problem_ids {
+        for pid in &pkg.conjecture_ids {
             // Try to find the proof file: {pid}.v or {pid}.lean
             let v_file = pkg_dir.join(format!("{}.v", pid));
             let lean_file = pkg_dir.join(format!("{}.lean", pid));
@@ -380,50 +380,57 @@ pub async fn run_comparison(
             let script = std::fs::read_to_string(&proof_path)
                 .with_context(|| format!("Failed to read {}", proof_path.display()))?;
 
-            problem_proofs.entry(pid.clone()).or_default().push((
-                pkg.prover_session_id.clone(),
+            conjecture_proofs.entry(pid.clone()).or_default().push((
+                pkg.prover_contribution_id.clone(),
                 pkg.prover_username.clone(),
                 script,
             ));
 
-            problem_titles
+            conjecture_titles
                 .entry(pid.clone())
                 .or_insert_with(|| pid.clone());
         }
     }
 
-    // Filter to problems with 2+ provers
-    let comparable: Vec<_> = problem_proofs
+    // Filter to conjectures with 2+ provers
+    let comparable: Vec<_> = conjecture_proofs
         .iter()
         .filter(|(_, proofs)| proofs.len() >= 2)
         .collect();
 
     if comparable.is_empty() {
         anyhow::bail!(
-            "No problems have proofs from 2+ provers. Import more packages to enable comparison."
+            "No conjectures have proofs from 2+ provers. Import more packages to enable comparison."
         );
     }
 
-    println!("Comparing {} problems across provers...", comparable.len());
+    println!(
+        "Comparing {} conjectures across provers...",
+        comparable.len()
+    );
 
-    let mut problem_comparisons = Vec::new();
+    let mut conjecture_comparisons = Vec::new();
 
-    for (problem_id, proofs) in &comparable {
-        let title = problem_titles
-            .get(*problem_id)
+    for (conjecture_id, proofs) in &comparable {
+        let title = conjecture_titles
+            .get(*conjecture_id)
             .cloned()
-            .unwrap_or_else(|| (*problem_id).clone());
+            .unwrap_or_else(|| (*conjecture_id).clone());
 
-        let prompt = build_comparison_prompt(&title, &proof_assistant, proofs);
-        println!("  Comparing problem: {} ({} provers)", title, proofs.len());
+        let prompt = build_comparison_prompt(&title, &prover, proofs);
+        println!(
+            "  Comparing conjecture: {} ({} provers)",
+            title,
+            proofs.len()
+        );
 
         let (response, cost) = call_claude(config, &prompt).await?;
         total_cost += cost;
 
         audit.log(&ReviewAuditEntry {
             timestamp: Utc::now().to_rfc3339(),
-            action: "problem_comparison".into(),
-            problem_id: (*problem_id).clone(),
+            action: "conjecture_comparison".into(),
+            conjecture_id: (*conjecture_id).clone(),
             model: config.api.model.clone(),
             cost_usd: cost,
             provers_compared: proofs.len() as u32,
@@ -433,13 +440,13 @@ pub async fn run_comparison(
         let parsed: ComparisonResponse =
             serde_json::from_str(json_str).context("Failed to parse AI comparison JSON")?;
 
-        let rankings: Vec<ProofRanking> = parsed
+        let rankings: Vec<CertificateRanking> = parsed
             .rankings
             .into_iter()
-            .map(|r| ProofRanking {
-                prover_session_id: r.prover_session_id,
+            .map(|r| CertificateRanking {
+                prover_contribution_id: r.prover_contribution_id,
                 prover_username: r.prover_username,
-                scores: ProofScores {
+                scores: CertificateScores {
                     succinctness: r.scores.succinctness,
                     library_reuse: r.scores.library_reuse,
                     generality: r.scores.generality,
@@ -451,20 +458,20 @@ pub async fn run_comparison(
             })
             .collect();
 
-        problem_comparisons.push(ProblemComparison {
-            problem_id: (*problem_id).clone(),
-            problem_title: title,
+        conjecture_comparisons.push(ConjectureComparison {
+            conjecture_id: (*conjecture_id).clone(),
+            conjecture_title: title,
             rankings,
             analysis: parsed.analysis,
         });
     }
 
     // Compute package-level averages programmatically
-    let mut prover_scores: HashMap<String, (String, Vec<&ProofScores>)> = HashMap::new();
-    for pc in &problem_comparisons {
+    let mut prover_scores: HashMap<String, (String, Vec<&CertificateScores>)> = HashMap::new();
+    for pc in &conjecture_comparisons {
         for ranking in &pc.rankings {
             prover_scores
-                .entry(ranking.prover_session_id.clone())
+                .entry(ranking.prover_contribution_id.clone())
                 .or_insert_with(|| (ranking.prover_username.clone(), Vec::new()))
                 .1
                 .push(&ranking.scores);
@@ -473,14 +480,14 @@ pub async fn run_comparison(
 
     let mut package_rankings: Vec<PackageRanking> = prover_scores
         .into_iter()
-        .map(|(session_id, (username, scores))| {
+        .map(|(contribution_id, (username, scores))| {
             let n = scores.len() as u32;
-            let avg = ProofScores::average_with(&scores);
+            let avg = CertificateScores::average_with(&scores);
             PackageRanking {
-                prover_session_id: session_id,
+                prover_contribution_id: contribution_id,
                 prover_username: username,
                 avg_scores: avg,
-                problems_compared: n,
+                conjectures_compared: n,
                 rank: 0,                // filled below
                 summary: String::new(), // filled by AI rollup
             }
@@ -502,7 +509,7 @@ pub async fn run_comparison(
         audit.log(&ReviewAuditEntry {
             timestamp: Utc::now().to_rfc3339(),
             action: "rollup_summary".into(),
-            problem_id: String::new(),
+            conjecture_id: String::new(),
             model: config.api.model.clone(),
             cost_usd: rollup_cost,
             provers_compared: package_rankings.len() as u32,
@@ -513,7 +520,7 @@ pub async fn run_comparison(
             for s in rollup.summaries {
                 if let Some(pr) = package_rankings
                     .iter_mut()
-                    .find(|p| p.prover_session_id == s.prover_session_id)
+                    .find(|p| p.prover_contribution_id == s.prover_contribution_id)
                 {
                     pr.summary = s.summary;
                 }
@@ -525,7 +532,7 @@ pub async fn run_comparison(
         timestamp: Utc::now().to_rfc3339(),
         model: config.api.model.clone(),
         cost_usd: total_cost,
-        problem_comparisons,
+        conjecture_comparisons,
         package_rankings,
     };
 

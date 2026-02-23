@@ -9,7 +9,7 @@ use std::process::Command;
 use crate::config::Config;
 use crate::prover::env_manager::ResolvedEnv;
 use crate::prover::verifier;
-use crate::server_client::api::Problem;
+use crate::server_client::api::Conjecture;
 
 pub struct AuditLogger {
     path: PathBuf,
@@ -38,8 +38,8 @@ impl AuditLogger {
 #[derive(Serialize)]
 pub struct AuditEntry {
     pub timestamp: String,
-    pub problem_id: String,
-    pub problem_title: String,
+    pub conjecture_id: String,
+    pub conjecture_title: String,
     pub attempt: u32,
     pub max_attempts: u32,
     pub model: String,
@@ -118,18 +118,18 @@ struct ApiUsage {
 }
 
 /// Build the prompt for proving a lemma
-fn build_proof_prompt(problem: &Problem) -> String {
-    let assistant_name = match problem.proof_assistant.to_lowercase().as_str() {
+fn build_proof_prompt(conjecture: &Conjecture) -> String {
+    let assistant_name = match conjecture.prover.to_lowercase().as_str() {
         "lean" | "lean4" => "Lean 4",
         _ => "Rocq",
     };
 
-    let hints_text = if problem.hints.is_empty() {
+    let hints_text = if conjecture.hints.is_empty() {
         String::new()
     } else {
         format!(
             "\n\nHints:\n{}",
-            problem
+            conjecture
                 .hints
                 .iter()
                 .map(|h| format!("- {}", h))
@@ -174,11 +174,11 @@ self-contained proof script that compiles successfully.
 
 Output the proof script now:"#,
         assistant = assistant_name,
-        title = problem.title,
-        preamble = problem.preamble,
-        statement = problem.lemma_statement,
+        title = conjecture.title,
+        preamble = conjecture.preamble,
+        statement = conjecture.lemma_statement,
         hints = hints_text,
-        skeleton = problem.skeleton,
+        skeleton = conjecture.skeleton,
         compiler = if assistant_name == "Lean 4" {
             "lean"
         } else {
@@ -291,24 +291,21 @@ fn extract_code(response: &str) -> String {
     trimmed.to_string()
 }
 
-/// Main entry point: attempt to prove a problem with retries.
+/// Main entry point: attempt to prove a conjecture with retries.
 /// If `resolved_env` is provided, uses the virtual project environment.
 /// Otherwise falls back to writing to scratch_dir (legacy mode).
-pub async fn prove_problem(
+pub async fn prove_conjecture(
     config: &Config,
-    problem: &Problem,
+    conjecture: &Conjecture,
     resolved_env: Option<&ResolvedEnv>,
     audit_logger: &AuditLogger,
 ) -> Result<ProofAttemptResult> {
-    let scratch_dir = Path::new(&config.proof_assistant.scratch_dir);
+    let scratch_dir = Path::new(&config.prover.scratch_dir);
     std::fs::create_dir_all(scratch_dir)?;
 
-    let is_lean = matches!(
-        problem.proof_assistant.to_lowercase().as_str(),
-        "lean" | "lean4"
-    );
+    let is_lean = matches!(conjecture.prover.to_lowercase().as_str(), "lean" | "lean4");
     let extension = if is_lean { "lean" } else { "v" };
-    let proof_file = scratch_dir.join(format!("{}.{}", problem.id, extension));
+    let proof_file = scratch_dir.join(format!("{}.{}", conjecture.id, extension));
 
     let mut total_cost = 0.0;
     let mut last_error = String::new();
@@ -324,12 +321,12 @@ pub async fn prove_problem(
 
     for attempt in 1..=max_attempts {
         let prompt = if attempt == 1 {
-            build_proof_prompt(problem)
+            build_proof_prompt(conjecture)
         } else {
             format!(
                 "{}\n\n## Previous attempt failed (attempt {}/{}).\nError output:\n```\n{}\n```\n\n\
                  Fix the proof and output the complete corrected script:",
-                build_proof_prompt(problem),
+                build_proof_prompt(conjecture),
                 attempt,
                 max_attempts,
                 last_error,
@@ -363,17 +360,17 @@ pub async fn prove_problem(
             // Legacy fallback: no env available, just try direct build
             // This shouldn't normally happen with the new flow
             anyhow::bail!(
-                "No resolved environment available for problem {}. \
+                "No resolved environment available for conjecture {}. \
                  Ensure dependencies are set.",
-                problem.id
+                conjecture.id
             );
         };
 
         if verify_result.success {
             audit_logger.log_attempt(&AuditEntry {
                 timestamp: Utc::now().to_rfc3339(),
-                problem_id: problem.id.clone(),
-                problem_title: problem.title.clone(),
+                conjecture_id: conjecture.id.clone(),
+                conjecture_title: conjecture.title.clone(),
                 attempt,
                 max_attempts,
                 model: config.api.model.clone(),
@@ -393,8 +390,8 @@ pub async fn prove_problem(
         last_error = verify_result.output;
         audit_logger.log_attempt(&AuditEntry {
             timestamp: Utc::now().to_rfc3339(),
-            problem_id: problem.id.clone(),
-            problem_title: problem.title.clone(),
+            conjecture_id: conjecture.id.clone(),
+            conjecture_title: conjecture.title.clone(),
             attempt,
             max_attempts,
             model: config.api.model.clone(),
@@ -404,7 +401,7 @@ pub async fn prove_problem(
         });
         eprintln!(
             "  Attempt {}/{} failed for {}",
-            attempt, max_attempts, problem.id
+            attempt, max_attempts, conjecture.id
         );
     }
 

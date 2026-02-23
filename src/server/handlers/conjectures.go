@@ -8,20 +8,20 @@ import (
 	"github.com/proof-at-home/server/src/server/store"
 )
 
-type ProblemHandler struct {
+type ConjectureHandler struct {
 	Store store.Store
 }
 
-func (h *ProblemHandler) List(w http.ResponseWriter, r *http.Request) {
+func (h *ConjectureHandler) List(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	summaries := h.Store.ListProblems()
+	summaries := h.Store.ListConjectures()
 	json.NewEncoder(w).Encode(summaries)
 }
 
-func (h *ProblemHandler) Get(w http.ResponseWriter, r *http.Request) {
+func (h *ConjectureHandler) Get(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	id := chi.URLParam(r, "id")
-	p, ok := h.Store.GetProblem(id)
+	p, ok := h.Store.GetConjecture(id)
 	if !ok {
 		http.Error(w, `{"error":"not found"}`, http.StatusNotFound)
 		return

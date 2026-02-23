@@ -4,10 +4,12 @@ use std::path::Path;
 
 // Re-use types from the main crate
 use proof_at_home::nft::metadata::{
-    NftReviewMetadata, NftSessionMetadata, ReviewInfo, SessionInfo,
+    ContributionInfo, NftReviewMetadata, NftSessionMetadata, ReviewInfo,
 };
-use proof_at_home::reviewer::types::{ComparisonResult, ReviewReport, ReviewSession};
-use proof_at_home::server_client::api::{Problem, ProofResult, ReviewSummary, SessionSummary};
+use proof_at_home::reviewer::types::{ComparisonResult, ReviewReport, ReviewState};
+use proof_at_home::server_client::api::{
+    Certificate, Conjecture, ContributionSummary, ReviewSummary,
+};
 
 fn write_schema<T: schemars::JsonSchema>(dir: &Path, filename: &str) {
     let schema = schema_for!(T);
@@ -23,17 +25,17 @@ fn main() {
 
     println!("Generating JSON schemas...\n");
 
-    write_schema::<SessionInfo>(out_dir, "session-nft-metadata.schema.json");
+    write_schema::<ContributionInfo>(out_dir, "contribution-nft-metadata.schema.json");
     write_schema::<ReviewInfo>(out_dir, "review-nft-metadata.schema.json");
     write_schema::<NftSessionMetadata>(out_dir, "nft-session-output.schema.json");
     write_schema::<NftReviewMetadata>(out_dir, "nft-review-output.schema.json");
-    write_schema::<Problem>(out_dir, "problem.schema.json");
-    write_schema::<SessionSummary>(out_dir, "session-summary.schema.json");
-    write_schema::<ReviewSession>(out_dir, "review-session.schema.json");
+    write_schema::<Conjecture>(out_dir, "conjecture.schema.json");
+    write_schema::<ContributionSummary>(out_dir, "contribution-summary.schema.json");
+    write_schema::<ReviewState>(out_dir, "review-state.schema.json");
     write_schema::<ComparisonResult>(out_dir, "ai-comparison.schema.json");
     write_schema::<ReviewSummary>(out_dir, "review-summary.schema.json");
     write_schema::<ReviewReport>(out_dir, "review-report.schema.json");
-    write_schema::<ProofResult>(out_dir, "proof-result.schema.json");
+    write_schema::<Certificate>(out_dir, "certificate.schema.json");
 
     println!("\nDone. {} schemas written to {}", 11, out_dir.display());
 }

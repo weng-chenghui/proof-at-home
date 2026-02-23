@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login — proof-at-home</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/shared.css">
     <script src="https://cdn.jsdelivr.net/npm/pocketbase@0.36/dist/pocketbase.umd.js"></script>
 </head>
@@ -14,12 +17,13 @@
         <div id="msg" class="msg" style="display:none"></div>
 
         <div id="logged-out">
-            <p>Sign in with your account to submit proofs and reviews.</p>
+            <p>Sign in with your account to submit certificates and reviews.</p>
             <div style="display:flex;flex-direction:column;gap:0.75rem;max-width:300px;margin:1.5rem 0;">
                 <button onclick="oauthLogin('github')">Sign in with GitHub</button>
                 <button onclick="oauthLogin('google')">Sign in with Google</button>
                 <button onclick="oauthLogin('facebook')">Sign in with Facebook</button>
             </div>
+            <p>Don't have an account? <a href="/signup.html">Sign up</a></p>
             <p class="text-muted">Using a custom server? Use the <a href="/settings.html">Settings</a> page to paste your token manually.</p>
         </div>
 

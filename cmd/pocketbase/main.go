@@ -46,49 +46,49 @@ func main() {
 // PocketBase auto-generates CRUD at /api/collections/{name}/records,
 // but clients expect the original REST paths. These routes bridge the gap.
 func registerRoutes(se *core.ServeEvent, app core.App) {
-	// GET /problems — list all problems
-	se.Router.GET("/problems", func(e *core.RequestEvent) error {
-		records, err := app.FindAllRecords("problems")
+	// GET /conjectures — list all conjectures
+	se.Router.GET("/conjectures", func(e *core.RequestEvent) error {
+		records, err := app.FindAllRecords("conjectures")
 		if err != nil {
 			return e.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		}
 
-		type problemSummary struct {
-			ID             string `json:"id"`
-			Title          string `json:"title"`
-			Difficulty     string `json:"difficulty"`
-			ProofAssistant string `json:"proof_assistant"`
-			Status         string `json:"status"`
+		type conjectureSummary struct {
+			ID         string `json:"id"`
+			Title      string `json:"title"`
+			Difficulty string `json:"difficulty"`
+			Prover     string `json:"prover"`
+			Status     string `json:"status"`
 		}
 
-		summaries := make([]problemSummary, 0, len(records))
+		summaries := make([]conjectureSummary, 0, len(records))
 		for _, r := range records {
-			summaries = append(summaries, problemSummary{
-				ID:             r.GetString("problem_id"),
-				Title:          r.GetString("title"),
-				Difficulty:     r.GetString("difficulty"),
-				ProofAssistant: r.GetString("proof_assistant"),
-				Status:         r.GetString("status"),
+			summaries = append(summaries, conjectureSummary{
+				ID:         r.GetString("conjecture_id"),
+				Title:      r.GetString("title"),
+				Difficulty: r.GetString("difficulty"),
+				Prover:     r.GetString("prover"),
+				Status:     r.GetString("status"),
 			})
 		}
 		return e.JSON(http.StatusOK, summaries)
 	})
 
-	// GET /problems/{id} — get specific problem
-	se.Router.GET("/problems/{id}", func(e *core.RequestEvent) error {
+	// GET /conjectures/{id} — get specific conjecture
+	se.Router.GET("/conjectures/{id}", func(e *core.RequestEvent) error {
 		id := e.Request.PathValue("id")
-		record, err := app.FindFirstRecordByFilter("problems", "problem_id = {:pid}", map[string]any{
+		record, err := app.FindFirstRecordByFilter("conjectures", "conjecture_id = {:pid}", map[string]any{
 			"pid": id,
 		})
 		if err != nil {
 			return e.JSON(http.StatusNotFound, map[string]string{"error": "not found"})
 		}
 
-		problem := map[string]any{
-			"id":              record.GetString("problem_id"),
+		conjecture := map[string]any{
+			"id":              record.GetString("conjecture_id"),
 			"title":           record.GetString("title"),
 			"difficulty":      record.GetString("difficulty"),
-			"proof_assistant": record.GetString("proof_assistant"),
+			"prover":          record.GetString("prover"),
 			"status":          record.GetString("status"),
 			"preamble":        record.GetString("preamble"),
 			"lemma_statement": record.GetString("lemma_statement"),
@@ -96,31 +96,31 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 			"skeleton":        record.GetString("skeleton"),
 			"dependencies":    record.Get("dependencies"),
 		}
-		return e.JSON(http.StatusOK, problem)
+		return e.JSON(http.StatusOK, conjecture)
 	})
 
-	// POST /results — submit individual proof result
-	se.Router.POST("/results", func(e *core.RequestEvent) error {
+	// POST /certificates — submit individual proof result
+	se.Router.POST("/certificates", func(e *core.RequestEvent) error {
 		var body struct {
-			ProblemID   string  `json:"problem_id"`
-			Username    string  `json:"username"`
-			Success     bool    `json:"success"`
-			ProofScript string  `json:"proof_script"`
-			CostUSD     float64 `json:"cost_usd"`
-			Attempts    int     `json:"attempts"`
-			ErrorOutput string  `json:"error_output"`
+			ConjectureID string  `json:"conjecture_id"`
+			Username     string  `json:"username"`
+			Success      bool    `json:"success"`
+			ProofScript  string  `json:"proof_script"`
+			CostUSD      float64 `json:"cost_usd"`
+			Attempts     int     `json:"attempts"`
+			ErrorOutput  string  `json:"error_output"`
 		}
 		if err := e.BindBody(&body); err != nil {
 			return e.JSON(http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
 		}
 
-		collection, err := app.FindCollectionByNameOrId("proof_results")
+		collection, err := app.FindCollectionByNameOrId("certificates")
 		if err != nil {
 			return e.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		}
 
 		record := core.NewRecord(collection)
-		record.Set("problem_id", body.ProblemID)
+		record.Set("conjecture_id", body.ConjectureID)
 		record.Set("username", body.Username)
 		record.Set("success", body.Success)
 		record.Set("proof_script", body.ProofScript)
@@ -135,41 +135,41 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 		return e.JSON(http.StatusCreated, map[string]string{"status": "accepted"})
 	})
 
-	// POST /results/batch — submit session summary
-	se.Router.POST("/results/batch", func(e *core.RequestEvent) error {
+	// POST /certificates/batch — submit contribution summary
+	se.Router.POST("/certificates/batch", func(e *core.RequestEvent) error {
 		var body struct {
-			Username          string  `json:"username"`
-			SessionID         string  `json:"session_id"`
-			ProblemsAttempted int     `json:"problems_attempted"`
-			ProblemsProved    int     `json:"problems_proved"`
-			TotalCostUSD      float64 `json:"total_cost_usd"`
-			ArchiveSHA256     string  `json:"archive_sha256"`
-			NFTMetadata       any     `json:"nft_metadata"`
-			ProofAssistant    string  `json:"proof_assistant"`
-			ProblemIDs        []string `json:"problem_ids"`
-			ArchivePath       string  `json:"archive_path"`
-			ProofStatus       string  `json:"proof_status"`
-			ReviewedBy        []string `json:"reviewed_by"`
+			Username            string   `json:"username"`
+			ContributionID      string   `json:"contribution_id"`
+			ConjecturesAttempted int      `json:"conjectures_attempted"`
+			ConjecturesProved    int      `json:"conjectures_proved"`
+			TotalCostUSD        float64  `json:"total_cost_usd"`
+			ArchiveSHA256       string   `json:"archive_sha256"`
+			NFTMetadata         any      `json:"nft_metadata"`
+			Prover              string   `json:"prover"`
+			ConjectureIDs       []string `json:"conjecture_ids"`
+			ArchivePath         string   `json:"archive_path"`
+			ProofStatus         string   `json:"proof_status"`
+			ReviewedBy          []string `json:"reviewed_by"`
 		}
 		if err := e.BindBody(&body); err != nil {
 			return e.JSON(http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
 		}
 
-		collection, err := app.FindCollectionByNameOrId("sessions")
+		collection, err := app.FindCollectionByNameOrId("contributions")
 		if err != nil {
 			return e.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		}
 
 		record := core.NewRecord(collection)
-		record.Set("session_id", body.SessionID)
+		record.Set("contribution_id", body.ContributionID)
 		record.Set("username", body.Username)
-		record.Set("problems_attempted", body.ProblemsAttempted)
-		record.Set("problems_proved", body.ProblemsProved)
+		record.Set("conjectures_attempted", body.ConjecturesAttempted)
+		record.Set("conjectures_proved", body.ConjecturesProved)
 		record.Set("cost_usd", body.TotalCostUSD)
 		record.Set("archive_sha256", body.ArchiveSHA256)
 		record.Set("nft_metadata", body.NFTMetadata)
-		record.Set("proof_assistant", body.ProofAssistant)
-		record.Set("problem_ids", body.ProblemIDs)
+		record.Set("prover", body.Prover)
+		record.Set("conjecture_ids", body.ConjectureIDs)
 		record.Set("proof_status", body.ProofStatus)
 		record.Set("reviewed_by", body.ReviewedBy)
 
@@ -182,38 +182,38 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 
 	// GET /review-packages — list review packages
 	se.Router.GET("/review-packages", func(e *core.RequestEvent) error {
-		records, err := app.FindAllRecords("sessions")
+		records, err := app.FindAllRecords("contributions")
 		if err != nil {
 			return e.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		}
 
 		type reviewPkg struct {
-			ProverSessionID string   `json:"prover_session_id"`
-			ProverUsername  string   `json:"prover_username"`
-			ProofAssistant  string   `json:"proof_assistant"`
-			ProblemIDs      []string `json:"problem_ids"`
-			ArchiveURL      string   `json:"archive_url"`
-			ArchiveSHA256   string   `json:"archive_sha256"`
-			ProofStatus     string   `json:"proof_status,omitempty"`
-			ReviewedBy      []string `json:"reviewed_by,omitempty"`
+			ProverContributionID string   `json:"prover_contribution_id"`
+			ProverUsername       string   `json:"prover_username"`
+			Prover               string   `json:"prover"`
+			ConjectureIDs        []string `json:"conjecture_ids"`
+			ArchiveURL           string   `json:"archive_url"`
+			ArchiveSHA256        string   `json:"archive_sha256"`
+			ProofStatus          string   `json:"proof_status,omitempty"`
+			ReviewedBy           []string `json:"reviewed_by,omitempty"`
 		}
 
 		packages := make([]reviewPkg, 0, len(records))
 		for _, r := range records {
-			sessionID := r.GetString("session_id")
+			contributionID := r.GetString("contribution_id")
 
-			proofAssistant := r.GetString("proof_assistant")
-			if proofAssistant == "" {
-				proofAssistant = "rocq"
+			prover := r.GetString("prover")
+			if prover == "" {
+				prover = "rocq"
 			}
 
-			// Get problem_ids from JSON field
-			var problemIDs []string
-			if raw := r.Get("problem_ids"); raw != nil {
+			// Get conjecture_ids from JSON field
+			var conjectureIDs []string
+			if raw := r.Get("conjecture_ids"); raw != nil {
 				if list, ok := raw.([]any); ok {
 					for _, v := range list {
 						if s, ok := v.(string); ok {
-							problemIDs = append(problemIDs, s)
+							conjectureIDs = append(conjectureIDs, s)
 						}
 					}
 				}
@@ -232,25 +232,25 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 			}
 
 			packages = append(packages, reviewPkg{
-				ProverSessionID: sessionID,
-				ProverUsername:  r.GetString("username"),
-				ProofAssistant:  proofAssistant,
-				ProblemIDs:      problemIDs,
-				ArchiveURL:      "/review-packages/" + sessionID + "/archive",
-				ArchiveSHA256:   r.GetString("archive_sha256"),
-				ProofStatus:     r.GetString("proof_status"),
-				ReviewedBy:      reviewedBy,
+				ProverContributionID: contributionID,
+				ProverUsername:       r.GetString("username"),
+				Prover:               prover,
+				ConjectureIDs:        conjectureIDs,
+				ArchiveURL:           "/review-packages/" + contributionID + "/archive",
+				ArchiveSHA256:        r.GetString("archive_sha256"),
+				ProofStatus:          r.GetString("proof_status"),
+				ReviewedBy:           reviewedBy,
 			})
 		}
 		return e.JSON(http.StatusOK, packages)
 	})
 
-	// GET /review-packages/{sessionID}/archive — download archive
-	se.Router.GET("/review-packages/{sessionID}/archive", func(e *core.RequestEvent) error {
-		sessionID := e.Request.PathValue("sessionID")
+	// GET /review-packages/{contributionID}/archive — download archive
+	se.Router.GET("/review-packages/{contributionID}/archive", func(e *core.RequestEvent) error {
+		contributionID := e.Request.PathValue("contributionID")
 
-		record, err := app.FindFirstRecordByFilter("sessions", "session_id = {:sid}", map[string]any{
-			"sid": sessionID,
+		record, err := app.FindFirstRecordByFilter("contributions", "contribution_id = {:cid}", map[string]any{
+			"cid": contributionID,
 		})
 		if err != nil {
 			return e.JSON(http.StatusNotFound, map[string]string{"error": "archive not found"})
@@ -275,14 +275,14 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 	// POST /reviews — submit review
 	se.Router.POST("/reviews", func(e *core.RequestEvent) error {
 		var body struct {
-			ReviewerUsername string `json:"reviewer_username"`
-			ReviewID         string `json:"review_id"`
-			PackagesReviewed int    `json:"packages_reviewed"`
-			ProblemsCompared int    `json:"problems_compared"`
-			PackageRankings  []any  `json:"package_rankings"`
-			Recommendation   string `json:"recommendation"`
-			ArchiveSHA256    string `json:"archive_sha256"`
-			NFTMetadata      any    `json:"nft_metadata"`
+			ReviewerUsername   string `json:"reviewer_username"`
+			ReviewID           string `json:"review_id"`
+			PackagesReviewed   int    `json:"packages_reviewed"`
+			ConjecturesCompared int    `json:"conjectures_compared"`
+			PackageRankings    []any  `json:"package_rankings"`
+			Recommendation     string `json:"recommendation"`
+			ArchiveSHA256      string `json:"archive_sha256"`
+			NFTMetadata        any    `json:"nft_metadata"`
 		}
 		if err := e.BindBody(&body); err != nil {
 			return e.JSON(http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
@@ -297,7 +297,7 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 		record.Set("review_id", body.ReviewID)
 		record.Set("reviewer_username", body.ReviewerUsername)
 		record.Set("packages_reviewed", body.PackagesReviewed)
-		record.Set("problems_compared", body.ProblemsCompared)
+		record.Set("conjectures_compared", body.ConjecturesCompared)
 		record.Set("package_rankings", body.PackageRankings)
 		record.Set("recommendation", body.Recommendation)
 		record.Set("archive_sha256", body.ArchiveSHA256)
@@ -310,13 +310,75 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 		return e.JSON(http.StatusCreated, map[string]string{"status": "accepted"})
 	})
 
-	// POST /problems/packages — submit problems (simplified: JSON only for PocketBase)
-	se.Router.POST("/problems/packages", func(e *core.RequestEvent) error {
-		var problems []struct {
+	// GET /contributions — list contributions with nft_metadata (for NFT gallery)
+	se.Router.GET("/contributions", func(e *core.RequestEvent) error {
+		records, err := app.FindAllRecords("contributions")
+		if err != nil {
+			return e.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		}
+
+		type contributionEntry struct {
+			ContributionID      string `json:"contribution_id"`
+			Username            string `json:"username"`
+			ConjecturesAttempted int    `json:"conjectures_attempted"`
+			ConjecturesProved    int    `json:"conjectures_proved"`
+			Prover              string `json:"prover"`
+			ProofStatus         string `json:"proof_status"`
+			NFTMetadata         any    `json:"nft_metadata"`
+		}
+
+		entries := make([]contributionEntry, 0, len(records))
+		for _, r := range records {
+			entries = append(entries, contributionEntry{
+				ContributionID:      r.GetString("contribution_id"),
+				Username:            r.GetString("username"),
+				ConjecturesAttempted: int(r.GetFloat("conjectures_attempted")),
+				ConjecturesProved:    int(r.GetFloat("conjectures_proved")),
+				Prover:              r.GetString("prover"),
+				ProofStatus:         r.GetString("proof_status"),
+				NFTMetadata:         r.Get("nft_metadata"),
+			})
+		}
+		return e.JSON(http.StatusOK, entries)
+	})
+
+	// GET /reviews-list — list reviews with nft_metadata (for NFT gallery)
+	se.Router.GET("/reviews-list", func(e *core.RequestEvent) error {
+		records, err := app.FindAllRecords("reviews")
+		if err != nil {
+			return e.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		}
+
+		type reviewEntry struct {
+			ReviewID            string `json:"review_id"`
+			ReviewerUsername    string `json:"reviewer_username"`
+			PackagesReviewed    int    `json:"packages_reviewed"`
+			ConjecturesCompared int    `json:"conjectures_compared"`
+			Recommendation      string `json:"recommendation"`
+			NFTMetadata         any    `json:"nft_metadata"`
+		}
+
+		entries := make([]reviewEntry, 0, len(records))
+		for _, r := range records {
+			entries = append(entries, reviewEntry{
+				ReviewID:            r.GetString("review_id"),
+				ReviewerUsername:    r.GetString("reviewer_username"),
+				PackagesReviewed:    int(r.GetFloat("packages_reviewed")),
+				ConjecturesCompared: int(r.GetFloat("conjectures_compared")),
+				Recommendation:      r.GetString("recommendation"),
+				NFTMetadata:         r.Get("nft_metadata"),
+			})
+		}
+		return e.JSON(http.StatusOK, entries)
+	})
+
+	// POST /conjectures/packages — submit conjectures (simplified: JSON only for PocketBase)
+	se.Router.POST("/conjectures/packages", func(e *core.RequestEvent) error {
+		var conjectures []struct {
 			ID             string          `json:"id"`
 			Title          string          `json:"title"`
 			Difficulty     string          `json:"difficulty"`
-			ProofAssistant string          `json:"proof_assistant"`
+			Prover         string          `json:"prover"`
 			Status         string          `json:"status"`
 			Preamble       string          `json:"preamble"`
 			LemmaStatement string          `json:"lemma_statement"`
@@ -325,23 +387,23 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 			Dependencies   json.RawMessage `json:"dependencies"`
 		}
 
-		if err := e.BindBody(&problems); err != nil {
+		if err := e.BindBody(&conjectures); err != nil {
 			return e.JSON(http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
 		}
 
-		collection, err := app.FindCollectionByNameOrId("problems")
+		collection, err := app.FindCollectionByNameOrId("conjectures")
 		if err != nil {
 			return e.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		}
 
 		var added []string
-		for _, p := range problems {
+		for _, p := range conjectures {
 			if p.ID == "" {
 				continue
 			}
 
 			// Skip if already exists
-			existing, _ := app.FindFirstRecordByFilter("problems", "problem_id = {:pid}", map[string]any{
+			existing, _ := app.FindFirstRecordByFilter("conjectures", "conjecture_id = {:pid}", map[string]any{
 				"pid": p.ID,
 			})
 			if existing != nil {
@@ -354,10 +416,10 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 			}
 
 			record := core.NewRecord(collection)
-			record.Set("problem_id", p.ID)
+			record.Set("conjecture_id", p.ID)
 			record.Set("title", p.Title)
 			record.Set("difficulty", p.Difficulty)
-			record.Set("proof_assistant", p.ProofAssistant)
+			record.Set("prover", p.Prover)
 			record.Set("status", status)
 			record.Set("preamble", p.Preamble)
 			record.Set("lemma_statement", p.LemmaStatement)
@@ -376,9 +438,9 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 		}
 
 		return e.JSON(http.StatusOK, map[string]any{
-			"status":           "accepted",
-			"added_problem_ids": added,
-			"count":            len(added),
+			"status":               "accepted",
+			"added_conjecture_ids": added,
+			"count":                len(added),
 		})
 	}).Bind(apis.RequireAuth())
 
@@ -389,12 +451,12 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 		return nil
 	})
 
-	// Seed problems from filesystem on startup
-	seedProblems(app)
+	// Seed conjectures from filesystem on startup
+	seedConjectures(app)
 }
 
-// seedProblems loads problem JSON files from the PROBLEMS_DIR directory.
-func seedProblems(app core.App) {
+// seedConjectures loads conjecture JSON files from the PROBLEMS_DIR directory.
+func seedConjectures(app core.App) {
 	dir := os.Getenv("PROBLEMS_DIR")
 	if dir == "" {
 		dir = "problems"
@@ -405,7 +467,7 @@ func seedProblems(app core.App) {
 		return // no problems dir, skip silently
 	}
 
-	collection, err := app.FindCollectionByNameOrId("problems")
+	collection, err := app.FindCollectionByNameOrId("conjectures")
 	if err != nil {
 		return
 	}
@@ -424,7 +486,7 @@ func seedProblems(app core.App) {
 			ID             string          `json:"id"`
 			Title          string          `json:"title"`
 			Difficulty     string          `json:"difficulty"`
-			ProofAssistant string          `json:"proof_assistant"`
+			Prover         string          `json:"prover"`
 			Status         string          `json:"status"`
 			Preamble       string          `json:"preamble"`
 			LemmaStatement string          `json:"lemma_statement"`
@@ -437,7 +499,7 @@ func seedProblems(app core.App) {
 		}
 
 		// Skip if already exists
-		existing, _ := app.FindFirstRecordByFilter("problems", "problem_id = {:pid}", map[string]any{
+		existing, _ := app.FindFirstRecordByFilter("conjectures", "conjecture_id = {:pid}", map[string]any{
 			"pid": p.ID,
 		})
 		if existing != nil {
@@ -450,10 +512,10 @@ func seedProblems(app core.App) {
 		}
 
 		record := core.NewRecord(collection)
-		record.Set("problem_id", p.ID)
+		record.Set("conjecture_id", p.ID)
 		record.Set("title", p.Title)
 		record.Set("difficulty", p.Difficulty)
-		record.Set("proof_assistant", p.ProofAssistant)
+		record.Set("prover", p.Prover)
 		record.Set("status", status)
 		record.Set("preamble", p.Preamble)
 		record.Set("lemma_statement", p.LemmaStatement)

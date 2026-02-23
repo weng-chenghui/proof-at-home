@@ -24,12 +24,17 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Interactive setup wizard
+    /// Interactive setup wizard (deprecated: register at the web UI instead)
+    #[command(hide = true)]
     Init,
+    /// Log in with your auth token from the web UI
+    Login,
+    /// Configure CLI settings (API key, server URL, prover)
+    Setup,
     /// Set donation budget (legal agreement required)
     Donate,
-    /// Start a proof-mining session
-    Run,
+    /// Start a proof contribution
+    Prove,
     /// Show configuration and lifetime stats
     Status,
     /// Review and compare proof packages from provers
@@ -37,16 +42,16 @@ enum Commands {
         #[command(subcommand)]
         action: commands::review::ReviewAction,
     },
-    /// Submit a problem package (directory, tar.gz, or git URL)
+    /// Submit a conjecture package (directory, tar.gz, or git URL)
     SubmitPackage {
         /// Path to directory, .tar.gz file, or git URL
         source: String,
     },
     /// Publish NFT metadata and archive to IPFS for on-chain minting
     Publish {
-        /// Type: "session" or "review"
+        /// Type: "contribution" or "review"
         kind: String,
-        /// Session or review ID
+        /// Contribution or review ID
         id: String,
     },
 }
@@ -57,8 +62,10 @@ async fn main() {
 
     let result = match cli.command {
         Commands::Init => commands::init::run_init(),
+        Commands::Login => commands::login::run_login().await,
+        Commands::Setup => commands::setup::run_setup(),
         Commands::Donate => commands::donate::run_donate(),
-        Commands::Run => commands::run::run_session().await,
+        Commands::Prove => commands::run::run_prove().await,
         Commands::Status => commands::status::run_status(),
         Commands::Review { action } => commands::review::run_review(action).await,
         Commands::SubmitPackage { source } => {

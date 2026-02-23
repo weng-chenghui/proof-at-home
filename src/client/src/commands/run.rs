@@ -8,15 +8,17 @@ use uuid::Uuid;
 use crate::archive::pack;
 use crate::budget::BudgetTracker;
 use crate::config::Config;
-use crate::nft::metadata::{generate_nft_metadata, SessionInfo};
+use crate::nft::metadata::{generate_nft_metadata, ContributionInfo};
 use crate::prover::claude;
 use crate::prover::env_manager::{EnvManager, ResolvedEnv};
-use crate::server_client::api::{Dependencies, Problem, ProofResult, ServerClient, SessionSummary};
+use crate::server_client::api::{
+    Certificate, Conjecture, ContributionSummary, Dependencies, ServerClient,
+};
 use crate::signing;
 
-/// Compute a dep-group key for grouping problems by identical dependencies.
-fn dep_group_key(problem: &Problem) -> String {
-    match &problem.dependencies {
+/// Compute a dep-group key for grouping conjectures by identical dependencies.
+fn dep_group_key(conjecture: &Conjecture) -> String {
+    match &conjecture.dependencies {
         Some(Dependencies::Rocq(deps)) => {
             let mut pkgs = deps.opam_packages.clone();
             pkgs.sort();
@@ -27,11 +29,11 @@ fn dep_group_key(problem: &Problem) -> String {
             pkgs.sort();
             format!("lean:{}:{}", deps.lean_toolchain, pkgs.join(","))
         }
-        None => format!("none:{}", problem.proof_assistant),
+        None => format!("none:{}", conjecture.prover),
     }
 }
 
-pub async fn run_session() -> Result<()> {
+pub async fn run_prove() -> Result<()> {
     if !Config::exists() {
         bail!("No config found. Run `proof-at-home init` first.");
     }
@@ -42,17 +44,17 @@ pub async fn run_session() -> Result<()> {
         bail!("No budget set. Run `proof-at-home donate` first.");
     }
 
-    let session_id = Uuid::new_v4().to_string();
-    let session_dir = Config::sessions_dir()?.join(&session_id);
-    std::fs::create_dir_all(&session_dir)?;
-    std::fs::create_dir_all(&config.proof_assistant.scratch_dir)?;
+    let contribution_id = Uuid::new_v4().to_string();
+    let contribution_dir = Config::contributions_dir()?.join(&contribution_id);
+    std::fs::create_dir_all(&contribution_dir)?;
+    std::fs::create_dir_all(&config.prover.scratch_dir)?;
 
-    let audit_logger = claude::AuditLogger::new(&session_dir);
+    let audit_logger = claude::AuditLogger::new(&contribution_dir);
 
-    println!("{}", "=== Proof@Home Session ===".bold().cyan());
-    println!("Session: {}", session_id.dimmed());
+    println!("{}", "=== Proof@Home Contribution ===".bold().cyan());
+    println!("Contribution: {}", contribution_id.dimmed());
     println!(
-        "Budget:  {}",
+        "Budget:       {}",
         format!("${:.2}", config.budget.donated_usd).green()
     );
     println!();
@@ -71,31 +73,34 @@ pub async fn run_session() -> Result<()> {
         }
     }
 
-    // Fetch problems
-    let problem_summaries = server.fetch_problems().await?;
-    if problem_summaries.is_empty() {
-        bail!("No problems available from server.");
+    // Fetch conjectures
+    let conjecture_summaries = server.fetch_conjectures().await?;
+    if conjecture_summaries.is_empty() {
+        bail!("No conjectures available from server.");
     }
-    println!("Found {} problems to attempt.", problem_summaries.len());
+    println!(
+        "Found {} conjectures to attempt.",
+        conjecture_summaries.len()
+    );
 
-    // Fetch full problem details for all problems
-    let mut problems: Vec<Problem> = Vec::new();
-    for ps in &problem_summaries {
-        let problem = server.fetch_problem(&ps.id).await?;
-        problems.push(problem);
+    // Fetch full conjecture details for all conjectures
+    let mut conjectures: Vec<Conjecture> = Vec::new();
+    for ps in &conjecture_summaries {
+        let conjecture = server.fetch_conjecture(&ps.id).await?;
+        conjectures.push(conjecture);
     }
 
-    // Pre-flight: group problems by dep hash, setup unique envs
+    // Pre-flight: group conjectures by dep hash, setup unique envs
     println!();
     println!("{}", "Setting up proof environments...".bold());
-    let env_manager = EnvManager::new(&config.proof_assistant.envs_dir);
+    let env_manager = EnvManager::new(&config.prover.envs_dir);
     let mut env_cache: HashMap<String, ResolvedEnv> = HashMap::new();
 
     // Collect unique dep groups
-    let mut dep_groups: HashMap<String, &Problem> = HashMap::new();
-    for problem in &problems {
-        let key = dep_group_key(problem);
-        dep_groups.entry(key).or_insert(problem);
+    let mut dep_groups: HashMap<String, &Conjecture> = HashMap::new();
+    for conjecture in &conjectures {
+        let key = dep_group_key(conjecture);
+        dep_groups.entry(key).or_insert(conjecture);
     }
 
     for (key, representative) in &dep_groups {
@@ -137,30 +142,30 @@ pub async fn run_session() -> Result<()> {
 
     // Set up budget tracker
     let tracker = BudgetTracker::new(config.budget.donated_usd);
-    let mut problems_proved = 0u32;
-    let mut problems_attempted = 0u32;
-    let mut proof_assistants_used: Vec<String> = Vec::new();
-    let mut proof_assistant_versions: Vec<String> = Vec::new();
+    let mut conjectures_proved = 0u32;
+    let mut conjectures_attempted = 0u32;
+    let mut provers_used: Vec<String> = Vec::new();
+    let mut prover_versions: Vec<String> = Vec::new();
 
-    for problem in &problems {
+    for conjecture in &conjectures {
         if tracker.is_exhausted() {
-            println!("\n{} Budget exhausted! Wrapping up session.", "⚠".yellow());
+            println!("\n{} Budget exhausted! Wrapping up.", "⚠".yellow());
             break;
         }
 
-        let key = dep_group_key(problem);
+        let key = dep_group_key(conjecture);
         let resolved_env = env_cache.get(&key);
 
         if resolved_env.is_none() {
             eprintln!(
                 "  {} Skipping {} (environment not available)",
                 "!".yellow(),
-                problem.id
+                conjecture.id
             );
             continue;
         }
 
-        problems_attempted += 1;
+        conjectures_attempted += 1;
 
         let spinner = ProgressBar::new_spinner();
         spinner.set_style(
@@ -170,21 +175,22 @@ pub async fn run_session() -> Result<()> {
         );
         spinner.set_message(format!(
             "Proving: {} [{}]",
-            problem.title, problem.difficulty
+            conjecture.title, conjecture.difficulty
         ));
         spinner.enable_steady_tick(std::time::Duration::from_millis(100));
 
-        let result = claude::prove_problem(&config, problem, resolved_env, &audit_logger).await?;
+        let result =
+            claude::prove_conjecture(&config, conjecture, resolved_env, &audit_logger).await?;
         tracker.add_cost(result.cost_usd);
 
         spinner.finish_and_clear();
 
         if result.success {
-            problems_proved += 1;
+            conjectures_proved += 1;
             println!(
                 "  {} {} (${:.4}, {} attempts)",
                 "✓".green().bold(),
-                problem.title,
+                conjecture.title,
                 result.cost_usd,
                 result.attempts
             );
@@ -192,29 +198,29 @@ pub async fn run_session() -> Result<()> {
             println!(
                 "  {} {} (${:.4}, {} attempts)",
                 "✗".red(),
-                problem.title,
+                conjecture.title,
                 result.cost_usd,
                 result.attempts
             );
         }
 
-        if !proof_assistants_used.contains(&problem.proof_assistant) {
-            proof_assistants_used.push(problem.proof_assistant.clone());
+        if !provers_used.contains(&conjecture.prover) {
+            provers_used.push(conjecture.prover.clone());
         }
 
-        let version = match &problem.dependencies {
+        let version = match &conjecture.dependencies {
             Some(Dependencies::Rocq(deps)) => deps.rocq_version.clone(),
             Some(Dependencies::Lean(deps)) => deps.lean_toolchain.clone(),
             None => String::new(),
         };
-        if !version.is_empty() && !proof_assistant_versions.contains(&version) {
-            proof_assistant_versions.push(version);
+        if !version.is_empty() && !prover_versions.contains(&version) {
+            prover_versions.push(version);
         }
 
         // Submit individual result
         let _ = server
-            .submit_result(&ProofResult {
-                problem_id: problem.id.clone(),
+            .submit_certificate(&Certificate {
+                conjecture_id: conjecture.id.clone(),
                 username: config.identity.username.clone(),
                 success: result.success,
                 proof_script: result.proof_script,
@@ -228,8 +234,8 @@ pub async fn run_session() -> Result<()> {
     // Archive proofs
     println!();
     print!("Archiving proofs... ");
-    let scratch_dir = PathBuf::from(&config.proof_assistant.scratch_dir);
-    let (archive_path, sha256) = pack::create_archive(&scratch_dir, &session_dir)?;
+    let scratch_dir = PathBuf::from(&config.prover.scratch_dir);
+    let (archive_path, sha256) = pack::create_archive(&scratch_dir, &contribution_dir)?;
     println!("{}", "OK".green());
 
     // Sign archive hash
@@ -258,40 +264,40 @@ pub async fn run_session() -> Result<()> {
     };
 
     // Generate NFT metadata
-    let pa_label = proof_assistants_used.join("/");
-    let total_cost = tracker.session_spent();
-    let proof_status = if problems_attempted == 0 || problems_proved == 0 {
+    let pa_label = provers_used.join("/");
+    let total_cost = tracker.run_spent();
+    let proof_status = if conjectures_attempted == 0 || conjectures_proved == 0 {
         "unproved"
-    } else if problems_proved == problems_attempted {
+    } else if conjectures_proved == conjectures_attempted {
         "proved"
     } else {
         "incomplete"
     }
     .to_string();
 
-    let nft_meta = generate_nft_metadata(&SessionInfo {
+    let nft_meta = generate_nft_metadata(&ContributionInfo {
         username: config.identity.username.clone(),
-        problems_proved,
-        problems_attempted,
+        conjectures_proved,
+        conjectures_attempted,
         cost_donated_usd: total_cost,
-        proof_assistant: pa_label,
-        proof_assistant_version: proof_assistant_versions.join("/"),
+        prover: pa_label,
+        prover_version: prover_versions.join("/"),
         archive_sha256: sha256.clone(),
         proof_status: proof_status.clone(),
         public_key,
         archive_signature,
     });
 
-    let nft_path = session_dir.join("nft_metadata.json");
+    let nft_path = contribution_dir.join("nft_metadata.json");
     std::fs::write(&nft_path, serde_json::to_string_pretty(&nft_meta)?)?;
 
-    // Submit session summary
+    // Submit contribution summary
     let _ = server
-        .submit_session(&SessionSummary {
+        .submit_contribution(&ContributionSummary {
             username: config.identity.username.clone(),
-            session_id: session_id.clone(),
-            problems_attempted,
-            problems_proved,
+            contribution_id: contribution_id.clone(),
+            conjectures_attempted,
+            conjectures_proved,
             total_cost_usd: total_cost,
             archive_sha256: sha256.clone(),
             nft_metadata: nft_meta,
@@ -300,19 +306,19 @@ pub async fn run_session() -> Result<()> {
         .await;
 
     // Update config with lifetime stats
-    config.budget.session_spent = total_cost;
+    config.budget.run_spent = total_cost;
     config.budget.total_spent += total_cost;
     config.save()?;
 
     // Print summary
     println!();
-    println!("{}", "=== Session Summary ===".bold().cyan());
-    println!("Problems attempted: {}", problems_attempted);
+    println!("{}", "=== Contribution Summary ===".bold().cyan());
+    println!("Conjectures attempted: {}", conjectures_attempted);
     println!(
-        "Problems proved:    {}",
-        format!("{}", problems_proved).green()
+        "Conjectures proved:    {}",
+        format!("{}", conjectures_proved).green()
     );
-    println!("Session cost:       ${:.4}", total_cost);
+    println!("Cost:               ${:.4}", total_cost);
     println!("Budget remaining:   ${:.4}", tracker.remaining());
     println!();
     println!("Archive:  {}", archive_path.display());
