@@ -48,7 +48,7 @@
       ],
       "properties": {
         "avg_scores": {
-          "$ref": "#/definitions/ProofScores"
+          "$ref": "#/definitions/CertificateScores"
         },
         "conjectures_compared": {
           "type": "integer",
@@ -93,12 +93,12 @@
         "rankings": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/ProofRanking"
+            "$ref": "#/definitions/CertificateRanking"
           }
         }
       }
     },
-    "ProofRanking": {
+    "CertificateRanking": {
       "type": "object",
       "required": [
         "prover_session_id",
@@ -117,11 +117,11 @@
           "type": "string"
         },
         "scores": {
-          "$ref": "#/definitions/ProofScores"
+          "$ref": "#/definitions/CertificateScores"
         }
       }
     },
-    "ProofScores": {
+    "CertificateScores": {
       "type": "object",
       "required": [
         "generality",
