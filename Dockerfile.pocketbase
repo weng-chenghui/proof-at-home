@@ -16,9 +16,9 @@ FROM alpine:3.20
 RUN apk add --no-cache ca-certificates
 
 COPY --from=builder /pah-pocketbase /pah-pocketbase
-COPY problems/ /problems/
+COPY conjectures/ /conjectures/
 
-ENV PROBLEMS_DIR=/problems
+ENV CONJECTURES_DIR=/conjectures
 
 EXPOSE 8090
 

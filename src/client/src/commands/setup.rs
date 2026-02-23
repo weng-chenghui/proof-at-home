@@ -142,13 +142,13 @@ pub fn run_setup() -> Result<()> {
         "opam",
         &["--version"],
         "Install opam: https://opam.ocaml.org/doc/Install.html",
-        "Rocq problems will not work without opam.",
+        "Rocq conjectures will not work without opam.",
     );
     check_tool(
         "elan",
         &["--version"],
         "Install elan: https://github.com/leanprover/elan#installation",
-        "Lean problems will not work without elan.",
+        "Lean conjectures will not work without elan.",
     );
     check_tool(
         "lake",

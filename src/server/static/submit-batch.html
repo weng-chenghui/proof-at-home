@@ -76,13 +76,13 @@
     <script>
         async function loadConjectures() {
             try {
-                const problems = await api('GET', '/conjectures');
+                const conjectures = await api('GET', '/conjectures');
                 const container = document.getElementById('conjecture-multiselect');
-                if (!problems || problems.length === 0) {
+                if (!conjectures || conjectures.length === 0) {
                     container.innerHTML = '<label class="text-muted" style="padding:0.75rem">No conjectures available</label>';
                     return;
                 }
-                container.innerHTML = (problems || []).map(p => {
+                container.innerHTML = (conjectures || []).map(p => {
                     const parts = [escapeHtml(p.id)];
                     if (p.title) parts.push(escapeHtml(p.title));
                     if (p.difficulty) parts.push('[' + escapeHtml(p.difficulty) + ']');

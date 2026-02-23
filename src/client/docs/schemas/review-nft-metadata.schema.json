@@ -7,7 +7,7 @@
     "archive_sha256",
     "archive_signature",
     "packages_reviewed",
-    "problems_compared",
+    "conjectures_compared",
     "recommendation",
     "review_id",
     "reviewed_session_ids",
@@ -31,7 +31,7 @@
       "format": "uint32",
       "minimum": 0.0
     },
-    "problems_compared": {
+    "conjectures_compared": {
       "type": "integer",
       "format": "uint32",
       "minimum": 0.0

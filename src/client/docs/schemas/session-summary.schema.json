@@ -5,8 +5,8 @@
   "required": [
     "archive_sha256",
     "nft_metadata",
-    "problems_attempted",
-    "problems_proved",
+    "conjectures_attempted",
+    "conjectures_proved",
     "proof_status",
     "session_id",
     "total_cost_usd",
@@ -17,12 +17,12 @@
       "type": "string"
     },
     "nft_metadata": true,
-    "problems_attempted": {
+    "conjectures_attempted": {
       "type": "integer",
       "format": "uint32",
       "minimum": 0.0
     },
-    "problems_proved": {
+    "conjectures_proved": {
       "type": "integer",
       "format": "uint32",
       "minimum": 0.0

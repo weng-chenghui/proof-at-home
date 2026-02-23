@@ -15,13 +15,13 @@ This compiles PocketBase with the proof-at-home API routes, web UI, database mig
 ### 2. Try It Locally
 
 ```bash
-PROBLEMS_DIR=./problems ./pah-pocketbase serve
+CONJECTURES_DIR=./conjectures ./pah-pocketbase serve
 ```
 
 On first run, PocketBase automatically:
 - Creates `pb_data/` with a SQLite database and local file storage
-- Runs migrations to create the `problems`, `proof_results`, `contributions`, and `reviews` collections
-- Seeds problems from the `PROBLEMS_DIR` directory
+- Runs migrations to create the `conjectures`, `certificates`, `contributions`, and `reviews` collections
+- Seeds conjectures from the `CONJECTURES_DIR` directory
 
 Open `http://127.0.0.1:8090/` for the web UI, `http://127.0.0.1:8090/_/` for the admin dashboard.
 
@@ -39,7 +39,7 @@ primary_region = "nrt"  # Tokyo; change to your nearest region
   dockerfile = "Dockerfile.pocketbase"
 
 [env]
-  PROBLEMS_DIR = "/problems"
+  CONJECTURES_DIR = "/conjectures"
 
 [http_service]
   internal_port = 8090
@@ -86,7 +86,7 @@ fly scale count 1     # Ensure single instance (SQLite needs this)
 
 Open `/_/` on your deployment. On the first visit, you'll be prompted to create a Superuser email and password. The admin dashboard lets you:
 
-- Browse and edit all collections (problems, results, contributions, reviews)
+- Browse and edit all collections (conjectures, certificates, contributions, reviews)
 - Manage users and authentication settings
 - Configure file storage (local or S3-compatible)
 - View logs and create backups
@@ -110,7 +110,7 @@ Everything runs from the single binary — no Postgres, no Redis, no separate fi
 | Feature | Details |
 |---|---|
 | Database | SQLite, zero configuration |
-| Web UI | Embedded at `/` (problem browser, submission forms, review dashboard) |
+| Web UI | Embedded at `/` (conjecture browser, submission forms, review dashboard) |
 | Admin UI | Built-in at `/_/` (data browser, user management, logs, backups) |
 | API | 9 backward-compatible endpoints (same as custom server) |
 | Auth | Built-in password, OAuth2, OTP |
@@ -128,7 +128,7 @@ Everything runs from the single binary — no Postgres, no Redis, no separate fi
 
 Two hooks run automatically (defined in `cmd/pocketbase/hooks/hooks.go`):
 
-1. **Auto-prove**: When a `proof_results` record is created with `success=true`, the corresponding problem's status is set to `"proved"`.
+1. **Auto-prove**: When a `certificates` record is created with `success=true`, the corresponding conjecture's status is set to `"proved"`.
 2. **Review tracking**: When a `reviews` record is created, the `reviewed_by` field on affected contributions is updated with the reviewer's username.
 
 ### Optional: GCP Cloud Storage
@@ -153,7 +153,7 @@ If you prefer a VPS (Hetzner, DigitalOcean, etc.) over Fly.io:
 ```bash
 # Build and copy to server
 CGO_ENABLED=0 GOOS=linux go build -o pah-pocketbase ./cmd/pocketbase
-scp pah-pocketbase problems/ user@server:~/pah/
+scp pah-pocketbase conjectures/ user@server:~/pah/
 ```
 
 Create `/etc/systemd/system/pah-pocketbase.service`:
@@ -166,7 +166,7 @@ After=network.target
 [Service]
 ExecStart=/home/user/pah/pah-pocketbase serve --http=0.0.0.0:8090
 WorkingDirectory=/home/user/pah
-Environment=PROBLEMS_DIR=/home/user/pah/problems
+Environment=CONJECTURES_DIR=/home/user/pah/conjectures
 Restart=always
 
 [Install]
@@ -202,7 +202,7 @@ gcloud run deploy pah-pocketbase \
   --cpu 1 --memory 512Mi \
   --min-instances 1 \
   --max-instances 1 \
-  --set-env-vars "PROBLEMS_DIR=/problems" \
+  --set-env-vars "CONJECTURES_DIR=/conjectures" \
   --execution-environment gen2 \
   --add-volume name=pb-data,type=cloud-storage,bucket=pah-pb-data \
   --add-volume-mount volume=pb-data,mount-path=/pb_data
@@ -222,10 +222,10 @@ Both deployment options embed a web frontend served from the root URL. No separa
 | Page | Path | Description |
 |---|---|---|
 | Landing | `/` | Navigation cards linking to all sections |
-| Problems | `/problems.html` | Filterable problem list (difficulty, proof assistant) |
-| Problem Detail | `/problem.html?id=xxx` | Code blocks for preamble, lemma, skeleton, hints |
+| Conjectures | `/conjectures.html` | Filterable conjecture list (difficulty, prover) |
+| Conjecture Detail | `/conjecture.html?id=xxx` | Code blocks for preamble, lemma, skeleton, hints |
 | Reviews | `/reviews.html` | Review packages with archive download links |
-| Submit Problem | `/submit-problem.html` | Upload tar.gz or provide git URL |
+| Submit Conjecture | `/submit-conjecture.html` | Upload tar.gz or provide git URL |
 | Submit Result | `/submit-result.html` | Single proof result form |
 | Submit Contribution | `/submit-batch.html` | Proof contribution form |
 | Submit Review | `/submit-review.html` | Review form with dynamic package rankings |
@@ -243,9 +243,9 @@ Both deployment options serve identical endpoints:
 | Method | Path | Description |
 |---|---|---|
 | `GET` | `/health` | Health check |
-| `GET` | `/problems` | List all problems |
-| `GET` | `/problems/{id}` | Get a specific problem |
-| `POST` | `/problems/packages` | Submit problems (tar.gz or JSON) |
+| `GET` | `/conjectures` | List all conjectures |
+| `GET` | `/conjectures/{id}` | Get a specific conjecture |
+| `POST` | `/conjectures/packages` | Submit conjectures (tar.gz or JSON) |
 | `POST` | `/results` | Submit a proof result |
 | `POST` | `/results/batch` | Submit a contribution summary |
 | `GET` | `/review-packages` | List review packages |
@@ -267,9 +267,9 @@ go build -o server ./src/server
 ./server
 ```
 
-Problems are loaded from `./problems/` by default. Data is lost on restart.
+Conjectures are loaded from `./conjectures/` by default. Data is lost on restart.
 
-Open `http://localhost:8080/` to access the web UI for browsing problems, submitting proofs, and reviewing packages.
+Open `http://localhost:8080/` to access the web UI for browsing conjectures, submitting proofs, and reviewing packages.
 
 ### SQLite (lightweight persistence)
 
@@ -302,7 +302,7 @@ This starts three services:
 | Variable | Default | Description |
 |---|---|---|
 | `PORT` | `8080` | HTTP listen port |
-| `PROBLEMS_DIR` | `problems` | Directory containing problem JSON files |
+| `CONJECTURES_DIR` | `conjectures` | Directory containing conjecture JSON files |
 | `SEED_REVIEWS` | (empty) | Directory containing seed contribution JSON files |
 | `STORE_BACKEND` | `memory` | `memory`, `sqlite`, or `postgres` |
 | `DATABASE_URL` | (empty) | PostgreSQL connection string |
@@ -355,10 +355,10 @@ src/server/                        Custom Go server
   static/                          Embedded web UI (shared by both deployments)
     embed.go                       Exports embedded FS as static.Files
     index.html                     Landing page
-    problems.html                  Problem browser
-    problem.html                   Problem detail
+    conjectures.html               Conjecture browser
+    conjecture.html                Conjecture detail
     reviews.html                   Review dashboard
-    submit-*.html                  Submission forms (problem, result, batch, review)
+    submit-*.html                  Submission forms (conjecture, result, batch, review)
     login.html                     OAuth login (PocketBase deployments)
     settings.html                  JWT token configuration
     shared.css                     Shared stylesheet
@@ -373,7 +373,7 @@ src/server/                        Custom Go server
     s3.go                          S3-compatible implementation (minio-go)
     local.go                       Local filesystem fallback
   middleware/auth.go               JWT auth (JWKS, Auth0/Firebase)
-  handlers/                        HTTP handlers (problems, results, reviews, packages, health)
+  handlers/                        HTTP handlers (conjectures, certificates, reviews, packages, health)
 
 cmd/pocketbase/                    PocketBase deployment
   main.go                          PocketBase entry point + backward-compatible routes + web UI

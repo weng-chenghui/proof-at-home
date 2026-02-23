@@ -60,8 +60,8 @@
 
         async function loadConjectures() {
             try {
-                const problems = await api('GET', '/conjectures');
-                conjecturesCache = problems || [];
+                const conjectures = await api('GET', '/conjectures');
+                conjecturesCache = conjectures || [];
                 const sel = document.getElementById('conjecture_id');
                 sel.innerHTML = '<option value="">— Select a conjecture —</option>';
                 conjecturesCache.forEach(p => {

@@ -5,7 +5,7 @@ primary_region = "nrt"
   dockerfile = "Dockerfile.pocketbase"
 
 [env]
-  PROBLEMS_DIR = "/problems"
+  CONJECTURES_DIR = "/conjectures"
 
 [http_service]
   internal_port = 8090

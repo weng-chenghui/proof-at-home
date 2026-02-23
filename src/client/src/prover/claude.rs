@@ -142,7 +142,7 @@ fn build_proof_prompt(conjecture: &Conjecture) -> String {
         r#"You are a {assistant} theorem prover. Your task is to produce a complete, \
 self-contained proof script that compiles successfully.
 
-## Problem: {title}
+## Conjecture: {title}
 
 ### Preamble (imports/setup):
 ```

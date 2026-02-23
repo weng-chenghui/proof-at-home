@@ -79,7 +79,7 @@ pub fn run_init() -> Result<()> {
             );
             println!(
                 "    {}",
-                "Rocq problems will not work without opam.".dimmed()
+                "Rocq conjectures will not work without opam.".dimmed()
             );
         }
     }
@@ -99,7 +99,7 @@ pub fn run_init() -> Result<()> {
             );
             println!(
                 "    {}",
-                "Lean problems will not work without elan.".dimmed()
+                "Lean conjectures will not work without elan.".dimmed()
             );
         }
     }

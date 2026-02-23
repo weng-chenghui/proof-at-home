@@ -7,7 +7,7 @@
     "cost_usd",
     "model",
     "package_rankings",
-    "problem_comparisons",
+    "conjecture_comparisons",
     "timestamp"
   ],
   "properties": {
@@ -24,10 +24,10 @@
         "$ref": "#/definitions/PackageRanking"
       }
     },
-    "problem_comparisons": {
+    "conjecture_comparisons": {
       "type": "array",
       "items": {
-        "$ref": "#/definitions/ProblemComparison"
+        "$ref": "#/definitions/ConjectureComparison"
       }
     },
     "timestamp": {
@@ -40,7 +40,7 @@
       "type": "object",
       "required": [
         "avg_scores",
-        "problems_compared",
+        "conjectures_compared",
         "prover_session_id",
         "prover_username",
         "rank",
@@ -50,7 +50,7 @@
         "avg_scores": {
           "$ref": "#/definitions/ProofScores"
         },
-        "problems_compared": {
+        "conjectures_compared": {
           "type": "integer",
           "format": "uint32",
           "minimum": 0.0
@@ -71,23 +71,23 @@
         }
       }
     },
-    "ProblemComparison": {
-      "description": "Per-problem comparison of proofs from different provers",
+    "ConjectureComparison": {
+      "description": "Per-conjecture comparison of proofs from different provers",
       "type": "object",
       "required": [
         "analysis",
-        "problem_id",
-        "problem_title",
+        "conjecture_id",
+        "conjecture_title",
         "rankings"
       ],
       "properties": {
         "analysis": {
           "type": "string"
         },
-        "problem_id": {
+        "conjecture_id": {
           "type": "string"
         },
-        "problem_title": {
+        "conjecture_title": {
           "type": "string"
         },
         "rankings": {

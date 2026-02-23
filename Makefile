@@ -1,4 +1,4 @@
-.PHONY: build build-client build-server build-pocketbase clean run-server run-pocketbase run-init run-donate run-prove run-status test help
+.PHONY: build build-client build-server build-pocketbase clean run-server run-pocketbase run-init run-donate run-prove run-status test conjectures help
 
 # Paths
 CLIENT_BIN = target/release/proof-at-home
@@ -25,11 +25,11 @@ build-debug: ## Build Rust CLI (debug, faster compile)
 
 # ── Run ────────────────────────────────────────────────
 
-run-server: build-server ## Start the problem server
-	PROBLEMS_DIR=problems ./target/proof-at-home-server
+run-server: build-server ## Start the conjecture server
+	CONJECTURES_DIR=conjectures ./target/proof-at-home-server
 
 run-pocketbase: build-pocketbase ## Start the PocketBase server
-	PROBLEMS_DIR=./problems ./pah-pocketbase serve
+	CONJECTURES_DIR=./conjectures ./pah-pocketbase serve
 
 run-login: build-debug ## Log in with auth token from web UI
 	$(CLIENT_DEBUG) login
@@ -75,8 +75,8 @@ clean: ## Remove build artifacts
 health: ## Ping the server health endpoint
 	@curl -sf http://localhost:8080/health && echo "" || echo "Server not running"
 
-problems: ## List problems from the server
-	@curl -sf http://localhost:8080/problems | python3 -m json.tool || echo "Server not running"
+conjectures: ## List conjectures from the server
+	@curl -sf http://localhost:8080/conjectures | python3 -m json.tool || echo "Server not running"
 
 fmt: ## Format Rust and Go code
 	cargo fmt

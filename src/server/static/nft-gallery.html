@@ -147,10 +147,10 @@
                     if (assistant) stats += `<span>${escapeHtml(assistant)}</span>`;
                 } else {
                     const pkgs = getAttr(c.nft, 'Packages Reviewed');
-                    const problems = getAttr(c.nft, 'Conjectures Compared');
+                    const conjectures = getAttr(c.nft, 'Conjectures Compared');
                     const rec = getAttr(c.nft, 'Recommendation');
                     if (pkgs !== null) stats += `<span><strong>${pkgs}</strong> packages</span>`;
-                    if (problems !== null) stats += `<span><strong>${problems}</strong> conjectures</span>`;
+                    if (conjectures !== null) stats += `<span><strong>${conjectures}</strong> conjectures</span>`;
                     if (rec) stats += `<span>${escapeHtml(rec)}</span>`;
                 }
 

@@ -6,7 +6,7 @@ set -euo pipefail
 #
 # Usage:
 #   ./scripts/seed-review-demo.sh
-#   SEED_REVIEWS=examples/review-demo/seed PROBLEMS_DIR=problems go run ./src/server/...
+#   SEED_REVIEWS=examples/review-demo/seed CONJECTURES_DIR=conjectures go run ./src/server/...
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -44,13 +44,13 @@ for prover in alice bob carol; do
 {
   "username": "$prover",
   "session_id": "$SESSION_ID",
-  "problems_attempted": 2,
-  "problems_proved": 2,
+  "conjectures_attempted": 2,
+  "conjectures_proved": 2,
   "total_cost_usd": 0.05,
   "archive_sha256": "$SHA",
   "nft_metadata": {},
-  "proof_assistant": "rocq",
-  "problem_ids": ["prob_001", "prob_002"],
+  "prover": "rocq",
+  "conjecture_ids": ["prob_001", "prob_002"],
   "archive_path": "../${prover}-proofs.tar.gz"
 }
 EOF
@@ -61,7 +61,7 @@ echo "=== Seed files written to $SEED_DIR/ ==="
 echo ""
 echo "Start the server with review demo data:"
 echo ""
-echo "  SEED_REVIEWS=$SEED_DIR PROBLEMS_DIR=$PROJECT_ROOT/problems go run ./src/server/..."
+echo "  SEED_REVIEWS=$SEED_DIR CONJECTURES_DIR=$PROJECT_ROOT/conjectures go run ./src/server/..."
 echo ""
 echo "Then test:"
 echo "  curl http://localhost:8080/review-packages | python3 -m json.tool"

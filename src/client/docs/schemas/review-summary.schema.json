@@ -7,7 +7,7 @@
     "nft_metadata",
     "package_rankings",
     "packages_reviewed",
-    "problems_compared",
+    "conjectures_compared",
     "recommendation",
     "review_id",
     "reviewer_username"
@@ -28,7 +28,7 @@
       "format": "uint32",
       "minimum": 0.0
     },
-    "problems_compared": {
+    "conjectures_compared": {
       "type": "integer",
       "format": "uint32",
       "minimum": 0.0

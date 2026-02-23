@@ -455,16 +455,16 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 	seedConjectures(app)
 }
 
-// seedConjectures loads conjecture JSON files from the PROBLEMS_DIR directory.
+// seedConjectures loads conjecture JSON files from the CONJECTURES_DIR directory.
 func seedConjectures(app core.App) {
-	dir := os.Getenv("PROBLEMS_DIR")
+	dir := os.Getenv("CONJECTURES_DIR")
 	if dir == "" {
-		dir = "problems"
+		dir = "conjectures"
 	}
 
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return // no problems dir, skip silently
+		return // no conjectures dir, skip silently
 	}
 
 	collection, err := app.FindCollectionByNameOrId("conjectures")

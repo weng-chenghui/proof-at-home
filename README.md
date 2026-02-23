@@ -2,7 +2,7 @@
 
 **Donate unused AI budget to prove mathematical lemmas — verified, archived, and NFT-stamped.**
 
-Proof@Home is a CLI tool that turns your Anthropic API credits into formally verified mathematical proofs. It fetches open problems from a server, uses Claude to generate proof scripts, verifies them with Rocq or Lean, and archives the results with SHA-256 hashes in NFT-compatible metadata.
+Proof@Home is a CLI tool that turns your Anthropic API credits into formally verified mathematical proofs. It fetches open conjectures from a server, uses Claude to generate proof scripts, verifies them with Rocq or Lean, and archives the results with SHA-256 hashes in NFT-compatible metadata.
 
 ## Quick Start
 
@@ -44,13 +44,13 @@ This asks for your name, username, Anthropic API key, and the server URL. Config
 
 Read and accept the legal agreement, then pick an amount ($1–$10 or custom). This is the maximum API cost the tool will spend in a contribution run.
 
-### 4. Start the problem server
+### 4. Start the conjecture server
 
 In a separate terminal:
 
 ```bash
 ./scripts/dev-server.sh
-# or: PROBLEMS_DIR=problems go run ./src/server/...
+# or: CONJECTURES_DIR=conjectures go run ./src/server/...
 ```
 
 Verify it's running:
@@ -59,7 +59,7 @@ Verify it's running:
 curl http://localhost:8080/health
 # {"status":"ok"}
 
-curl http://localhost:8080/problems
+curl http://localhost:8080/conjectures
 # [{"id":"prob_001","title":"Natural number addition is commutative", ...}, ...]
 ```
 
@@ -71,8 +71,8 @@ curl http://localhost:8080/problems
 
 This will:
 
-1. Connect to the server and fetch available problems
-2. For each problem, call Claude to generate a proof (up to 5 retries with error feedback)
+1. Connect to the server and fetch available conjectures
+2. For each conjecture, call Claude to generate a proof (up to 5 retries with error feedback)
 3. Verify each proof with `rocq c` or `lean`
 4. Submit results to the server
 5. Stop when your budget is exhausted
@@ -124,7 +124,7 @@ Each review lives under `~/.proof-at-home/reviews/<review-uuid>/`:
 │   │   ├── proofs.tar.gz              # Original archive
 │   │   └── *.v / *.lean              # Proof scripts
 │   └── <prover-contribution-uuid-2>/
-├── ai_comparison.json               # AI comparison output (per-problem + rollup)
+├── ai_comparison.json               # AI comparison output (per-conjecture + rollup)
 ├── review_report.toml               # Human-written review report
 ├── review_summary.json              # Machine-readable summary
 ├── review_package.tar.gz            # Sealed archive
@@ -144,7 +144,7 @@ Each proof is scored on five dimensions (1–10) plus an overall score:
 | **Modularity** | Decomposition into reusable lemmas/structures |
 | **Math strategy** | Elegance of the proof approach |
 
-Per-problem scores are averaged into package-level rankings with AI-generated narrative summaries.
+Per-conjecture scores are averaged into package-level rankings with AI-generated narrative summaries.
 
 ### Report templates
 
@@ -152,7 +152,7 @@ Three template variants are available via `--template`:
 
 - **default** — standard template with pre-filled AI rankings
 - **minimal** — ranks and one-line assessments only
-- **detailed** — adds per-problem commentary sections with AI analysis
+- **detailed** — adds per-conjecture commentary sections with AI analysis
 
 ### Sealing
 
@@ -176,7 +176,7 @@ To run the full review demo:
 
 # 2. Start the server with seed data
 SEED_REVIEWS=examples/review-demo/seed \
-  PROBLEMS_DIR=problems \
+  CONJECTURES_DIR=conjectures \
   go run ./src/server/...
 
 # 3. Verify packages are available
@@ -200,37 +200,37 @@ proof-at-home review import examples/review-demo/carol-proofs.tar.gz
 proof-at-home review ai-compare
 ```
 
-## Sample Problems
+## Sample Conjectures
 
-The `problems/` directory includes three starter problems:
+The `conjectures/` directory includes three starter conjectures:
 
-| ID | Title | Assistant | Difficulty |
+| ID | Title | Prover | Difficulty |
 |---|---|---|---|
 | `prob_001` | Natural number addition is commutative | Rocq | Easy |
 | `prob_002` | ≤ antisymmetry on naturals | Rocq | Medium |
 | `prob_003` | List.reverse is involutive | Lean 4 | Medium |
 
-Add your own by dropping JSON files into `problems/` — the server loads them at startup. You can also submit problems at runtime using the CLI:
+Add your own by dropping JSON files into `conjectures/` — the server loads them at startup. You can also submit conjectures at runtime using the CLI:
 
 ```bash
-# Submit a directory of problem JSON files
-proof-at-home submit-package ./my-problems/
+# Submit a directory of conjecture JSON files
+proof-at-home submit-package ./my-conjectures/
 
 # Submit a tar.gz archive
-proof-at-home submit-package /tmp/problems.tar.gz
+proof-at-home submit-package /tmp/conjectures.tar.gz
 
 # Submit a git repo URL (server clones it)
-proof-at-home submit-package https://github.com/example/problems.git
+proof-at-home submit-package https://github.com/example/conjectures.git
 ```
 
-### Problem JSON format
+### Conjecture JSON format
 
 ```json
 {
   "id": "prob_004",
-  "title": "Your problem title",
+  "title": "Your conjecture title",
   "difficulty": "easy|medium|hard",
-  "proof_assistant": "rocq|lean4",
+  "prover": "rocq|lean4",
   "status": "open",
   "preamble": "Require Import Arith.",
   "lemma_statement": "Lemma foo : ...",
@@ -242,14 +242,14 @@ proof-at-home submit-package https://github.com/example/problems.git
 ## How It Works
 
 ```
-┌─────────────┐     GET /problems     ┌─────────────┐
+┌─────────────┐   GET /conjectures    ┌─────────────┐
 │             │ ───────────────────▶  │             │
 │  CLI client │                       │  Go server  │
 │  (Rust)     │  POST /results        │  (in-memory)│
 │             │ ◀───────────────────  │             │
 └──────┬──────┘                       └─────────────┘
        │
-       │  For each problem:
+       │  For each conjecture:
        │
        ▼
 ┌──────────────┐    prompt    ┌──────────────┐
@@ -274,13 +274,13 @@ proof-at-home submit-package https://github.com/example/problems.git
 | Method | Path | Description |
 |---|---|---|
 | `GET` | `/health` | Health check |
-| `GET` | `/problems` | List all problems (summary) |
-| `GET` | `/problems/{id}` | Full problem details |
+| `GET` | `/conjectures` | List all conjectures (summary) |
+| `GET` | `/conjectures/{id}` | Full conjecture details |
 | `POST` | `/results` | Submit one proof result |
 | `POST` | `/results/batch` | Submit contribution summary with archive hash |
 | `GET` | `/review-packages` | List available proof packages for review |
 | `GET` | `/review-packages/{id}/archive` | Download a prover's archive |
-| `POST` | `/problems/packages` | Submit problem package (tar.gz body or JSON git URL) |
+| `POST` | `/conjectures/packages` | Submit conjecture package (tar.gz body or JSON git URL) |
 | `POST` | `/reviews` | Submit review summary |
 
 ## Project Structure
@@ -296,18 +296,18 @@ proof-at-home/
 │   │       ├── commands/           # CLI subcommands (including review)
 │   │       ├── prover/             # Claude invocation + coqc/lean verification
 │   │       ├── reviewer/           # AI comparison, report templates, review types
-│   │       ├── server_client/      # HTTP client for the problem server
+│   │       ├── server_client/      # HTTP client for the conjecture server
 │   │       ├── budget/             # Cost tracking and budget enforcement
 │   │       ├── archive/            # tar.gz + SHA-256
 │   │       ├── config/             # TOML config (~/.proof-at-home/config.toml)
 │   │       └── nft/                # OpenSea-compatible metadata generation
 │   └── server/                     # Go HTTP server (stdlib only)
 │       ├── main.go
-│       ├── handlers/               # Route handlers (problems, results, reviews)
+│       ├── handlers/               # Route handlers (conjectures, certificates, reviews)
 │       ├── store/                  # In-memory store
 │       └── data/                   # Structs
 ├── .claude/commands/               # Parameterized prove-lemma strategies
-├── problems/                       # Problem JSON files
+├── conjectures/                    # Conjecture JSON files
 ├── examples/
 │   └── review-demo/                # Demo proofs from alice/bob/carol
 │       ├── alice/                  # Manual induction style
@@ -334,13 +334,13 @@ anthropic_api_key = "sk-ant-..."
 server_url = "http://localhost:8080"
 model = "claude-sonnet-4-6"
 
-[proof_assistant]
+[prover]
 scratch_dir = "/tmp/proof-at-home"
 
-[proof_assistant.rocq]
+[prover.rocq]
 rocq_path = "rocq"
 
-[proof_assistant.lean]
+[prover.lean]
 lean_path = "lean"
 lake_path = "lake"
 

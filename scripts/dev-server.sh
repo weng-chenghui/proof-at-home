@@ -7,7 +7,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$PROJECT_ROOT"
 
 echo "Starting Proof@Home dev server..."
-echo "Problems dir: $PROJECT_ROOT/problems/"
+echo "Conjectures dir: $PROJECT_ROOT/conjectures/"
 echo ""
 
-PROBLEMS_DIR="$PROJECT_ROOT/problems" go run ./src/server/...
+CONJECTURES_DIR="$PROJECT_ROOT/conjectures" go run ./src/server/...

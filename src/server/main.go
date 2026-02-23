@@ -44,7 +44,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		if err := pg.LoadConjectures(cfg.ProblemsDir); err != nil {
+		if err := pg.LoadConjectures(cfg.ConjecturesDir); err != nil {
 			slog.Error("Failed to load conjectures", "error", err)
 			os.Exit(1)
 		}
@@ -73,7 +73,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		if err := lite.LoadConjectures(cfg.ProblemsDir); err != nil {
+		if err := lite.LoadConjectures(cfg.ConjecturesDir); err != nil {
 			slog.Error("Failed to load conjectures", "error", err)
 			os.Exit(1)
 		}
@@ -91,7 +91,7 @@ func main() {
 
 	default:
 		mem := store.NewMemoryStore()
-		if err := mem.LoadConjectures(cfg.ProblemsDir); err != nil {
+		if err := mem.LoadConjectures(cfg.ConjecturesDir); err != nil {
 			slog.Error("Failed to load conjectures", "error", err)
 			os.Exit(1)
 		}
@@ -184,7 +184,7 @@ func main() {
 	signal.Notify(done, os.Interrupt, syscall.SIGTERM)
 
 	go func() {
-		slog.Info("Server starting", "port", cfg.Port, "problems_dir", cfg.ProblemsDir, "store", cfg.StoreBackend)
+		slog.Info("Server starting", "port", cfg.Port, "conjectures_dir", cfg.ConjecturesDir, "store", cfg.StoreBackend)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			slog.Error("Server error", "error", err)
 			os.Exit(1)

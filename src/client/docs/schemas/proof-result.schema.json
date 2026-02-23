@@ -1,12 +1,12 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "ProofResult",
+  "title": "Certificate",
   "type": "object",
   "required": [
     "attempts",
     "cost_usd",
     "error_output",
-    "problem_id",
+    "conjecture_id",
     "proof_script",
     "success",
     "username"
@@ -24,7 +24,7 @@
     "error_output": {
       "type": "string"
     },
-    "problem_id": {
+    "conjecture_id": {
       "type": "string"
     },
     "proof_script": {
