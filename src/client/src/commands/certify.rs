@@ -96,7 +96,11 @@ pub enum CertifyAction {
     /// List packages loaded in the active certification session
     List,
     /// AI-compare proofs across packages
-    AiCompare,
+    AiCompare {
+        /// Use a specific comparison strategy command (by name)
+        #[arg(long = "by")]
+        by: Option<String>,
+    },
     /// Generate or edit certification report from template
     Report {
         /// Template variant: default, minimal, detailed
@@ -112,7 +116,7 @@ pub async fn run_certify(action: CertifyAction) -> Result<()> {
         CertifyAction::Start => cmd_start().await,
         CertifyAction::Import { path } => cmd_import(&path).await,
         CertifyAction::List => cmd_list(),
-        CertifyAction::AiCompare => cmd_ai_compare().await,
+        CertifyAction::AiCompare { by } => cmd_ai_compare(by.as_deref()).await,
         CertifyAction::Report { template } => cmd_report(&template),
         CertifyAction::Seal => cmd_seal().await,
     }
@@ -235,7 +239,10 @@ async fn cmd_import(path: &Path) -> Result<()> {
     let (certification_dir, mut state) = get_active_certification()?;
 
     if state.status == CertificationStatus::Sealed {
-        anyhow::bail!("Cannot import into a sealed certification.");
+        eprintln!(
+            "{}: Importing into a sealed certification. You will need to re-seal after importing.",
+            "Warning".yellow()
+        );
     }
 
     if !path.exists() {
@@ -345,7 +352,7 @@ fn cmd_list() -> Result<()> {
 
 // ── certify ai-compare ──
 
-async fn cmd_ai_compare() -> Result<()> {
+async fn cmd_ai_compare(command_name: Option<&str>) -> Result<()> {
     let config = Config::load()?;
     let (certification_dir, mut state) = get_active_certification()?;
 
@@ -353,7 +360,8 @@ async fn cmd_ai_compare() -> Result<()> {
         anyhow::bail!("Need at least 2 packages to compare. Import more packages first.");
     }
 
-    let result = comparison::run_comparison(&config, &state, &certification_dir).await?;
+    let result =
+        comparison::run_comparison(&config, &state, &certification_dir, command_name).await?;
 
     // Write ai_comparison.json
     let comp_path = certification_dir.join("ai_comparison.json");
@@ -474,6 +482,8 @@ fn cmd_report(template_variant: &str) -> Result<()> {
 async fn cmd_seal() -> Result<()> {
     let config = Config::load()?;
     let (certification_dir, mut state) = get_active_certification()?;
+
+    let is_reseal = state.status == CertificationStatus::Sealed;
 
     // 1. Validate report exists and is valid
     let report_path = certification_dir.join("certification_report.toml");
@@ -657,6 +667,13 @@ async fn cmd_seal() -> Result<()> {
     // 8. Mark session as sealed
     state.status = CertificationStatus::Sealed;
     save_certification_state(&certification_dir, &state)?;
+
+    if is_reseal {
+        println!(
+            "\n{}: Previous NFT metadata overwritten. Re-publish if you already published.",
+            "Note".yellow()
+        );
+    }
 
     // Print summary
     println!("\n{}", "=== Certification Sealed ===".bold());

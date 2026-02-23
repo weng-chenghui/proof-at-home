@@ -8,68 +8,113 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use crate::certifier::types::*;
+use crate::commands_store::loader::{self, CertifyCommandVars};
 use crate::config::Config;
 
-/// Build the comparison prompt for a single conjecture
+/// Build the comparison prompt for a single conjecture.
+/// Loads from command files if available, falls back to inline prompt.
 pub fn build_comparison_prompt(
     conjecture_title: &str,
     prover: &str,
     proofs: &[(String, String, String)], // (prover_contribution_id, prover_username, proof_script)
+    command_name: Option<&str>,
 ) -> String {
-    let mut prompt = format!(
-        "You are a {} proof certifier. Compare the following proofs of \"{}\" \
-         from different provers.\n\n## Proofs\n",
-        prover, conjecture_title
-    );
+    let proofs_block = build_proofs_block(proofs);
 
+    // Try loading from command file
+    let command_result = if let Some(name) = command_name {
+        loader::load_command(name)
+    } else {
+        loader::auto_select_by_kind("certify-compare")
+    };
+
+    if let Ok(command) = command_result {
+        let vars = CertifyCommandVars {
+            prover: prover.to_string(),
+            conjecture_title: conjecture_title.to_string(),
+            proofs: proofs_block.clone(),
+            package_rankings: String::new(),
+        };
+        return loader::render_certify_command(&command, &vars);
+    }
+
+    // Fallback: inline prompt
+    build_inline_comparison_prompt(conjecture_title, prover, &proofs_block)
+}
+
+/// Format proof scripts into a block for template substitution.
+fn build_proofs_block(proofs: &[(String, String, String)]) -> String {
+    let mut block = String::new();
     for (contribution_id, username, script) in proofs {
-        prompt.push_str(&format!(
+        block.push_str(&format!(
             "\n### Prover: {} (contribution: {})\n```\n{}\n```\n",
             username, contribution_id, script
         ));
     }
+    block
+}
 
-    prompt.push_str(
-        r#"
-## Scoring Criteria (1-10 each)
+/// Fallback inline comparison prompt.
+fn build_inline_comparison_prompt(
+    conjecture_title: &str,
+    prover: &str,
+    proofs_block: &str,
+) -> String {
+    format!(
+        "You are a {} proof certifier. Compare the following proofs of \"{}\" \
+         from different provers.\n\n## Proofs\n{}\n\
+## Scoring Criteria (1-10 each)\n\n\
+1. **Succinctness**: Shorter, cleaner proofs score higher. Avoid unnecessary steps.\n\
+2. **Library reuse**: Good use of existing library lemmas (e.g., mathlib, mathcomp) rather than reinventing.\n\
+3. **Generality**: A general result usable elsewhere scores higher than an overly specific one.\n\
+4. **Modularity**: Decomposition into reusable lemmas, HB.mixin, structures, or typeclasses.\n\
+5. **Math strategy**: Elegance and superiority of the mathematical approach (e.g., choosing induction vs case analysis vs contradiction).\n\
+6. **Overall**: Weighted combination reflecting overall proof quality.\n\n\
+## Output format\n\n\
+Return valid JSON and nothing else (no markdown fences):\n\
+{{\n  \"rankings\": [\n    {{\n      \"prover_contribution_id\": \"...\",\n      \
+\"prover_username\": \"...\",\n      \"scores\": {{ \"succinctness\": N, \"library_reuse\": N, \
+\"generality\": N, \"modularity\": N, \"math_strategy\": N, \"overall\": N }},\n      \
+\"reasoning\": \"1-2 sentence explanation\"\n    }}\n  ],\n  \
+\"analysis\": \"2-3 sentence overall comparison\"\n}}\n",
+        prover, conjecture_title, proofs_block
+    )
+}
 
-1. **Succinctness**: Shorter, cleaner proofs score higher. Avoid unnecessary steps.
-2. **Library reuse**: Good use of existing library lemmas (e.g., mathlib, mathcomp) rather than reinventing.
-3. **Generality**: A general result usable elsewhere scores higher than an overly specific one.
-4. **Modularity**: Decomposition into reusable lemmas, HB.mixin, structures, or typeclasses.
-5. **Math strategy**: Elegance and superiority of the mathematical approach (e.g., choosing induction vs case analysis vs contradiction).
-6. **Overall**: Weighted combination reflecting overall proof quality.
+/// Build a rollup summary prompt given per-conjecture results.
+/// Loads from command files if available, falls back to inline prompt.
+pub fn build_rollup_prompt(
+    package_rankings: &[PackageRanking],
+    command_name: Option<&str>,
+) -> String {
+    let rankings_block = build_rankings_block(package_rankings);
 
-## Output format
+    // Try loading from command file
+    let command_result = if let Some(name) = command_name {
+        loader::load_command(name)
+    } else {
+        loader::auto_select_by_kind("certify-rollup")
+    };
 
-Return valid JSON and nothing else (no markdown fences):
-{
-  "rankings": [
-    {
-      "prover_contribution_id": "...",
-      "prover_username": "...",
-      "scores": { "succinctness": N, "library_reuse": N, "generality": N, "modularity": N, "math_strategy": N, "overall": N },
-      "reasoning": "1-2 sentence explanation"
+    if let Ok(command) = command_result {
+        let vars = CertifyCommandVars {
+            prover: String::new(),
+            conjecture_title: String::new(),
+            proofs: String::new(),
+            package_rankings: rankings_block.clone(),
+        };
+        return loader::render_certify_command(&command, &vars);
     }
-  ],
-  "analysis": "2-3 sentence overall comparison"
-}
-"#,
-    );
 
-    prompt
+    // Fallback: inline prompt
+    build_inline_rollup_prompt(&rankings_block)
 }
 
-/// Build a rollup summary prompt given per-conjecture results
-pub fn build_rollup_prompt(package_rankings: &[PackageRanking]) -> String {
-    let mut prompt = String::from(
-        "You are a proof certifier. Given the following package-level score averages across \
-         all compared conjectures, write a brief narrative summary (2-3 sentences) for each prover \
-         and a final overall ranking explanation.\n\n## Package Rankings\n\n",
-    );
-
+/// Format package rankings into a block for template substitution.
+fn build_rankings_block(package_rankings: &[PackageRanking]) -> String {
+    let mut block = String::new();
     for pr in package_rankings {
-        prompt.push_str(&format!(
+        block.push_str(&format!(
             "### {} (contribution: {}) — Rank #{}\n\
              - Succinctness: {}, Library Reuse: {}, Generality: {}, Modularity: {}, Math Strategy: {}, Overall: {}\n\
              - Conjectures compared: {}\n\n",
@@ -85,13 +130,19 @@ pub fn build_rollup_prompt(package_rankings: &[PackageRanking]) -> String {
             pr.conjectures_compared,
         ));
     }
+    block
+}
 
-    prompt.push_str(
-        "Return valid JSON and nothing else (no markdown fences):\n\
-         {\n  \"summaries\": [\n    { \"prover_contribution_id\": \"...\", \"summary\": \"...\" }\n  ]\n}\n",
-    );
-
-    prompt
+/// Fallback inline rollup prompt.
+fn build_inline_rollup_prompt(rankings_block: &str) -> String {
+    format!(
+        "You are a proof certifier. Given the following package-level score averages across \
+         all compared conjectures, write a brief narrative summary (2-3 sentences) for each prover \
+         and a final overall ranking explanation.\n\n## Package Rankings\n\n{}\
+         Return valid JSON and nothing else (no markdown fences):\n\
+         {{\n  \"summaries\": [\n    {{ \"prover_contribution_id\": \"...\", \"summary\": \"...\" }}\n  ]\n}}\n",
+        rankings_block
+    )
 }
 
 // ── Claude API calling (duplicated from prover/claude.rs to keep scope small) ──
@@ -337,11 +388,13 @@ fn extract_json(response: &str) -> &str {
     trimmed
 }
 
-/// Run the full AI comparison pipeline
+/// Run the full AI comparison pipeline.
+/// `command_name` selects a specific comparison command; None auto-selects.
 pub async fn run_comparison(
     config: &Config,
     state: &CertificationState,
     certification_dir: &Path,
+    command_name: Option<&str>,
 ) -> Result<ComparisonResult> {
     let audit = CertificationAuditLogger::new(certification_dir);
     let packages_dir = certification_dir.join("packages");
@@ -417,7 +470,7 @@ pub async fn run_comparison(
             .cloned()
             .unwrap_or_else(|| (*conjecture_id).clone());
 
-        let prompt = build_comparison_prompt(&title, &prover, proofs);
+        let prompt = build_comparison_prompt(&title, &prover, proofs, command_name);
         println!(
             "  Comparing conjecture: {} ({} provers)",
             title,
@@ -502,7 +555,7 @@ pub async fn run_comparison(
 
     // Ask AI for narrative summaries
     if !package_rankings.is_empty() {
-        let rollup_prompt = build_rollup_prompt(&package_rankings);
+        let rollup_prompt = build_rollup_prompt(&package_rankings, command_name);
         let (rollup_response, rollup_cost) = call_claude(config, &rollup_prompt).await?;
         total_cost += rollup_cost;
 

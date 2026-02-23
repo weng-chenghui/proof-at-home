@@ -1,12 +1,14 @@
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
 use crate::archive::pack;
 use crate::budget::BudgetTracker;
+use crate::commands_store::loader;
 use crate::config::Config;
 use crate::nft::metadata::{generate_nft_metadata, ContributionInfo};
 use crate::prover::claude;
@@ -15,6 +17,17 @@ use crate::server_client::api::{
     Conjecture, ContributionResult, ContributionSummary, Dependencies, ServerClient,
 };
 use crate::signing;
+
+/// Saved contribution state for re-sealing.
+#[derive(Debug, Serialize, Deserialize)]
+struct ContributionState {
+    contribution_id: String,
+    conjectures_proved: u32,
+    conjectures_attempted: u32,
+    total_cost_usd: f64,
+    provers_used: Vec<String>,
+    prover_versions: Vec<String>,
+}
 
 /// Compute a dep-group key for grouping conjectures by identical dependencies.
 fn dep_group_key(conjecture: &Conjecture) -> String {
@@ -33,7 +46,96 @@ fn dep_group_key(conjecture: &Conjecture) -> String {
     }
 }
 
-pub async fn run_prove() -> Result<()> {
+/// Seal a contribution: archive, sign, generate NFT metadata, submit summary.
+/// Returns (archive_path, sha256, nft_path).
+#[allow(clippy::too_many_arguments)]
+async fn seal_contribution(
+    config: &Config,
+    contribution_id: &str,
+    contribution_dir: &Path,
+    conjectures_proved: u32,
+    conjectures_attempted: u32,
+    total_cost: f64,
+    provers_used: &[String],
+    prover_versions: &[String],
+    server: &ServerClient,
+) -> Result<(PathBuf, String, PathBuf)> {
+    // Archive proofs
+    print!("Archiving proofs... ");
+    let scratch_dir = PathBuf::from(&config.prover.scratch_dir);
+    let (archive_path, sha256) = pack::create_archive(&scratch_dir, contribution_dir)?;
+    println!("{}", "OK".green());
+
+    // Sign archive hash
+    let (public_key, archive_signature) = match Config::signing_key_path()
+        .ok()
+        .filter(|p| p.exists())
+        .and_then(|p| std::fs::read_to_string(&p).ok())
+    {
+        Some(key_hex) => match signing::load_signing_key(&key_hex) {
+            Ok(key) => {
+                let sig = signing::sign_hash(&key, &sha256).unwrap_or_default();
+                (config.identity.public_key.clone(), sig)
+            }
+            Err(e) => {
+                eprintln!("{}: Could not load signing key: {}", "Warning".yellow(), e);
+                (String::new(), String::new())
+            }
+        },
+        None => {
+            eprintln!(
+                "{}: No signing key found. Run `proof-at-home init` to generate one.",
+                "Warning".yellow()
+            );
+            (String::new(), String::new())
+        }
+    };
+
+    // Generate NFT metadata
+    let pa_label = provers_used.join("/");
+    let proof_status = if conjectures_attempted == 0 || conjectures_proved == 0 {
+        "unproved"
+    } else if conjectures_proved == conjectures_attempted {
+        "proved"
+    } else {
+        "incomplete"
+    }
+    .to_string();
+
+    let nft_meta = generate_nft_metadata(&ContributionInfo {
+        username: config.identity.username.clone(),
+        conjectures_proved,
+        conjectures_attempted,
+        cost_donated_usd: total_cost,
+        prover: pa_label,
+        prover_version: prover_versions.join("/"),
+        archive_sha256: sha256.clone(),
+        proof_status: proof_status.clone(),
+        public_key,
+        archive_signature,
+    });
+
+    let nft_path = contribution_dir.join("nft_metadata.json");
+    std::fs::write(&nft_path, serde_json::to_string_pretty(&nft_meta)?)?;
+
+    // Submit contribution summary
+    let _ = server
+        .submit_contribution(&ContributionSummary {
+            username: config.identity.username.clone(),
+            contribution_id: contribution_id.to_string(),
+            conjectures_attempted,
+            conjectures_proved,
+            total_cost_usd: total_cost,
+            archive_sha256: sha256.clone(),
+            nft_metadata: nft_meta,
+            proof_status,
+        })
+        .await;
+
+    Ok((archive_path, sha256, nft_path))
+}
+
+pub async fn run_prove(command_name: Option<&str>) -> Result<()> {
     if !Config::exists() {
         bail!("No config found. Run `proof-at-home init` first.");
     }
@@ -43,6 +145,9 @@ pub async fn run_prove() -> Result<()> {
     if config.budget.donated_usd <= 0.0 {
         bail!("No budget set. Run `proof-at-home donate` first.");
     }
+
+    // Ensure builtin commands are available
+    let _ = loader::ensure_builtins();
 
     let contribution_id = Uuid::new_v4().to_string();
     let contribution_dir = Config::contributions_dir()?.join(&contribution_id);
@@ -57,6 +162,9 @@ pub async fn run_prove() -> Result<()> {
         "Budget:       {}",
         format!("${:.2}", config.budget.donated_usd).green()
     );
+    if let Some(name) = command_name {
+        println!("Strategy:     {}", name.cyan());
+    }
     println!();
 
     // Health check
@@ -179,8 +287,14 @@ pub async fn run_prove() -> Result<()> {
         ));
         spinner.enable_steady_tick(std::time::Duration::from_millis(100));
 
-        let result =
-            claude::prove_conjecture(&config, conjecture, resolved_env, &audit_logger).await?;
+        let result = claude::prove_conjecture(
+            &config,
+            conjecture,
+            resolved_env,
+            &audit_logger,
+            command_name,
+        )
+        .await?;
         tracker.add_cost(result.cost_usd);
 
         spinner.finish_and_clear();
@@ -231,79 +345,34 @@ pub async fn run_prove() -> Result<()> {
             .await;
     }
 
-    // Archive proofs
-    println!();
-    print!("Archiving proofs... ");
-    let scratch_dir = PathBuf::from(&config.prover.scratch_dir);
-    let (archive_path, sha256) = pack::create_archive(&scratch_dir, &contribution_dir)?;
-    println!("{}", "OK".green());
-
-    // Sign archive hash
-    let (public_key, archive_signature) = match Config::signing_key_path()
-        .ok()
-        .filter(|p| p.exists())
-        .and_then(|p| std::fs::read_to_string(&p).ok())
-    {
-        Some(key_hex) => match signing::load_signing_key(&key_hex) {
-            Ok(key) => {
-                let sig = signing::sign_hash(&key, &sha256).unwrap_or_default();
-                (config.identity.public_key.clone(), sig)
-            }
-            Err(e) => {
-                eprintln!("{}: Could not load signing key: {}", "Warning".yellow(), e);
-                (String::new(), String::new())
-            }
-        },
-        None => {
-            eprintln!(
-                "{}: No signing key found. Run `proof-at-home init` to generate one.",
-                "Warning".yellow()
-            );
-            (String::new(), String::new())
-        }
-    };
-
-    // Generate NFT metadata
-    let pa_label = provers_used.join("/");
     let total_cost = tracker.run_spent();
-    let proof_status = if conjectures_attempted == 0 || conjectures_proved == 0 {
-        "unproved"
-    } else if conjectures_proved == conjectures_attempted {
-        "proved"
-    } else {
-        "incomplete"
-    }
-    .to_string();
 
-    let nft_meta = generate_nft_metadata(&ContributionInfo {
-        username: config.identity.username.clone(),
+    // Save contribution state for re-sealing
+    let state = ContributionState {
+        contribution_id: contribution_id.clone(),
         conjectures_proved,
         conjectures_attempted,
-        cost_donated_usd: total_cost,
-        prover: pa_label,
-        prover_version: prover_versions.join("/"),
-        archive_sha256: sha256.clone(),
-        proof_status: proof_status.clone(),
-        public_key,
-        archive_signature,
-    });
+        total_cost_usd: total_cost,
+        provers_used: provers_used.clone(),
+        prover_versions: prover_versions.clone(),
+    };
+    let state_path = contribution_dir.join("contribution_state.json");
+    std::fs::write(&state_path, serde_json::to_string_pretty(&state)?)?;
 
-    let nft_path = contribution_dir.join("nft_metadata.json");
-    std::fs::write(&nft_path, serde_json::to_string_pretty(&nft_meta)?)?;
-
-    // Submit contribution summary
-    let _ = server
-        .submit_contribution(&ContributionSummary {
-            username: config.identity.username.clone(),
-            contribution_id: contribution_id.clone(),
-            conjectures_attempted,
-            conjectures_proved,
-            total_cost_usd: total_cost,
-            archive_sha256: sha256.clone(),
-            nft_metadata: nft_meta,
-            proof_status,
-        })
-        .await;
+    // Seal: archive, sign, NFT, submit
+    println!();
+    let (archive_path, sha256, nft_path) = seal_contribution(
+        &config,
+        &contribution_id,
+        &contribution_dir,
+        conjectures_proved,
+        conjectures_attempted,
+        total_cost,
+        &provers_used,
+        &prover_versions,
+        &server,
+    )
+    .await?;
 
     // Update config with lifetime stats
     config.budget.run_spent = total_cost;
@@ -321,6 +390,66 @@ pub async fn run_prove() -> Result<()> {
     println!("Cost:               ${:.4}", total_cost);
     println!("Budget remaining:   ${:.4}", tracker.remaining());
     println!();
+    println!("Archive:  {}", archive_path.display());
+    println!("SHA-256:  {}", sha256.dimmed());
+    println!("NFT meta: {}", nft_path.display());
+
+    Ok(())
+}
+
+/// Re-seal an existing contribution: regenerate archive, signature, and NFT metadata.
+pub async fn run_prove_seal(contribution_id: &str) -> Result<()> {
+    let config = Config::load()?;
+    let contribution_dir = Config::contributions_dir()?.join(contribution_id);
+
+    if !contribution_dir.exists() {
+        bail!(
+            "Contribution directory not found: {}",
+            contribution_dir.display()
+        );
+    }
+
+    // Load saved contribution state
+    let state_path = contribution_dir.join("contribution_state.json");
+    let state: ContributionState = serde_json::from_str(
+        &std::fs::read_to_string(&state_path)
+            .with_context(|| format!(
+                "contribution_state.json not found in {}. Only contributions created after this update can be re-sealed.",
+                contribution_dir.display()
+            ))?,
+    )
+    .context("Failed to parse contribution_state.json")?;
+
+    // Check for existing NFT metadata (re-seal warning)
+    let nft_path = contribution_dir.join("nft_metadata.json");
+    if nft_path.exists() {
+        println!(
+            "{}: Re-sealing will overwrite existing NFT metadata. If you already published, re-publish after re-sealing.",
+            "Note".yellow()
+        );
+    }
+
+    println!("{}", "=== Re-sealing Contribution ===".bold().cyan());
+    println!("Contribution: {}", contribution_id.dimmed());
+    println!();
+
+    let server = ServerClient::new(&config.api.server_url, &config.api.auth_token);
+
+    let (archive_path, sha256, nft_path) = seal_contribution(
+        &config,
+        contribution_id,
+        &contribution_dir,
+        state.conjectures_proved,
+        state.conjectures_attempted,
+        state.total_cost_usd,
+        &state.provers_used,
+        &state.prover_versions,
+        &server,
+    )
+    .await?;
+
+    println!();
+    println!("{}", "=== Re-seal Complete ===".bold().cyan());
     println!("Archive:  {}", archive_path.display());
     println!("SHA-256:  {}", sha256.dimmed());
     println!("NFT meta: {}", nft_path.display());

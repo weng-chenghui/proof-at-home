@@ -3,11 +3,20 @@ use colored::Colorize;
 use dialoguer::{Input, Password, Select};
 use std::process::Command;
 
+use crate::commands_store::importer;
 use crate::config::types::*;
 use crate::config::Config;
 use crate::signing;
 
-pub fn run_setup() -> Result<()> {
+pub fn run_setup(add_commands: Vec<String>) -> Result<()> {
+    // If --add-commands is provided, import and return early
+    if !add_commands.is_empty() {
+        println!("{}", "=== Import Command Files ===".bold().cyan());
+        importer::import_commands(&add_commands)?;
+        println!("\n{} Commands imported successfully.", "✓".green().bold());
+        return Ok(());
+    }
+
     println!("{}", "=== Proof@Home CLI Setup ===".bold().cyan());
     println!();
     println!(
