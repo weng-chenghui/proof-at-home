@@ -19,6 +19,9 @@ Thumbs.db
 # Proof@Home runtime
 /tmp/proof-at-home/
 
+# Local dev environment
+.dev/
+
 # Generated review demo archives (re-created by seed script)
 examples/review-demo/*.tar.gz
 examples/review-demo/seed/

@@ -16,9 +16,9 @@ SEED_DIR="$DEMO_DIR/seed"
 mkdir -p "$SEED_DIR"
 
 # Fixed UUIDs for reproducible demos
-ALICE_SESSION="a1111111-1111-1111-1111-111111111111"
-BOB_SESSION="b2222222-2222-2222-2222-222222222222"
-CAROL_SESSION="c3333333-3333-3333-3333-333333333333"
+ALICE_CONTRIB="a1111111-1111-1111-1111-111111111111"
+BOB_CONTRIB="b2222222-2222-2222-2222-222222222222"
+CAROL_CONTRIB="c3333333-3333-3333-3333-333333333333"
 
 echo "=== Packaging demo proof archives ==="
 
@@ -32,18 +32,18 @@ for prover in alice bob carol; do
 
     echo "  $prover: $ARCHIVE (sha256: ${SHA:0:16}...)"
 
-    # Determine session ID
+    # Determine contribution ID
     case $prover in
-        alice) SESSION_ID="$ALICE_SESSION" ;;
-        bob)   SESSION_ID="$BOB_SESSION" ;;
-        carol) SESSION_ID="$CAROL_SESSION" ;;
+        alice) CONTRIB_ID="$ALICE_CONTRIB" ;;
+        bob)   CONTRIB_ID="$BOB_CONTRIB" ;;
+        carol) CONTRIB_ID="$CAROL_CONTRIB" ;;
     esac
 
-    # Write seed session JSON
-    cat > "$SEED_DIR/${prover}_session.json" <<EOF
+    # Write seed contribution JSON
+    cat > "$SEED_DIR/${prover}_contribution.json" <<EOF
 {
   "username": "$prover",
-  "session_id": "$SESSION_ID",
+  "contribution_id": "$CONTRIB_ID",
   "conjectures_attempted": 2,
   "conjectures_proved": 2,
   "total_cost_usd": 0.05,

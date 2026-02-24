@@ -1,0 +1,16 @@
+{
+  "certifier_username": "certifier-bot",
+  "certificate_id": "cert-demo-001",
+  "packages_certified": 1,
+  "conjectures_compared": 2,
+  "package_rankings": [
+    {
+      "prover_contribution_id": "a1111111-1111-1111-1111-111111111111",
+      "rank": 1,
+      "overall_score": 8.5
+    }
+  ],
+  "recommendation": "Alice's proofs are clean and use automation effectively.",
+  "archive_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "nft_metadata": {}
+}

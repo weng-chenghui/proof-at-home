@@ -1,0 +1,12 @@
+{
+  "username": "alice",
+  "contribution_id": "a1111111-1111-1111-1111-111111111111",
+  "conjectures_attempted": 2,
+  "conjectures_proved": 2,
+  "total_cost_usd": 0.05,
+  "archive_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "nft_metadata": {},
+  "prover": "rocq",
+  "conjecture_ids": ["prob_001", "prob_002"],
+  "proof_status": "sealed"
+}

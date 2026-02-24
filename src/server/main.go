@@ -29,6 +29,9 @@ func main() {
 	// Initialize forge client
 	var forge gitstore.ForgeClient
 	switch cfg.GitForgeType {
+	case "local":
+		forge = gitstore.NewLocalForge(cfg.GitDataRepoPath)
+		slog.Info("Using local forge (auto-merge, no remote)")
 	case "gitlab":
 		forge = gitstore.NewGitLabForge(
 			cfg.GitForgeToken,
@@ -74,6 +77,11 @@ func main() {
 		os.Exit(1)
 	}
 	slog.Info("SQLite cache rebuilt from git data", "path", cfg.DatabasePath)
+
+	// Wire up LocalForge rebuild callback now that SQLite is ready
+	if lf, ok := forge.(*gitstore.LocalForge); ok {
+		lf.SetRebuildFn(lite.RebuildFromDir)
+	}
 
 	// Initialize handlers
 	conjectureHandler := &handlers.ConjectureHandler{Store: lite}

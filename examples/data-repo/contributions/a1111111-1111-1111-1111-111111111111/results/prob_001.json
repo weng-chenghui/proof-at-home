@@ -1,0 +1,10 @@
+{
+  "contribution_id": "a1111111-1111-1111-1111-111111111111",
+  "conjecture_id": "prob_001",
+  "username": "alice",
+  "success": true,
+  "proof_script": "Lemma add_comm : forall n m : nat, n + m = m + n.\nProof.\n  intros n m. lia.\nQed.",
+  "cost_usd": 0.03,
+  "attempts": 1,
+  "error_output": ""
+}
