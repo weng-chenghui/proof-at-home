@@ -5,18 +5,15 @@ import (
 	"encoding/json"
 	"net/http"
 	"time"
-
-	"github.com/proof-at-home/server/src/server/storage"
 )
 
-// Pinger is implemented by stores that support health checks (e.g., PostgresStore).
+// Pinger is implemented by stores that support health checks.
 type Pinger interface {
 	Ping(ctx context.Context) error
 }
 
 type HealthHandler struct {
-	Store   interface{} // may implement Pinger
-	Storage storage.ObjectStorage
+	Store any // may implement Pinger
 }
 
 type healthResponse struct {
@@ -40,16 +37,6 @@ func (h *HealthHandler) Check(w http.ResponseWriter, r *http.Request) {
 			allOK = false
 		} else {
 			checks["database"] = "ok"
-		}
-	}
-
-	// Check object storage
-	if h.Storage != nil {
-		if err := h.Storage.Ping(ctx); err != nil {
-			checks["storage"] = "error: " + err.Error()
-			allOK = false
-		} else {
-			checks["storage"] = "ok"
 		}
 	}
 

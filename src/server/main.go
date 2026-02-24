@@ -18,9 +18,7 @@ import (
 	"github.com/proof-at-home/server/src/server/logging"
 	authmw "github.com/proof-at-home/server/src/server/middleware"
 	"github.com/proof-at-home/server/src/server/static"
-	"github.com/proof-at-home/server/src/server/storage"
-	"github.com/proof-at-home/server/src/server/store"
-	"github.com/proof-at-home/server/src/server/store/postgres"
+	"github.com/proof-at-home/server/src/server/store/gitstore"
 	sqlitestore "github.com/proof-at-home/server/src/server/store/sqlite"
 )
 
@@ -28,116 +26,71 @@ func main() {
 	cfg := config.Load()
 	logging.Init(cfg.LogLevel)
 
-	var st store.Store
-
-	switch cfg.StoreBackend {
-	case "postgres":
-		pg, err := postgres.New(cfg.DatabaseURL)
-		if err != nil {
-			slog.Error("Failed to connect to database", "error", err)
-			os.Exit(1)
-		}
-		defer pg.Close()
-
-		if err := pg.Migrate(); err != nil {
-			slog.Error("Failed to run migrations", "error", err)
-			os.Exit(1)
-		}
-
-		if err := pg.LoadConjectures(cfg.ConjecturesDir); err != nil {
-			slog.Error("Failed to load conjectures", "error", err)
-			os.Exit(1)
-		}
-
-		if cfg.SeedCertifications != "" {
-			if err := pg.LoadSeedContributions(cfg.SeedCertifications); err != nil {
-				slog.Warn("Failed to load seed certification data", "error", err)
-			} else {
-				slog.Info("Seed certification data loaded", "dir", cfg.SeedCertifications)
-			}
-		}
-
-		st = pg
-		slog.Info("Using PostgreSQL store")
-
-	case "sqlite":
-		lite, err := sqlitestore.New(cfg.DatabasePath)
-		if err != nil {
-			slog.Error("Failed to open SQLite database", "error", err, "path", cfg.DatabasePath)
-			os.Exit(1)
-		}
-		defer lite.Close()
-
-		if err := lite.Migrate(); err != nil {
-			slog.Error("Failed to run SQLite migrations", "error", err)
-			os.Exit(1)
-		}
-
-		if err := lite.LoadConjectures(cfg.ConjecturesDir); err != nil {
-			slog.Error("Failed to load conjectures", "error", err)
-			os.Exit(1)
-		}
-
-		if cfg.SeedCertifications != "" {
-			if err := lite.LoadSeedContributions(cfg.SeedCertifications); err != nil {
-				slog.Warn("Failed to load seed certification data", "error", err)
-			} else {
-				slog.Info("Seed certification data loaded", "dir", cfg.SeedCertifications)
-			}
-		}
-
-		st = lite
-		slog.Info("Using SQLite store", "path", cfg.DatabasePath)
-
-	default:
-		mem := store.NewMemoryStore()
-		if err := mem.LoadConjectures(cfg.ConjecturesDir); err != nil {
-			slog.Error("Failed to load conjectures", "error", err)
-			os.Exit(1)
-		}
-
-		if cfg.SeedCertifications != "" {
-			if err := mem.LoadSeedContributions(cfg.SeedCertifications); err != nil {
-				slog.Warn("Failed to load seed certification data", "error", err)
-			} else {
-				slog.Info("Seed certification data loaded", "dir", cfg.SeedCertifications)
-			}
-		}
-
-		st = mem
-		slog.Info("Using in-memory store")
+	// Initialize forge client
+	var forge gitstore.ForgeClient
+	switch cfg.GitForgeType {
+	case "gitlab":
+		forge = gitstore.NewGitLabForge(
+			cfg.GitForgeToken,
+			cfg.GitForgeProject,
+			cfg.GitForgeAPIURL,
+			cfg.WebhookSecret,
+			cfg.GitLabProjectPath,
+		)
+		slog.Info("Using GitLab forge", "project", cfg.GitForgeProject)
+	default: // "github"
+		forge = gitstore.NewGitHubForge(
+			cfg.GitForgeToken,
+			cfg.GitForgeProject,
+			cfg.GitForgeAPIURL,
+			cfg.WebhookSecret,
+		)
+		slog.Info("Using GitHub forge", "project", cfg.GitForgeProject)
 	}
 
-	// Initialize object storage
-	var objStorage storage.ObjectStorage
-	if cfg.S3Endpoint != "" && cfg.S3Bucket != "" {
-		s3, err := storage.NewS3(storage.S3Config{
-			Endpoint:  cfg.S3Endpoint,
-			Bucket:    cfg.S3Bucket,
-			Region:    cfg.S3Region,
-			AccessKey: cfg.S3AccessKey,
-			SecretKey: cfg.S3SecretKey,
-			UseSSL:    cfg.S3UseSSL,
-		})
-		if err != nil {
-			slog.Error("Failed to initialize S3 storage", "error", err)
-			os.Exit(1)
-		}
-		objStorage = s3
-		slog.Info("Using S3 object storage", "endpoint", cfg.S3Endpoint, "bucket", cfg.S3Bucket)
+	// Clone/pull data repo and initialize GitStore
+	gs, err := gitstore.New(cfg.GitDataRepoURL, cfg.GitDataRepoPath, forge)
+	if err != nil {
+		slog.Error("Failed to initialize git store", "error", err)
+		os.Exit(1)
 	}
 
-	conjectureHandler := &handlers.ConjectureHandler{Store: st}
-	contributionHandler := &handlers.ContributionHandler{Store: st}
-	certificateHandler := &handlers.CertificateHandler{Store: st, Storage: objStorage}
-	packageHandler := &handlers.PackageHandler{Store: st}
+	// Open SQLite cache
+	lite, err := sqlitestore.New(cfg.DatabasePath)
+	if err != nil {
+		slog.Error("Failed to open SQLite cache", "error", err, "path", cfg.DatabasePath)
+		os.Exit(1)
+	}
+	defer lite.Close()
+
+	if err := lite.Migrate(); err != nil {
+		slog.Error("Failed to run SQLite migrations", "error", err)
+		os.Exit(1)
+	}
+
+	// Rebuild cache from git content
+	if err := lite.RebuildFromDir(gs.RepoPath()); err != nil {
+		slog.Error("Failed to rebuild cache from git repo", "error", err)
+		os.Exit(1)
+	}
+	slog.Info("SQLite cache rebuilt from git data", "path", cfg.DatabasePath)
+
+	// Initialize handlers
+	conjectureHandler := &handlers.ConjectureHandler{Store: lite}
+	contributionHandler := &handlers.ContributionHandler{Store: lite, GitStore: gs}
+	certificateHandler := &handlers.CertificateHandler{Store: lite, GitStore: gs}
+	packageHandler := &handlers.PackageHandler{GitStore: gs}
+	webhookHandler := &handlers.WebhookHandler{
+		GitStore:  gs,
+		RebuildFn: lite.RebuildFromDir,
+	}
 
 	r := chi.NewRouter()
 	r.Use(chimw.Recoverer)
 	r.Use(chimw.RealIP)
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   cfg.CORSOrigins,
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
 		ExposedHeaders:   []string{"Link"},
 		AllowCredentials: true,
@@ -145,16 +98,23 @@ func main() {
 	}))
 
 	// Health check
-	healthHandler := &handlers.HealthHandler{Store: st, Storage: objStorage}
+	healthHandler := &handlers.HealthHandler{Store: lite}
 	r.Get("/health", healthHandler.Check)
 
 	// Public GET endpoints
 	r.Get("/conjectures", conjectureHandler.List)
 	r.Get("/conjectures/{id}", conjectureHandler.Get)
+	r.Get("/contributions", contributionHandler.List)
+	r.Get("/contributions/{id}", contributionHandler.Get)
+	r.Get("/contributions/{id}/results", contributionHandler.ListResults)
+	r.Get("/certificates", certificateHandler.ListCertificates)
 	r.Get("/certificate-packages", certificateHandler.List)
 	r.Get("/certificate-packages/{contributionID}/archive", certificateHandler.DownloadArchive)
 
-	// POST endpoints — optionally protected by auth
+	// Webhook endpoint (signature-verified internally)
+	r.Post("/webhooks/git", webhookHandler.Handle)
+
+	// POST/PATCH endpoints — optionally protected by auth
 	r.Group(func(r chi.Router) {
 		if cfg.AuthEnabled {
 			r.Use(authmw.RequireAuth(authmw.AuthConfig{
@@ -164,10 +124,13 @@ func main() {
 			slog.Info("JWT authentication enabled", "issuer", cfg.AuthIssuer)
 		}
 
-		r.Post("/conjectures/packages", packageHandler.Submit)
-		r.Post("/contributions", contributionHandler.Submit)
-		r.Post("/contributions/batch", contributionHandler.SubmitBatch)
+		r.Post("/conjecture-packages", packageHandler.Submit)
+		r.Post("/contributions", contributionHandler.Create)
+		r.Patch("/contributions/{id}", contributionHandler.Update)
+		r.Post("/contributions/{id}/results", contributionHandler.SubmitResult)
+		r.Post("/contributions/{id}/seal", contributionHandler.Seal)
 		r.Post("/certificates", certificateHandler.SubmitCertificate)
+		r.Post("/certificates/{id}/seal", certificateHandler.SealCertificate)
 	})
 
 	// Serve embedded static files
@@ -184,7 +147,7 @@ func main() {
 	signal.Notify(done, os.Interrupt, syscall.SIGTERM)
 
 	go func() {
-		slog.Info("Server starting", "port", cfg.Port, "conjectures_dir", cfg.ConjecturesDir, "store", cfg.StoreBackend)
+		slog.Info("Server starting", "port", cfg.Port, "git_data_repo", cfg.GitDataRepoPath)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			slog.Error("Server error", "error", err)
 			os.Exit(1)

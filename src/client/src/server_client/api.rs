@@ -77,6 +77,22 @@ pub struct HealthResponse {
     pub status: String,
 }
 
+/// Response from PATCH /contributions/{id} (finalize)
+#[derive(Debug, Deserialize)]
+pub struct FinalizeResponse {
+    pub commit_sha: String,
+    #[allow(dead_code)]
+    pub status: String,
+}
+
+/// Response from POST /contributions/{id}/seal or POST /certificates/{id}/seal
+#[derive(Debug, Deserialize)]
+pub struct SealResponse {
+    pub pr_url: String,
+    #[allow(dead_code)]
+    pub status: String,
+}
+
 impl ServerClient {
     pub fn new(base_url: &str, auth_token: &str) -> Self {
         Self {
@@ -130,9 +146,39 @@ impl ServerClient {
         Ok(conjecture)
     }
 
-    pub async fn submit_contribution_result(&self, result: &ContributionResult) -> Result<()> {
+    pub async fn create_contribution(
+        &self,
+        contribution_id: &str,
+        username: &str,
+        prover: &str,
+    ) -> Result<()> {
         let resp = self
             .authed(self.client.post(format!("{}/contributions", self.base_url)))
+            .json(&serde_json::json!({
+                "contribution_id": contribution_id,
+                "username": username,
+                "prover": prover,
+            }))
+            .send()
+            .await
+            .context("Failed to create contribution")?;
+        if !resp.status().is_success() {
+            let body = resp.text().await.unwrap_or_default();
+            anyhow::bail!("Server returned error: {}", body);
+        }
+        Ok(())
+    }
+
+    pub async fn submit_contribution_result(
+        &self,
+        contribution_id: &str,
+        result: &ContributionResult,
+    ) -> Result<()> {
+        let resp = self
+            .authed(self.client.post(format!(
+                "{}/contributions/{}/results",
+                self.base_url, contribution_id
+            )))
             .json(result)
             .send()
             .await
@@ -144,21 +190,51 @@ impl ServerClient {
         Ok(())
     }
 
-    pub async fn submit_contribution(&self, summary: &ContributionSummary) -> Result<()> {
+    /// Finalize a contribution (cost totals, proof_status).
+    /// Returns the git commit SHA for signing.
+    pub async fn update_contribution(
+        &self,
+        contribution_id: &str,
+        summary: &ContributionSummary,
+    ) -> Result<FinalizeResponse> {
         let resp = self
-            .authed(
-                self.client
-                    .post(format!("{}/contributions/batch", self.base_url)),
-            )
+            .authed(self.client.patch(format!(
+                "{}/contributions/{}",
+                self.base_url, contribution_id
+            )))
             .json(summary)
             .send()
             .await
-            .context("Failed to submit contribution")?;
+            .context("Failed to update contribution")?;
         if !resp.status().is_success() {
             let body = resp.text().await.unwrap_or_default();
             anyhow::bail!("Server returned error: {}", body);
         }
-        Ok(())
+        let result: FinalizeResponse = resp.json().await?;
+        Ok(result)
+    }
+
+    /// Seal a contribution with NFT metadata. Creates a PR in the data repo.
+    pub async fn seal_contribution(
+        &self,
+        contribution_id: &str,
+        nft_metadata: &serde_json::Value,
+    ) -> Result<SealResponse> {
+        let resp = self
+            .authed(self.client.post(format!(
+                "{}/contributions/{}/seal",
+                self.base_url, contribution_id
+            )))
+            .json(nft_metadata)
+            .send()
+            .await
+            .context("Failed to seal contribution")?;
+        if !resp.status().is_success() {
+            let body = resp.text().await.unwrap_or_default();
+            anyhow::bail!("Server returned error: {}", body);
+        }
+        let result: SealResponse = resp.json().await?;
+        Ok(result)
     }
 
     // ── Certificate endpoints ──
@@ -199,8 +275,11 @@ impl ServerClient {
         Ok(())
     }
 
-    /// Submit a certificate summary to the server
-    pub async fn submit_certificate(&self, summary: &CertificateSummary) -> Result<()> {
+    /// Submit a certificate summary to the server. Returns commit SHA.
+    pub async fn submit_certificate(
+        &self,
+        summary: &CertificateSummary,
+    ) -> Result<FinalizeResponse> {
         let resp = self
             .authed(self.client.post(format!("{}/certificates", self.base_url)))
             .json(summary)
@@ -211,7 +290,31 @@ impl ServerClient {
             let body = resp.text().await.unwrap_or_default();
             anyhow::bail!("Server returned error: {}", body);
         }
-        Ok(())
+        let result: FinalizeResponse = resp.json().await?;
+        Ok(result)
+    }
+
+    /// Seal a certificate with NFT metadata. Creates a PR in the data repo.
+    pub async fn seal_certificate(
+        &self,
+        certificate_id: &str,
+        nft_metadata: &serde_json::Value,
+    ) -> Result<SealResponse> {
+        let resp = self
+            .authed(self.client.post(format!(
+                "{}/certificates/{}/seal",
+                self.base_url, certificate_id
+            )))
+            .json(nft_metadata)
+            .send()
+            .await
+            .context("Failed to seal certificate")?;
+        if !resp.status().is_success() {
+            let body = resp.text().await.unwrap_or_default();
+            anyhow::bail!("Server returned error: {}", body);
+        }
+        let result: SealResponse = resp.json().await?;
+        Ok(result)
     }
 }
 
@@ -231,7 +334,7 @@ impl ServerClient {
         let resp = self
             .authed(
                 self.client
-                    .post(format!("{}/conjectures/packages", self.base_url)),
+                    .post(format!("{}/conjecture-packages", self.base_url)),
             )
             .header("Content-Type", "application/gzip")
             .body(tar_bytes)
@@ -251,7 +354,7 @@ impl ServerClient {
         let resp = self
             .authed(
                 self.client
-                    .post(format!("{}/conjectures/packages", self.base_url)),
+                    .post(format!("{}/conjecture-packages", self.base_url)),
             )
             .json(&serde_json::json!({ "git_url": git_url }))
             .send()

@@ -142,7 +142,7 @@
                 proof_status: document.getElementById('proof_status').value
             };
             try {
-                await api('POST', '/contributions/batch', body);
+                await api('POST', '/contributions', body);
                 showMsg('msg', 'Batch submitted successfully.', false);
             } catch (e) {
                 showMsg('msg', 'Error: ' + (e.error || e.message || 'submission failed'), true);

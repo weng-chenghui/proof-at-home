@@ -7,13 +7,6 @@ use crate::ipfs;
 pub async fn run_publish(kind: &str, id: &str) -> Result<()> {
     let config = Config::load()?;
 
-    if config.ipfs.api_url.is_empty() || config.ipfs.api_key.is_empty() {
-        bail!(
-            "IPFS not configured. Add [ipfs] section to config.toml with api_url and api_key.\n\
-             Example:\n  [ipfs]\n  api_url = \"https://api.pinata.cloud\"\n  api_key = \"your-jwt-token\""
-        );
-    }
-
     let (base_dir, archive_name, nft_name) = match kind {
         "contribution" => {
             let dir = Config::contributions_dir()?.join(id);
@@ -37,12 +30,7 @@ pub async fn run_publish(kind: &str, id: &str) -> Result<()> {
         bail!("{} directory not found: {}", kind, base_dir.display());
     }
 
-    let archive_path = base_dir.join(archive_name);
     let nft_path = base_dir.join(nft_name);
-
-    if !archive_path.exists() {
-        bail!("Archive not found: {}", archive_path.display());
-    }
     if !nft_path.exists() {
         bail!(
             "NFT metadata not found: {}. Run the {} first.",
@@ -60,57 +48,80 @@ pub async fn run_publish(kind: &str, id: &str) -> Result<()> {
     println!("ID:   {}", id);
     println!();
 
-    // 1. Pin archive to IPFS
-    print!("Pinning archive to IPFS... ");
-    let archive_cid = ipfs::pin_to_ipfs(&archive_path, &config.ipfs.api_url, &config.ipfs.api_key)
-        .await
-        .context("Failed to pin archive")?;
-    println!("{} ({})", "OK".green(), &archive_cid);
-
-    // 2. Load and update metadata with external_url
+    // Load NFT metadata
     let nft_content = std::fs::read_to_string(&nft_path)?;
     let mut nft_json: serde_json::Value = serde_json::from_str(&nft_content)?;
-    nft_json["external_url"] = serde_json::Value::String(format!("ipfs://{}", archive_cid));
 
-    // Add Archive IPFS CID attribute
-    if let Some(attrs) = nft_json["attributes"].as_array_mut() {
-        attrs.push(serde_json::json!({
-            "trait_type": "Archive IPFS CID",
-            "value": archive_cid
-        }));
+    // Set external_url to git permalink if Git Commit attribute exists
+    if let Some(attrs) = nft_json["attributes"].as_array() {
+        let git_commit = attrs
+            .iter()
+            .find(|a| a["trait_type"] == "Git Commit")
+            .and_then(|a| a["value"].as_str())
+            .unwrap_or("");
+        let git_repo = attrs
+            .iter()
+            .find(|a| a["trait_type"] == "Git Repository")
+            .and_then(|a| a["value"].as_str())
+            .unwrap_or("");
+
+        if !git_commit.is_empty() && !git_repo.is_empty() {
+            let subdir = if kind == "contribution" {
+                "contributions"
+            } else {
+                "certificates"
+            };
+            let permalink = format!("{}/tree/{}/{}/{}", git_repo, git_commit, subdir, id);
+            nft_json["external_url"] = serde_json::Value::String(permalink.clone());
+            println!("Git permalink: {}", permalink.cyan());
+        }
     }
 
-    // 3. Pin metadata JSON to IPFS
-    print!("Pinning metadata to IPFS... ");
-    let metadata_cid =
-        ipfs::pin_json_to_ipfs(&nft_json, &config.ipfs.api_url, &config.ipfs.api_key)
-            .await
-            .context("Failed to pin metadata")?;
-    println!("{} ({})", "OK".green(), &metadata_cid);
+    // If IPFS is configured, also pin archive and metadata
+    let has_ipfs = !config.ipfs.api_url.is_empty() && !config.ipfs.api_key.is_empty();
+    let archive_path = base_dir.join(archive_name);
 
-    // 4. Write mint_ready.json
-    let token_uri = format!("ipfs://{}", metadata_cid);
-    let mint_ready = serde_json::json!({
-        "metadata_cid": metadata_cid,
-        "archive_cid": archive_cid,
-        "token_uri": token_uri,
-        "contract_address": ""
-    });
+    if has_ipfs && archive_path.exists() {
+        // Pin archive to IPFS
+        print!("Pinning archive to IPFS... ");
+        let archive_cid =
+            ipfs::pin_to_ipfs(&archive_path, &config.ipfs.api_url, &config.ipfs.api_key)
+                .await
+                .context("Failed to pin archive")?;
+        println!("{} ({})", "OK".green(), &archive_cid);
 
-    let mint_ready_path = base_dir.join("mint_ready.json");
-    std::fs::write(&mint_ready_path, serde_json::to_string_pretty(&mint_ready)?)?;
+        // Add Archive IPFS CID attribute
+        if let Some(attrs) = nft_json["attributes"].as_array_mut() {
+            attrs.push(serde_json::json!({
+                "trait_type": "Archive IPFS CID",
+                "value": archive_cid
+            }));
+        }
 
-    // 5. Save updated NFT metadata
-    let published_nft_path = base_dir.join("nft_metadata_published.json");
-    std::fs::write(
-        &published_nft_path,
-        serde_json::to_string_pretty(&nft_json)?,
-    )?;
+        // Pin metadata JSON to IPFS
+        print!("Pinning metadata to IPFS... ");
+        let metadata_cid =
+            ipfs::pin_json_to_ipfs(&nft_json, &config.ipfs.api_url, &config.ipfs.api_key)
+                .await
+                .context("Failed to pin metadata")?;
+        println!("{} ({})", "OK".green(), &metadata_cid);
 
-    // 6. Generate mint.sh script
-    let mint_script_path = base_dir.join("mint.sh");
-    let mint_script = format!(
-        r#"#!/usr/bin/env bash
+        // Write mint_ready.json
+        let token_uri = format!("ipfs://{}", metadata_cid);
+        let mint_ready = serde_json::json!({
+            "metadata_cid": metadata_cid,
+            "archive_cid": archive_cid,
+            "token_uri": token_uri,
+            "contract_address": ""
+        });
+
+        let mint_ready_path = base_dir.join("mint_ready.json");
+        std::fs::write(&mint_ready_path, serde_json::to_string_pretty(&mint_ready)?)?;
+
+        // Generate mint.sh script
+        let mint_script_path = base_dir.join("mint.sh");
+        let mint_script = format!(
+            r#"#!/usr/bin/env bash
 # Proof@Home — Mint NFT on-chain
 #
 # Prerequisites:
@@ -152,27 +163,47 @@ echo ""
 echo "Done. NFT minted successfully."
 echo "View on block explorer or OpenSea to confirm."
 "#
-    );
+        );
 
-    std::fs::write(&mint_script_path, &mint_script)?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&mint_script_path, std::fs::Permissions::from_mode(0o755))?;
+        std::fs::write(&mint_script_path, &mint_script)?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&mint_script_path, std::fs::Permissions::from_mode(0o755))?;
+        }
+
+        println!();
+        println!("{}", "=== Published ===".bold().green());
+        println!("Token URI:  {}", token_uri.cyan());
+        println!("Archive:    ipfs://{}", archive_cid);
+        println!("Metadata:   ipfs://{}", metadata_cid);
+        println!("Mint ready: {}", mint_ready_path.display());
+        println!("Mint script: {}", mint_script_path.display());
+        println!();
+        println!(
+            "To mint on-chain, set env vars and run: {}",
+            "./mint.sh".cyan()
+        );
+    } else {
+        // Save updated NFT metadata (with git permalink) even without IPFS
+        let published_nft_path = base_dir.join("nft_metadata_published.json");
+        std::fs::write(
+            &published_nft_path,
+            serde_json::to_string_pretty(&nft_json)?,
+        )?;
+
+        println!();
+        println!(
+            "{}",
+            "=== Published (git permalink only) ===".bold().green()
+        );
+        println!("Published NFT: {}", published_nft_path.display());
+        if !has_ipfs {
+            println!(
+                "\nTo also pin to IPFS, add [ipfs] section to config.toml with api_url and api_key."
+            );
+        }
     }
-
-    println!();
-    println!("{}", "=== Published ===".bold().green());
-    println!("Token URI:  {}", token_uri.cyan());
-    println!("Archive:    ipfs://{}", archive_cid);
-    println!("Metadata:   ipfs://{}", metadata_cid);
-    println!("Mint ready: {}", mint_ready_path.display());
-    println!("Mint script: {}", mint_script_path.display());
-    println!();
-    println!(
-        "To mint on-chain, set env vars and run: {}",
-        "./mint.sh".cyan()
-    );
 
     Ok(())
 }

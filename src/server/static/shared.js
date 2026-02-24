@@ -123,6 +123,7 @@ function initNav() {
         <div class="nav-links">
             <a href="/conjectures.html">Conjectures</a>
             <a href="/certificates.html">Certificates</a>
+            <a href="/commands.html">Commands</a>
             <a href="/nft-gallery.html">NFT Gallery</a>
             <a href="/submit-conjecture.html">Submit Conjecture</a>
         </div>

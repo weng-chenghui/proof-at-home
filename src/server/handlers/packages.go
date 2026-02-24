@@ -12,12 +12,13 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/proof-at-home/server/src/server/data"
-	"github.com/proof-at-home/server/src/server/store"
+	"github.com/proof-at-home/server/src/server/store/gitstore"
 )
 
 type PackageHandler struct {
-	Store store.Store
+	GitStore *gitstore.GitStore
 }
 
 type packageSubmitResponse struct {
@@ -76,7 +77,17 @@ func (h *PackageHandler) handleTarGz(r *http.Request) ([]string, error) {
 		return nil, err
 	}
 
-	return h.Store.AddConjectures(conjectures), nil
+	batchID := uuid.New().String()
+	prURL, err := h.GitStore.AddConjectures(conjectures, batchID)
+	if err != nil {
+		return nil, fmt.Errorf("adding conjectures via git: %w", err)
+	}
+	_ = prURL // PR URL created but IDs derived from conjectures
+	ids := make([]string, len(conjectures))
+	for i, c := range conjectures {
+		ids[i] = c.ID
+	}
+	return ids, nil
 }
 
 func (h *PackageHandler) handleGitURL(r *http.Request) ([]string, error) {
@@ -106,7 +117,17 @@ func (h *PackageHandler) handleGitURL(r *http.Request) ([]string, error) {
 		return nil, err
 	}
 
-	return h.Store.AddConjectures(conjectures), nil
+	batchID := uuid.New().String()
+	prURL, err := h.GitStore.AddConjectures(conjectures, batchID)
+	if err != nil {
+		return nil, fmt.Errorf("adding conjectures via git: %w", err)
+	}
+	_ = prURL
+	ids := make([]string, len(conjectures))
+	for i, c := range conjectures {
+		ids[i] = c.ID
+	}
+	return ids, nil
 }
 
 func extractTarGz(r io.Reader, destDir string) error {

@@ -10,11 +10,11 @@ pub struct ContributionInfo {
     pub conjectures_attempted: u32,
     pub cost_donated_usd: f64,
     pub prover: String,
-    pub prover_version: String,
-    pub archive_sha256: String,
     pub proof_status: String,
+    pub git_commit: String,
+    pub git_repository: String,
     pub public_key: String,
-    pub archive_signature: String,
+    pub commit_signature: String,
 }
 
 /// Generate OpenSea-compatible NFT metadata JSON for a proof contribution
@@ -23,7 +23,7 @@ pub fn generate_nft_metadata(info: &ContributionInfo) -> Value {
 
     json!({
         "name": format!("Proof@Home Contribution — {} — {}", info.username, date),
-        "description": "Contribution record: formally verified mathematical lemmas for the public domain.",
+        "description": "Formally verified mathematical proofs for the public domain.",
         "external_url": "",
         "image": "",
         "attributes": [
@@ -48,24 +48,24 @@ pub fn generate_nft_metadata(info: &ContributionInfo) -> Value {
                 "value": info.prover
             },
             {
-                "trait_type": "Prover Version",
-                "value": info.prover_version
+                "trait_type": "Proof Status",
+                "value": info.proof_status
             },
             {
-                "trait_type": "Archive SHA-256",
-                "value": info.archive_sha256
+                "trait_type": "Git Commit",
+                "value": info.git_commit
+            },
+            {
+                "trait_type": "Git Repository",
+                "value": info.git_repository
             },
             {
                 "trait_type": "Public Key",
                 "value": info.public_key
             },
             {
-                "trait_type": "Archive Signature",
-                "value": info.archive_signature
-            },
-            {
-                "trait_type": "Proof Status",
-                "value": info.proof_status
+                "trait_type": "Commit Signature",
+                "value": info.commit_signature
             }
         ]
     })
@@ -81,11 +81,12 @@ pub struct CertificateInfo {
     pub conjectures_compared: u32,
     pub top_prover: String,
     pub recommendation: String,
-    pub archive_sha256: String,
     pub ai_comparison_cost_usd: f64,
     pub certified_contribution_ids: Vec<String>,
+    pub git_commit: String,
+    pub git_repository: String,
     pub certifier_public_key: String,
-    pub archive_signature: String,
+    pub commit_signature: String,
 }
 
 /// Generate OpenSea-compatible NFT metadata JSON for a certificate
@@ -123,16 +124,20 @@ pub fn generate_certificate_nft_metadata(info: &CertificateInfo) -> Value {
                 "value": info.recommendation
             },
             {
-                "trait_type": "Archive SHA-256",
-                "value": info.archive_sha256
+                "trait_type": "Git Commit",
+                "value": info.git_commit
+            },
+            {
+                "trait_type": "Git Repository",
+                "value": info.git_repository
             },
             {
                 "trait_type": "Public Key",
                 "value": info.certifier_public_key
             },
             {
-                "trait_type": "Archive Signature",
-                "value": info.archive_signature
+                "trait_type": "Commit Signature",
+                "value": info.commit_signature
             },
             {
                 "trait_type": "AI Comparison Cost (USD)",

@@ -6,22 +6,18 @@ import (
 )
 
 type Config struct {
-	Port               string
-	ConjecturesDir     string
-	SeedCertifications string
+	Port         string
+	DatabasePath string // SQLite cache file path
 
-	// Store backend: "memory", "postgres", or "sqlite"
-	StoreBackend string
-	DatabaseURL  string
-	DatabasePath string // SQLite file path
-
-	// S3-compatible object storage
-	S3Endpoint  string
-	S3Bucket    string
-	S3Region    string
-	S3AccessKey string
-	S3SecretKey string
-	S3UseSSL    bool
+	// Git data repo
+	GitDataRepoURL    string // Remote URL of data repo
+	GitDataRepoPath   string // Local clone path
+	GitForgeType      string // "github" or "gitlab"
+	GitForgeToken     string // API token for creating PRs/MRs
+	GitForgeAPIURL    string // Forge API base URL (optional)
+	GitForgeProject   string // GitHub "owner/repo" or GitLab project ID
+	GitLabProjectPath string // GitLab "namespace/project" for web URLs (GitLab only)
+	WebhookSecret     string // HMAC secret (GitHub) or token (GitLab)
 
 	// Auth
 	AuthEnabled  bool
@@ -37,20 +33,17 @@ type Config struct {
 
 func Load() *Config {
 	return &Config{
-		Port:               envOrDefault("PORT", "8080"),
-		ConjecturesDir:     envOrDefault("CONJECTURES_DIR", "conjectures"),
-		SeedCertifications: os.Getenv("SEED_CERTIFICATIONS"),
-
-		StoreBackend: envOrDefault("STORE_BACKEND", "memory"),
-		DatabaseURL:  os.Getenv("DATABASE_URL"),
+		Port:         envOrDefault("PORT", "8080"),
 		DatabasePath: envOrDefault("DATABASE_PATH", "proofathome.db"),
 
-		S3Endpoint:  os.Getenv("S3_ENDPOINT"),
-		S3Bucket:    os.Getenv("S3_BUCKET"),
-		S3Region:    envOrDefault("S3_REGION", "us-east-1"),
-		S3AccessKey: os.Getenv("S3_ACCESS_KEY"),
-		S3SecretKey: os.Getenv("S3_SECRET_KEY"),
-		S3UseSSL:    os.Getenv("S3_USE_SSL") != "false",
+		GitDataRepoURL:    os.Getenv("GIT_DATA_REPO_URL"),
+		GitDataRepoPath:   envOrDefault("GIT_DATA_REPO_PATH", "./data"),
+		GitForgeType:      envOrDefault("GIT_FORGE_TYPE", "github"),
+		GitForgeToken:     os.Getenv("GIT_FORGE_TOKEN"),
+		GitForgeAPIURL:    os.Getenv("GIT_FORGE_API_URL"),
+		GitForgeProject:   os.Getenv("GIT_FORGE_PROJECT"),
+		GitLabProjectPath: os.Getenv("GITLAB_PROJECT_PATH"),
+		WebhookSecret:     os.Getenv("WEBHOOK_SECRET"),
 
 		AuthEnabled:  os.Getenv("AUTH_ENABLED") == "true",
 		AuthIssuer:   os.Getenv("AUTH_ISSUER"),

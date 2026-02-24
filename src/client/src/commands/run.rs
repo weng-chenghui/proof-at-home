@@ -46,8 +46,9 @@ fn dep_group_key(conjecture: &Conjecture) -> String {
     }
 }
 
-/// Seal a contribution: archive, sign, generate NFT metadata, submit summary.
-/// Returns (archive_path, sha256, nft_path).
+/// Seal a contribution: finalize on server (get commit SHA), sign it,
+/// generate NFT metadata, and seal via the /seal endpoint.
+/// Returns (archive_path, commit_sha, nft_path).
 #[allow(clippy::too_many_arguments)]
 async fn seal_contribution(
     config: &Config,
@@ -57,24 +58,54 @@ async fn seal_contribution(
     conjectures_attempted: u32,
     total_cost: f64,
     provers_used: &[String],
-    prover_versions: &[String],
+    _prover_versions: &[String],
     server: &ServerClient,
 ) -> Result<(PathBuf, String, PathBuf)> {
-    // Archive proofs
+    // Archive proofs (for local convenience + IPFS publish, no longer authoritative)
     print!("Archiving proofs... ");
     let scratch_dir = PathBuf::from(&config.prover.scratch_dir);
-    let (archive_path, sha256) = pack::create_archive(&scratch_dir, contribution_dir)?;
+    let (archive_path, _archive_sha256) = pack::create_archive(&scratch_dir, contribution_dir)?;
     println!("{}", "OK".green());
 
-    // Sign archive hash
-    let (public_key, archive_signature) = match Config::signing_key_path()
+    // Finalize contribution on server — get commit SHA
+    print!("Finalizing contribution... ");
+    let pa_label = provers_used.join("/");
+    let proof_status = if conjectures_attempted == 0 || conjectures_proved == 0 {
+        "unproved"
+    } else if conjectures_proved == conjectures_attempted {
+        "proved"
+    } else {
+        "incomplete"
+    }
+    .to_string();
+
+    let finalize_resp = server
+        .update_contribution(
+            contribution_id,
+            &ContributionSummary {
+                username: config.identity.username.clone(),
+                contribution_id: contribution_id.to_string(),
+                conjectures_attempted,
+                conjectures_proved,
+                total_cost_usd: total_cost,
+                archive_sha256: String::new(),
+                nft_metadata: serde_json::Value::Null,
+                proof_status: proof_status.clone(),
+            },
+        )
+        .await?;
+    let commit_sha = finalize_resp.commit_sha;
+    println!("{} ({})", "OK".green(), &commit_sha[..8]);
+
+    // Sign the git commit SHA
+    let (public_key, commit_signature) = match Config::signing_key_path()
         .ok()
         .filter(|p| p.exists())
         .and_then(|p| std::fs::read_to_string(&p).ok())
     {
         Some(key_hex) => match signing::load_signing_key(&key_hex) {
             Ok(key) => {
-                let sig = signing::sign_hash(&key, &sha256).unwrap_or_default();
+                let sig = signing::sign_commit(&key, &commit_sha).unwrap_or_default();
                 (config.identity.public_key.clone(), sig)
             }
             Err(e) => {
@@ -91,48 +122,37 @@ async fn seal_contribution(
         }
     };
 
-    // Generate NFT metadata
-    let pa_label = provers_used.join("/");
-    let proof_status = if conjectures_attempted == 0 || conjectures_proved == 0 {
-        "unproved"
-    } else if conjectures_proved == conjectures_attempted {
-        "proved"
-    } else {
-        "incomplete"
-    }
-    .to_string();
-
+    // Generate NFT metadata with git commit attributes
     let nft_meta = generate_nft_metadata(&ContributionInfo {
         username: config.identity.username.clone(),
         conjectures_proved,
         conjectures_attempted,
         cost_donated_usd: total_cost,
         prover: pa_label,
-        prover_version: prover_versions.join("/"),
-        archive_sha256: sha256.clone(),
-        proof_status: proof_status.clone(),
+        proof_status,
+        git_commit: commit_sha.clone(),
+        git_repository: config.api.server_url.clone(), // server will provide repo URL
         public_key,
-        archive_signature,
+        commit_signature,
     });
 
     let nft_path = contribution_dir.join("nft_metadata.json");
     std::fs::write(&nft_path, serde_json::to_string_pretty(&nft_meta)?)?;
 
-    // Submit contribution summary
-    let _ = server
-        .submit_contribution(&ContributionSummary {
-            username: config.identity.username.clone(),
-            contribution_id: contribution_id.to_string(),
-            conjectures_attempted,
-            conjectures_proved,
-            total_cost_usd: total_cost,
-            archive_sha256: sha256.clone(),
-            nft_metadata: nft_meta,
-            proof_status,
-        })
-        .await;
+    // Seal: send NFT metadata to server, which creates a PR
+    print!("Sealing contribution (creating PR)... ");
+    match server.seal_contribution(contribution_id, &nft_meta).await {
+        Ok(seal_resp) => {
+            println!("{}", "OK".green());
+            println!("  PR: {}", seal_resp.pr_url.cyan());
+        }
+        Err(e) => {
+            println!("{}", "FAILED".red());
+            eprintln!("{}: Could not seal on server: {}", "Warning".yellow(), e);
+        }
+    }
 
-    Ok((archive_path, sha256, nft_path))
+    Ok((archive_path, commit_sha, nft_path))
 }
 
 pub async fn run_prove(command_name: Option<&str>) -> Result<()> {
@@ -180,6 +200,11 @@ pub async fn run_prove(command_name: Option<&str>) -> Result<()> {
             );
         }
     }
+
+    // Register draft contribution
+    let _ = server
+        .create_contribution(&contribution_id, &config.identity.username, "")
+        .await;
 
     // Fetch conjectures
     let conjecture_summaries = server.fetch_conjectures().await?;
@@ -333,15 +358,18 @@ pub async fn run_prove(command_name: Option<&str>) -> Result<()> {
 
         // Submit individual result
         let _ = server
-            .submit_contribution_result(&ContributionResult {
-                conjecture_id: conjecture.id.clone(),
-                username: config.identity.username.clone(),
-                success: result.success,
-                proof_script: result.proof_script,
-                cost_usd: result.cost_usd,
-                attempts: result.attempts,
-                error_output: result.error_output,
-            })
+            .submit_contribution_result(
+                &contribution_id,
+                &ContributionResult {
+                    conjecture_id: conjecture.id.clone(),
+                    username: config.identity.username.clone(),
+                    success: result.success,
+                    proof_script: result.proof_script,
+                    cost_usd: result.cost_usd,
+                    attempts: result.attempts,
+                    error_output: result.error_output,
+                },
+            )
             .await;
     }
 
@@ -359,9 +387,9 @@ pub async fn run_prove(command_name: Option<&str>) -> Result<()> {
     let state_path = contribution_dir.join("contribution_state.json");
     std::fs::write(&state_path, serde_json::to_string_pretty(&state)?)?;
 
-    // Seal: archive, sign, NFT, submit
+    // Seal: finalize, sign commit SHA, generate NFT, create PR
     println!();
-    let (archive_path, sha256, nft_path) = seal_contribution(
+    let (archive_path, commit_sha, nft_path) = seal_contribution(
         &config,
         &contribution_id,
         &contribution_dir,
@@ -390,9 +418,9 @@ pub async fn run_prove(command_name: Option<&str>) -> Result<()> {
     println!("Cost:               ${:.4}", total_cost);
     println!("Budget remaining:   ${:.4}", tracker.remaining());
     println!();
-    println!("Archive:  {}", archive_path.display());
-    println!("SHA-256:  {}", sha256.dimmed());
-    println!("NFT meta: {}", nft_path.display());
+    println!("Archive:    {}", archive_path.display());
+    println!("Git Commit: {}", commit_sha.dimmed());
+    println!("NFT meta:   {}", nft_path.display());
 
     Ok(())
 }
@@ -435,7 +463,7 @@ pub async fn run_prove_seal(contribution_id: &str) -> Result<()> {
 
     let server = ServerClient::new(&config.api.server_url, &config.api.auth_token);
 
-    let (archive_path, sha256, nft_path) = seal_contribution(
+    let (archive_path, commit_sha, nft_path) = seal_contribution(
         &config,
         contribution_id,
         &contribution_dir,
@@ -450,9 +478,9 @@ pub async fn run_prove_seal(contribution_id: &str) -> Result<()> {
 
     println!();
     println!("{}", "=== Re-seal Complete ===".bold().cyan());
-    println!("Archive:  {}", archive_path.display());
-    println!("SHA-256:  {}", sha256.dimmed());
-    println!("NFT meta: {}", nft_path.display());
+    println!("Archive:    {}", archive_path.display());
+    println!("Git Commit: {}", commit_sha.dimmed());
+    println!("NFT meta:   {}", nft_path.display());
 
     Ok(())
 }

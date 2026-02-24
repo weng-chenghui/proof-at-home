@@ -6,27 +6,36 @@ import (
 
 	"github.com/proof-at-home/server/src/server/data"
 	"github.com/proof-at-home/server/src/server/store"
+	"github.com/proof-at-home/server/src/server/store/gitstore"
 )
 
 type ContributionHandler struct {
-	Store store.Store
+	Store    store.Store
+	GitStore *gitstore.GitStore
 }
 
-func (h *ContributionHandler) Submit(w http.ResponseWriter, r *http.Request) {
+// List returns all contributions. GET /contributions
+func (h *ContributionHandler) List(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
+	contributions := h.Store.ListContributions()
+	json.NewEncoder(w).Encode(contributions)
+}
 
-	var result data.ContributionResult
-	if err := json.NewDecoder(r.Body).Decode(&result); err != nil {
-		http.Error(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
+// Get returns a single contribution. GET /contributions/{id}
+func (h *ContributionHandler) Get(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	id := r.PathValue("id")
+	cs, ok := h.Store.GetContribution(id)
+	if !ok {
+		http.Error(w, `{"error":"not found"}`, http.StatusNotFound)
 		return
 	}
-
-	h.Store.AddContributionResult(result)
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]string{"status": "accepted"})
+	json.NewEncoder(w).Encode(cs)
 }
 
-func (h *ContributionHandler) SubmitBatch(w http.ResponseWriter, r *http.Request) {
+// Create registers a new contribution. POST /contributions
+// Writes to GitStore (creates branch, commits summary.json).
+func (h *ContributionHandler) Create(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	var summary data.ContributionSummary
@@ -35,7 +44,93 @@ func (h *ContributionHandler) SubmitBatch(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	h.Store.AddContribution(summary)
+	if err := h.GitStore.AddContribution(summary); err != nil {
+		http.Error(w, `{"error":"failed to create contribution: `+err.Error()+`"}`, http.StatusInternalServerError)
+		return
+	}
+
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]string{"status": "accepted"})
+}
+
+// Update finalizes a contribution (cost totals, proof_status).
+// PATCH /contributions/{id}
+// Returns the git commit SHA for the client to sign.
+func (h *ContributionHandler) Update(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	id := r.PathValue("id")
+
+	var summary data.ContributionSummary
+	if err := json.NewDecoder(r.Body).Decode(&summary); err != nil {
+		http.Error(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
+		return
+	}
+
+	summary.ContributionID = id
+	commitSHA, err := h.GitStore.FinalizeContribution(id, summary)
+	if err != nil {
+		http.Error(w, `{"error":"failed to finalize: `+err.Error()+`"}`, http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]string{
+		"commit_sha": commitSHA,
+		"status":     "pending",
+	})
+}
+
+// SubmitResult adds a proof result to a contribution. POST /contributions/{id}/results
+func (h *ContributionHandler) SubmitResult(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	id := r.PathValue("id")
+
+	var result data.ContributionResult
+	if err := json.NewDecoder(r.Body).Decode(&result); err != nil {
+		http.Error(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
+		return
+	}
+
+	result.ContributionID = id
+	if err := h.GitStore.AddContributionResult(result); err != nil {
+		http.Error(w, `{"error":"failed to add result: `+err.Error()+`"}`, http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(map[string]string{"status": "accepted"})
+}
+
+// ListResults returns results for a contribution. GET /contributions/{id}/results
+func (h *ContributionHandler) ListResults(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	id := r.PathValue("id")
+	results := h.Store.ListContributionResults(id)
+	if results == nil {
+		results = []data.ContributionResult{}
+	}
+	json.NewEncoder(w).Encode(results)
+}
+
+// Seal commits NFT metadata and creates a PR. POST /contributions/{id}/seal
+func (h *ContributionHandler) Seal(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	id := r.PathValue("id")
+
+	var nftMetadata any
+	if err := json.NewDecoder(r.Body).Decode(&nftMetadata); err != nil {
+		http.Error(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
+		return
+	}
+
+	prURL, err := h.GitStore.SealContribution(id, nftMetadata)
+	if err != nil {
+		http.Error(w, `{"error":"failed to seal: `+err.Error()+`"}`, http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(map[string]string{
+		"pr_url": prURL,
+		"status": "pending",
+	})
 }

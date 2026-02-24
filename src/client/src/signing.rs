@@ -22,9 +22,9 @@ pub fn load_signing_key(hex_str: &str) -> Result<SigningKey> {
     Ok(SigningKey::from_bytes(&bytes))
 }
 
-/// Sign a SHA-256 hash (given as hex string). Returns the signature as hex.
-pub fn sign_hash(key: &SigningKey, sha256_hex: &str) -> Result<String> {
-    let hash_bytes = hex::decode(sha256_hex.trim()).context("Invalid hex in SHA-256 hash")?;
+/// Sign a git commit SHA (given as hex string) with ed25519. Returns the signature as hex.
+pub fn sign_commit(key: &SigningKey, commit_sha_hex: &str) -> Result<String> {
+    let hash_bytes = hex::decode(commit_sha_hex.trim()).context("Invalid hex in commit SHA")?;
     let signature = key.sign(&hash_bytes);
     Ok(hex::encode(signature.to_bytes()))
 }

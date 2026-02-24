@@ -104,9 +104,11 @@
         async function submitForm(e) {
             e.preventDefault();
             hideMsg('msg');
+            const username = document.getElementById('username').value.trim();
+            const contributionId = crypto.randomUUID();
             const body = {
                 conjecture_id: document.getElementById('conjecture_id').value.trim(),
-                username: document.getElementById('username').value.trim(),
+                username: username,
                 success: document.getElementById('success').checked,
                 proof_script: document.getElementById('proof_script').value,
                 cost_usd: parseFloat(document.getElementById('cost_usd').value) || 0,
@@ -114,7 +116,10 @@
                 error_output: document.getElementById('error_output').value
             };
             try {
-                await api('POST', '/contributions', body);
+                // Create the parent contribution first
+                await api('POST', '/contributions', { contribution_id: contributionId, username: username });
+                // Then submit the result under it
+                await api('POST', '/contributions/' + contributionId + '/results', body);
                 showMsg('msg', 'Result submitted successfully.', false);
             } catch (e) {
                 showMsg('msg', 'Error: ' + (e.error || e.message || 'submission failed'), true);

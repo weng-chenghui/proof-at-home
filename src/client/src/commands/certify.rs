@@ -568,64 +568,11 @@ async fn cmd_seal() -> Result<()> {
     let summary_path = certification_dir.join("certification_summary.json");
     std::fs::write(&summary_path, serde_json::to_string_pretty(&summary)?)?;
 
-    // 4. Archive everything into certification_package.tar.gz
+    // 4. Archive everything into certification_package.tar.gz (for local convenience + IPFS)
     let archive_path = certification_dir.join("certification_package.tar.gz");
     create_certification_archive(&certification_dir, &archive_path)?;
 
-    // 5. Compute SHA-256
-    let archive_sha = compute_sha256(&archive_path)?;
-
-    // 5b. Sign archive hash
-    let (certifier_public_key, archive_signature) = match Config::signing_key_path()
-        .ok()
-        .filter(|p| p.exists())
-        .and_then(|p| std::fs::read_to_string(&p).ok())
-    {
-        Some(key_hex) => match signing::load_signing_key(&key_hex) {
-            Ok(key) => {
-                let sig = signing::sign_hash(&key, &archive_sha).unwrap_or_default();
-                (config.identity.public_key.clone(), sig)
-            }
-            Err(e) => {
-                eprintln!("{}: Could not load signing key: {}", "Warning".yellow(), e);
-                (String::new(), String::new())
-            }
-        },
-        None => {
-            eprintln!(
-                "{}: No signing key found. Run `proof-at-home init` to generate one.",
-                "Warning".yellow()
-            );
-            (String::new(), String::new())
-        }
-    };
-
-    // 6. Generate NFT metadata
-    let certified_contribution_ids: Vec<String> = state
-        .packages
-        .iter()
-        .map(|p| p.prover_contribution_id.clone())
-        .collect();
-
-    let nft_info = CertificateInfo {
-        certifier_username: report.certifier.username.clone(),
-        certificate_id: state.certification_id.clone(),
-        packages_certified: state.packages.len() as u32,
-        conjectures_compared,
-        top_prover: top_prover.clone(),
-        recommendation: report.summary.recommendation.clone(),
-        archive_sha256: archive_sha.clone(),
-        ai_comparison_cost_usd: ai_cost,
-        certified_contribution_ids,
-        certifier_public_key,
-        archive_signature,
-    };
-
-    let nft_metadata = generate_certificate_nft_metadata(&nft_info);
-    let nft_path = certification_dir.join("certification_nft_metadata.json");
-    std::fs::write(&nft_path, serde_json::to_string_pretty(&nft_metadata)?)?;
-
-    // 7. Submit to server
+    // 5. Submit certificate to server → get commit SHA
     let server = ServerClient::new(&config.api.server_url, &config.api.auth_token);
 
     let server_summary = crate::server_client::api::CertificateSummary {
@@ -655,16 +602,90 @@ async fn cmd_seal() -> Result<()> {
             })
             .collect(),
         recommendation: report.summary.recommendation.clone(),
-        archive_sha256: archive_sha.clone(),
-        nft_metadata: nft_metadata.clone(),
+        archive_sha256: String::new(),
+        nft_metadata: serde_json::Value::Null,
     };
 
-    match server.submit_certificate(&server_summary).await {
-        Ok(()) => println!("{} Certification submitted to server.", "✓".green()),
-        Err(e) => eprintln!("{}: Could not submit to server: {}", "Warning".yellow(), e),
+    print!("Submitting certificate to server... ");
+    let commit_sha = match server.submit_certificate(&server_summary).await {
+        Ok(resp) => {
+            println!("{} ({})", "OK".green(), &resp.commit_sha[..8]);
+            resp.commit_sha
+        }
+        Err(e) => {
+            println!("{}", "FAILED".red());
+            anyhow::bail!("Could not submit certificate to server: {}", e);
+        }
+    };
+
+    // 6. Sign the git commit SHA
+    let (certifier_public_key, commit_signature) = match Config::signing_key_path()
+        .ok()
+        .filter(|p| p.exists())
+        .and_then(|p| std::fs::read_to_string(&p).ok())
+    {
+        Some(key_hex) => match signing::load_signing_key(&key_hex) {
+            Ok(key) => {
+                let sig = signing::sign_commit(&key, &commit_sha).unwrap_or_default();
+                (config.identity.public_key.clone(), sig)
+            }
+            Err(e) => {
+                eprintln!("{}: Could not load signing key: {}", "Warning".yellow(), e);
+                (String::new(), String::new())
+            }
+        },
+        None => {
+            eprintln!(
+                "{}: No signing key found. Run `proof-at-home init` to generate one.",
+                "Warning".yellow()
+            );
+            (String::new(), String::new())
+        }
+    };
+
+    // 7. Generate NFT metadata with git commit attributes
+    let certified_contribution_ids: Vec<String> = state
+        .packages
+        .iter()
+        .map(|p| p.prover_contribution_id.clone())
+        .collect();
+
+    let nft_info = CertificateInfo {
+        certifier_username: report.certifier.username.clone(),
+        certificate_id: state.certification_id.clone(),
+        packages_certified: state.packages.len() as u32,
+        conjectures_compared,
+        top_prover: top_prover.clone(),
+        recommendation: report.summary.recommendation.clone(),
+        ai_comparison_cost_usd: ai_cost,
+        certified_contribution_ids,
+        git_commit: commit_sha.clone(),
+        git_repository: config.api.server_url.clone(),
+        certifier_public_key,
+        commit_signature,
+    };
+
+    let nft_metadata = generate_certificate_nft_metadata(&nft_info);
+    let nft_path = certification_dir.join("certification_nft_metadata.json");
+    std::fs::write(&nft_path, serde_json::to_string_pretty(&nft_metadata)?)?;
+
+    // 8. Seal: send NFT metadata to server, which creates a PR
+    print!("Sealing certificate (creating PR)... ");
+    match server
+        .seal_certificate(&state.certification_id, &nft_metadata)
+        .await
+    {
+        Ok(seal_resp) => {
+            println!("{}", "OK".green());
+            println!("  PR: {}", seal_resp.pr_url.cyan());
+        }
+        Err(e) => {
+            println!("{}", "FAILED".red());
+            eprintln!("{}: Could not seal on server: {}", "Warning".yellow(), e);
+        }
     }
 
-    // 8. Mark session as sealed
+    // 9. Mark session as sealed
     state.status = CertificationStatus::Sealed;
     save_certification_state(&certification_dir, &state)?;
 
@@ -679,7 +700,7 @@ async fn cmd_seal() -> Result<()> {
     println!("\n{}", "=== Certification Sealed ===".bold());
     println!("  Certification ID: {}", state.certification_id);
     println!("  Archive:      {}", archive_path.display());
-    println!("  SHA-256:      {}", archive_sha);
+    println!("  Git Commit:   {}", commit_sha);
     println!("  NFT metadata: {}", nft_path.display());
     println!("  Packages:     {}", state.packages.len());
     println!("  Compared:     {} conjectures", conjectures_compared);

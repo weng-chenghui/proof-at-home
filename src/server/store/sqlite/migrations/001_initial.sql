@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS conjectures (
 
 CREATE TABLE IF NOT EXISTS contribution_results (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    contribution_id TEXT NOT NULL DEFAULT '',
     conjecture_id TEXT NOT NULL,
     username     TEXT NOT NULL,
     success      INTEGER NOT NULL DEFAULT 0,
@@ -25,6 +26,7 @@ CREATE TABLE IF NOT EXISTS contribution_results (
 
 CREATE INDEX IF NOT EXISTS idx_contribution_results_conjecture_id ON contribution_results(conjecture_id);
 CREATE INDEX IF NOT EXISTS idx_contribution_results_username ON contribution_results(username);
+CREATE INDEX IF NOT EXISTS idx_contribution_results_contribution_id ON contribution_results(contribution_id);
 
 CREATE TABLE IF NOT EXISTS contributions (
     contribution_id    TEXT PRIMARY KEY,
@@ -53,3 +55,4 @@ CREATE TABLE IF NOT EXISTS certificates (
     nft_metadata       TEXT,
     created_at         TEXT NOT NULL DEFAULT (datetime('now'))
 );
+

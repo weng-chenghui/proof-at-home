@@ -153,9 +153,9 @@ func (s *SQLiteStore) AddContributionResult(r data.ContributionResult) {
 	}
 
 	_, err = tx.Exec(
-		`INSERT INTO contribution_results (conjecture_id, username, success, proof_script, cost_usd, attempts, error_output)
-		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		r.ConjectureID, r.Username, successInt, r.ProofScript, r.CostUSD, r.Attempts, r.ErrorOutput,
+		`INSERT INTO contribution_results (contribution_id, conjecture_id, username, success, proof_script, cost_usd, attempts, error_output)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		r.ContributionID, r.ConjectureID, r.Username, successInt, r.ProofScript, r.CostUSD, r.Attempts, r.ErrorOutput,
 	)
 	if err != nil {
 		slog.Error("AddContributionResult insert failed", "error", err)
@@ -207,6 +207,67 @@ func (s *SQLiteStore) AddContribution(cs data.ContributionSummary) {
 	if err != nil {
 		slog.Error("AddContribution insert failed", "error", err)
 	}
+}
+
+func (s *SQLiteStore) GetContribution(id string) (data.ContributionSummary, bool) {
+	var cs data.ContributionSummary
+	var nftJSON, conjectureIDsStr, certifiedByStr sql.NullString
+	err := s.db.QueryRow(
+		`SELECT contribution_id, username, conjectures_attempted, conjectures_proved,
+		 total_cost_usd, archive_sha256, nft_metadata, prover, conjecture_ids,
+		 archive_path, proof_status, certified_by
+		 FROM contributions WHERE contribution_id = ?`, id,
+	).Scan(&cs.ContributionID, &cs.Username, &cs.ConjecturesAttempted, &cs.ConjecturesProved,
+		&cs.TotalCostUSD, &cs.ArchiveSHA256, &nftJSON, &cs.Prover, &conjectureIDsStr,
+		&cs.ArchivePath, &cs.ProofStatus, &certifiedByStr)
+
+	if err == sql.ErrNoRows {
+		return data.ContributionSummary{}, false
+	}
+	if err != nil {
+		slog.Error("GetContribution query failed", "error", err, "id", id)
+		return data.ContributionSummary{}, false
+	}
+	if nftJSON.Valid {
+		json.Unmarshal([]byte(nftJSON.String), &cs.NFTMetadata)
+	}
+	if conjectureIDsStr.Valid {
+		json.Unmarshal([]byte(conjectureIDsStr.String), &cs.ConjectureIDs)
+	}
+	if certifiedByStr.Valid {
+		json.Unmarshal([]byte(certifiedByStr.String), &cs.CertifiedBy)
+	}
+	return cs, true
+}
+
+func (s *SQLiteStore) UpdateContribution(id string, cs data.ContributionSummary) {
+	// Use UPSERT — set contribution_id to the path id, merge fields
+	cs.ContributionID = id
+	s.AddContribution(cs)
+}
+
+func (s *SQLiteStore) ListContributionResults(contributionID string) []data.ContributionResult {
+	rows, err := s.db.Query(
+		`SELECT contribution_id, conjecture_id, username, success, proof_script, cost_usd, attempts, error_output
+		 FROM contribution_results WHERE contribution_id = ? ORDER BY id`, contributionID)
+	if err != nil {
+		slog.Error("ListContributionResults query failed", "error", err)
+		return nil
+	}
+	defer rows.Close()
+
+	var results []data.ContributionResult
+	for rows.Next() {
+		var r data.ContributionResult
+		var success int
+		if err := rows.Scan(&r.ContributionID, &r.ConjectureID, &r.Username, &success, &r.ProofScript, &r.CostUSD, &r.Attempts, &r.ErrorOutput); err != nil {
+			slog.Error("ListContributionResults scan failed", "error", err)
+			continue
+		}
+		r.Success = success != 0
+		results = append(results, r)
+	}
+	return results
 }
 
 func (s *SQLiteStore) ListCertificatePackages() []data.CertificatePackageInfo {
@@ -338,6 +399,279 @@ func (s *SQLiteStore) AddCertificate(r data.CertificateSummary) {
 	if err := tx.Commit(); err != nil {
 		slog.Error("AddCertificate commit failed", "error", err)
 	}
+}
+
+// ListContributions returns all contribution summaries.
+func (s *SQLiteStore) ListContributions() []data.ContributionSummary {
+	rows, err := s.db.Query(
+		`SELECT contribution_id, username, conjectures_attempted, conjectures_proved,
+		 total_cost_usd, archive_sha256, nft_metadata, prover, conjecture_ids,
+		 archive_path, proof_status, certified_by
+		 FROM contributions ORDER BY created_at`)
+	if err != nil {
+		slog.Error("ListContributions query failed", "error", err)
+		return nil
+	}
+	defer rows.Close()
+
+	var results []data.ContributionSummary
+	for rows.Next() {
+		var cs data.ContributionSummary
+		var nftJSON, conjectureIDsStr, certifiedByStr sql.NullString
+		if err := rows.Scan(&cs.ContributionID, &cs.Username, &cs.ConjecturesAttempted, &cs.ConjecturesProved,
+			&cs.TotalCostUSD, &cs.ArchiveSHA256, &nftJSON, &cs.Prover, &conjectureIDsStr,
+			&cs.ArchivePath, &cs.ProofStatus, &certifiedByStr); err != nil {
+			slog.Error("ListContributions scan failed", "error", err)
+			continue
+		}
+		if nftJSON.Valid {
+			json.Unmarshal([]byte(nftJSON.String), &cs.NFTMetadata)
+		}
+		if conjectureIDsStr.Valid {
+			json.Unmarshal([]byte(conjectureIDsStr.String), &cs.ConjectureIDs)
+		}
+		if certifiedByStr.Valid {
+			json.Unmarshal([]byte(certifiedByStr.String), &cs.CertifiedBy)
+		}
+		results = append(results, cs)
+	}
+	return results
+}
+
+// ListCertificates returns all certificate summaries.
+func (s *SQLiteStore) ListCertificates() []data.CertificateSummary {
+	rows, err := s.db.Query(
+		`SELECT certificate_id, certifier_username, packages_certified, conjectures_compared,
+		 package_rankings, recommendation, archive_sha256, nft_metadata
+		 FROM certificates ORDER BY created_at`)
+	if err != nil {
+		slog.Error("ListCertificates query failed", "error", err)
+		return nil
+	}
+	defer rows.Close()
+
+	var results []data.CertificateSummary
+	for rows.Next() {
+		var cs data.CertificateSummary
+		var rankingsJSON, nftJSON sql.NullString
+		if err := rows.Scan(&cs.CertificateID, &cs.CertifierUsername, &cs.PackagesCertified, &cs.ConjecturesCompared,
+			&rankingsJSON, &cs.Recommendation, &cs.ArchiveSHA256, &nftJSON); err != nil {
+			slog.Error("ListCertificates scan failed", "error", err)
+			continue
+		}
+		if rankingsJSON.Valid {
+			json.Unmarshal([]byte(rankingsJSON.String), &cs.PackageRankings)
+		}
+		if nftJSON.Valid {
+			json.Unmarshal([]byte(nftJSON.String), &cs.NFTMetadata)
+		}
+		results = append(results, cs)
+	}
+	return results
+}
+
+// RebuildFromDir rebuilds the entire SQLite cache from the git data repo directory.
+// It performs an atomic swap: DELETE all rows, then re-INSERT from the filesystem.
+func (s *SQLiteStore) RebuildFromDir(repoPath string) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin rebuild tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Clear all tables
+	tables := []string{"contribution_results", "certificates", "contributions", "conjectures"}
+	for _, table := range tables {
+		if _, err := tx.Exec("DELETE FROM " + table); err != nil {
+			return fmt.Errorf("clearing %s: %w", table, err)
+		}
+	}
+
+	// Walk conjectures/
+	conjecturesDir := filepath.Join(repoPath, "conjectures")
+	if entries, err := os.ReadDir(conjecturesDir); err == nil {
+		for _, entry := range entries {
+			if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
+				continue
+			}
+			raw, err := os.ReadFile(filepath.Join(conjecturesDir, entry.Name()))
+			if err != nil {
+				slog.Error("RebuildFromDir: failed to read conjecture", "file", entry.Name(), "error", err)
+				continue
+			}
+			var c data.Conjecture
+			if err := json.Unmarshal(raw, &c); err != nil {
+				slog.Error("RebuildFromDir: failed to parse conjecture", "file", entry.Name(), "error", err)
+				continue
+			}
+			if c.ID == "" {
+				continue
+			}
+			if c.Status == "" {
+				c.Status = "open"
+			}
+			hintsJSON, _ := json.Marshal(c.Hints)
+			var depsJSON *string
+			if c.Dependencies != nil {
+				d := string(c.Dependencies)
+				depsJSON = &d
+			}
+			_, err = tx.Exec(
+				`INSERT INTO conjectures (id, title, difficulty, prover, status, preamble, lemma_statement, hints, skeleton, dependencies)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				 ON CONFLICT (id) DO NOTHING`,
+				c.ID, c.Title, c.Difficulty, c.Prover, c.Status,
+				c.Preamble, c.LemmaStatement, string(hintsJSON), c.Skeleton, depsJSON,
+			)
+			if err != nil {
+				slog.Error("RebuildFromDir: failed to insert conjecture", "id", c.ID, "error", err)
+			}
+		}
+	}
+
+	// Walk contributions/*/summary.json + results/*.json
+	contributionsDir := filepath.Join(repoPath, "contributions")
+	if entries, err := os.ReadDir(contributionsDir); err == nil {
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				continue
+			}
+			contribID := entry.Name()
+			contribDir := filepath.Join(contributionsDir, contribID)
+
+			// Read summary.json
+			summaryPath := filepath.Join(contribDir, "summary.json")
+			if raw, err := os.ReadFile(summaryPath); err == nil {
+				var cs data.ContributionSummary
+				if err := json.Unmarshal(raw, &cs); err == nil {
+					conjectureIDsJSON, _ := json.Marshal(cs.ConjectureIDs)
+					certifiedByJSON, _ := json.Marshal(cs.CertifiedBy)
+					var nftJSON *string
+					if cs.NFTMetadata != nil {
+						b, _ := json.Marshal(cs.NFTMetadata)
+						n := string(b)
+						nftJSON = &n
+					}
+					_, err = tx.Exec(
+						`INSERT INTO contributions (contribution_id, username, conjectures_attempted, conjectures_proved, total_cost_usd,
+						 archive_sha256, nft_metadata, prover, conjecture_ids, archive_path, proof_status, certified_by)
+						 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+						 ON CONFLICT (contribution_id) DO NOTHING`,
+						cs.ContributionID, cs.Username, cs.ConjecturesAttempted, cs.ConjecturesProved,
+						cs.TotalCostUSD, cs.ArchiveSHA256, nftJSON, cs.Prover,
+						string(conjectureIDsJSON), cs.ArchivePath, cs.ProofStatus, string(certifiedByJSON),
+					)
+					if err != nil {
+						slog.Error("RebuildFromDir: failed to insert contribution", "id", contribID, "error", err)
+					}
+				}
+			}
+
+			// Read results/*.json
+			resultsDir := filepath.Join(contribDir, "results")
+			if resultEntries, err := os.ReadDir(resultsDir); err == nil {
+				for _, re := range resultEntries {
+					if re.IsDir() || filepath.Ext(re.Name()) != ".json" {
+						continue
+					}
+					raw, err := os.ReadFile(filepath.Join(resultsDir, re.Name()))
+					if err != nil {
+						continue
+					}
+					var r data.ContributionResult
+					if err := json.Unmarshal(raw, &r); err != nil {
+						continue
+					}
+					if r.ContributionID == "" {
+						r.ContributionID = contribID
+					}
+					successInt := 0
+					if r.Success {
+						successInt = 1
+					}
+					_, err = tx.Exec(
+						`INSERT INTO contribution_results (contribution_id, conjecture_id, username, success, proof_script, cost_usd, attempts, error_output)
+						 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+						r.ContributionID, r.ConjectureID, r.Username, successInt, r.ProofScript, r.CostUSD, r.Attempts, r.ErrorOutput,
+					)
+					if err != nil {
+						slog.Error("RebuildFromDir: failed to insert result", "error", err)
+					}
+
+					// Update conjecture status if proved
+					if r.Success {
+						tx.Exec(`UPDATE conjectures SET status = 'proved' WHERE id = ?`, r.ConjectureID)
+					}
+				}
+			}
+		}
+	}
+
+	// Walk certificates/*/summary.json
+	certificatesDir := filepath.Join(repoPath, "certificates")
+	if entries, err := os.ReadDir(certificatesDir); err == nil {
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				continue
+			}
+			summaryPath := filepath.Join(certificatesDir, entry.Name(), "summary.json")
+			raw, err := os.ReadFile(summaryPath)
+			if err != nil {
+				continue
+			}
+			var cs data.CertificateSummary
+			if err := json.Unmarshal(raw, &cs); err != nil {
+				continue
+			}
+			rankingsJSON, _ := json.Marshal(cs.PackageRankings)
+			var nftJSON *string
+			if cs.NFTMetadata != nil {
+				b, _ := json.Marshal(cs.NFTMetadata)
+				n := string(b)
+				nftJSON = &n
+			}
+			_, err = tx.Exec(
+				`INSERT INTO certificates (certificate_id, certifier_username, packages_certified, conjectures_compared, package_rankings, recommendation, archive_sha256, nft_metadata)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+				cs.CertificateID, cs.CertifierUsername, cs.PackagesCertified, cs.ConjecturesCompared,
+				string(rankingsJSON), cs.Recommendation, cs.ArchiveSHA256, nftJSON,
+			)
+			if err != nil {
+				slog.Error("RebuildFromDir: failed to insert certificate", "id", cs.CertificateID, "error", err)
+			}
+
+			// Update certified_by for contributions referenced in rankings
+			for _, pr := range cs.PackageRankings {
+				var currentJSON string
+				err := tx.QueryRow(`SELECT certified_by FROM contributions WHERE contribution_id = ?`, pr.ProverContributionID).Scan(&currentJSON)
+				if err != nil {
+					continue
+				}
+				var current []string
+				json.Unmarshal([]byte(currentJSON), &current)
+				found := false
+				for _, c := range current {
+					if c == cs.CertifierUsername {
+						found = true
+						break
+					}
+				}
+				if !found {
+					current = append(current, cs.CertifierUsername)
+					updatedJSON, _ := json.Marshal(current)
+					tx.Exec(`UPDATE contributions SET certified_by = ? WHERE contribution_id = ?`,
+						string(updatedJSON), pr.ProverContributionID)
+				}
+			}
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit rebuild tx: %w", err)
+	}
+
+	slog.Info("RebuildFromDir complete", "path", repoPath)
+	return nil
 }
 
 // LoadConjectures loads conjecture JSON files from a directory into the database.

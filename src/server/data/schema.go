@@ -24,13 +24,14 @@ type ConjectureSummary struct {
 }
 
 type ContributionResult struct {
-	ConjectureID string  `json:"conjecture_id"`
-	Username     string  `json:"username"`
-	Success      bool    `json:"success"`
-	ProofScript  string  `json:"proof_script"`
-	CostUSD      float64 `json:"cost_usd"`
-	Attempts     int     `json:"attempts"`
-	ErrorOutput  string  `json:"error_output"`
+	ContributionID string  `json:"contribution_id,omitempty"`
+	ConjectureID   string  `json:"conjecture_id"`
+	Username       string  `json:"username"`
+	Success        bool    `json:"success"`
+	ProofScript    string  `json:"proof_script"`
+	CostUSD        float64 `json:"cost_usd"`
+	Attempts       int     `json:"attempts"`
+	ErrorOutput    string  `json:"error_output"`
 }
 
 type ContributionSummary struct {

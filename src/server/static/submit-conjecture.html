@@ -60,7 +60,7 @@
             }
             try {
                 const buf = await input.files[0].arrayBuffer();
-                const result = await api('POST', '/conjectures/packages', buf, 'application/gzip');
+                const result = await api('POST', '/conjecture-packages', buf, 'application/gzip');
                 showMsg('msg', `Accepted: ${result.count} conjecture(s) added. IDs: ${result.added_conjecture_ids.join(', ') || 'none'}`, false);
             } catch (e) {
                 showMsg('msg', 'Error: ' + (e.error || e.message || 'upload failed'), true);
@@ -74,7 +74,7 @@
                 return;
             }
             try {
-                const result = await api('POST', '/conjectures/packages', { git_url: url });
+                const result = await api('POST', '/conjecture-packages', { git_url: url });
                 showMsg('msg', `Accepted: ${result.count} conjecture(s) added. IDs: ${result.added_conjecture_ids.join(', ') || 'none'}`, false);
             } catch (e) {
                 showMsg('msg', 'Error: ' + (e.error || e.message || 'submission failed'), true);

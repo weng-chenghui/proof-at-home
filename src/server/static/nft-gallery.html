@@ -154,6 +154,11 @@
                     if (rec) stats += `<span>${escapeHtml(rec)}</span>`;
                 }
 
+                const gitCommit = getAttr(c.nft, 'Git Commit');
+                const gitRepo = getAttr(c.nft, 'Git Repository');
+                const gitLink = gitCommit && gitRepo
+                    ? `<a href="${escapeHtml(gitRepo)}/tree/${escapeHtml(gitCommit)}" target="_blank" title="${escapeHtml(gitCommit)}">Git ${gitCommit.substring(0, 8)}</a>`
+                    : '';
                 const ipfsLink = c.published && c.ipfs_cid
                     ? `<a href="https://gateway.pinata.cloud/ipfs/${encodeURIComponent(c.ipfs_cid)}" target="_blank">View on IPFS</a>`
                     : '';
@@ -168,6 +173,7 @@
                         <div class="nft-card-footer">
                             ${statusBadge}
                             <span>${escapeHtml(c.username)}</span>
+                            ${gitLink}
                             ${ipfsLink}
                         </div>
                     </div>
@@ -186,7 +192,7 @@
             try {
                 const [contributions, certificates] = await Promise.all([
                     api('GET', '/contributions').catch(() => []),
-                    api('GET', '/certificates-list').catch(() => [])
+                    api('GET', '/certificates').catch(() => [])
                 ]);
 
                 allCards = [];
