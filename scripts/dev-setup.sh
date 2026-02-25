@@ -15,9 +15,9 @@ fi
 
 echo "=== Setting up local dev environment ==="
 
-# 1. Create bare repo
+# 1. Create bare repo with main as default branch
 mkdir -p "$DEV_DIR"
-git init --bare "$BARE_REPO"
+git init --bare --initial-branch=main "$BARE_REPO"
 echo "  Created bare repo: $BARE_REPO"
 
 # 2. Create temp working copy, populate with example data, push to bare repo
@@ -28,6 +28,8 @@ git clone "$BARE_REPO" "$TMPDIR/data"
 cp -r "$EXAMPLE_DATA"/* "$TMPDIR/data/"
 
 cd "$TMPDIR/data"
+git config user.email "dev@proof-at-home.local"
+git config user.name "Proof@Home Dev"
 git add -A
 git commit -m "Initial data: 3 conjectures, 1 contribution, 1 certificate"
 git push origin main

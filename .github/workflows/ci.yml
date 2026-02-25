@@ -84,6 +84,11 @@ jobs:
         with:
           go-version: "1.21"
 
+      - name: Configure git identity
+        run: |
+          git config --global user.email "ci@proof-at-home.local"
+          git config --global user.name "Proof@Home CI"
+
       - name: Build server
         run: go build -o target/proof-at-home-server ./src/server
 
