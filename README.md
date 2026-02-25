@@ -10,9 +10,9 @@ All data flows through **git as the source of truth**. The server writes contrib
 
 AI-generated content creates an attribution problem. When an AI writes a formal proof, even the person who prompted it faces scrutiny over whether they deserve credit — and paper reviewers may dismiss AI-generated proofs outright, assuming low quality regardless of correctness. Any result produced by AI automation is unlikely to count as a novel intellectual contribution in academia.
 
-But any contribution to mathematics is a contribution — whether or not academia admits it. Formalizing open conjectures requires **budget, computation, and time**, and these resources are real, measurable, and chronically undervalued:
+But any contribution to mathematics is a contribution. Formalizing open conjectures requires **budget, computation, and time**, and these resources are real, measurable, and chronically undervalued:
 
-| Contribution | What it costs | Why academia ignores it |
+| Contribution | What it costs | Why it's hard to credit traditionally |
 |---|---|---|
 | **Donating API budget** | Real money spent on LLM API credits to generate candidate proofs | "Just paying for a service" |
 | **Certifying others' proofs** | Hours comparing, ranking, and approving proof packages from multiple provers | "Just reviewing, not creating" |
