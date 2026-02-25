@@ -2,19 +2,19 @@
 
 **Donate unused AI budget to prove mathematical lemmas — verified, archived, and NFT-stamped.**
 
-Proof@Home turns your Anthropic API credits into formally verified mathematical proofs. A Rust CLI fetches open conjectures from a git-backed Go server, uses Claude to generate proof scripts, verifies them with Rocq or Lean, and seals the results into git commits with NFT metadata.
+Proof@Home turns your unused AI API budget into formally verified mathematical proofs. A Rust CLI fetches open conjectures from a git-backed Go server, uses an LLM to generate proof scripts, verifies them with Rocq or Lean, and seals the results into git commits with NFT metadata.
 
 All data flows through **git as the source of truth**. The server writes contributions, certificates, and conjectures to branches, creates pull requests via GitHub/GitLab, and rebuilds a read-only SQLite cache on merge. Every artifact is traceable, forkable, and auditable by design.
 
 ## Why NFTs?
 
-AI-generated content creates an attribution problem: if Claude wrote the proof, who deserves academic credit? In most scholarly contexts the answer is "not the AI" — and that conclusion usually extends to the human who prompted it. Novel intellectual contribution is the currency of academia, and running `proof-at-home prove` doesn't produce it.
+AI-generated content creates an attribution problem. When an AI writes a formal proof, even the person who prompted it faces scrutiny over whether they deserve credit — and paper reviewers may dismiss AI-generated proofs outright, assuming low quality regardless of correctness. Any result produced by AI automation is unlikely to count as a novel intellectual contribution in academia.
 
 But formalizing mathematics requires far more than novelty. It requires **budget, computation, and time** — resources that are real, measurable, and chronically undervalued:
 
 | Contribution | What it costs | Why academia ignores it |
 |---|---|---|
-| **Donating API budget** | Real money spent on Anthropic credits to generate candidate proofs | "Just paying for a service" |
+| **Donating API budget** | Real money spent on LLM API credits to generate candidate proofs | "Just paying for a service" |
 | **Certifying others' proofs** | Hours comparing, ranking, and approving proof packages from multiple provers | "Just reviewing, not creating" |
 | **Tuning machine proofs** | Iterating on AI output to make it compile — fixing import paths, tactic syntax, version mismatches | "Just engineering, not mathematics" |
 | **Learning math to ask better questions** | Studying enough to write good conjectures, understand proof strategies, and formulate hints | "Just learning, not contributing" |
@@ -45,7 +45,7 @@ NFT metadata is OpenSea-compatible JSON, generated locally and committed to the 
 
 - [Rust](https://rustup.rs/) (1.70+)
 - [Go](https://go.dev/dl/) (1.21+)
-- An [Anthropic API key](https://console.anthropic.com/)
+- An LLM API key ([Anthropic](https://console.anthropic.com/) supported first; other providers planned)
 - **Optional:** [Rocq](https://rocq-prover.org/) for Rocq proofs, [Lean 4](https://leanprover.github.io/) for Lean proofs
 
 ### 1. Build
@@ -88,7 +88,7 @@ curl http://localhost:8080/conjectures
 ./target/release/proof-at-home init
 ```
 
-Asks for your name, username, Anthropic API key, and server URL. Config is saved to `~/.proof-at-home/config.toml`.
+Asks for your name, username, API key, and server URL. Config is saved to `~/.proof-at-home/config.toml`.
 
 ### 4. Set your donation budget
 
@@ -107,7 +107,7 @@ Read and accept the legal agreement, then pick an amount ($1–$10 or custom). T
 This will:
 
 1. Fetch available conjectures from the server
-2. For each conjecture, call Claude to generate a proof (up to 5 retries with error feedback)
+2. For each conjecture, call the LLM to generate a proof (up to 5 retries with error feedback)
 3. Verify each proof with `rocq c` or `lean`
 4. Submit results to the server (written to a git branch)
 5. Stop when your budget is exhausted
@@ -136,7 +136,7 @@ proof-at-home certify import ./prover-bob-proofs.tar.gz
 # 3. See what's loaded
 proof-at-home certify list
 
-# 4. AI-compare proofs across provers (calls Claude, writes ai_comparison.json)
+# 4. AI-compare proofs across provers (calls LLM, writes ai_comparison.json)
 proof-at-home certify ai-compare
 
 # 5. Generate and fill in a certification report
@@ -291,7 +291,7 @@ proof-at-home/
 │   │   └── src/
 │   │       ├── main.rs                 # clap entry point
 │   │       ├── commands/               # Subcommands (prove, certify, seal, publish, ...)
-│   │       ├── prover/                 # Claude invocation + rocq/lean verification
+│   │       ├── prover/                 # LLM invocation + rocq/lean verification
 │   │       ├── certifier/              # AI comparison, report templates, sealing
 │   │       ├── server_client/          # HTTP client for the server API
 │   │       ├── commands_store/         # Extensible command system (load from files/git)
