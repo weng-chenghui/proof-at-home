@@ -9,6 +9,8 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 
 	"github.com/proof-at-home/server/src/server/data"
 	_ "modernc.org/sqlite"
@@ -470,6 +472,94 @@ func (s *SQLiteStore) ListCertificates() []data.CertificateSummary {
 	return results
 }
 
+// ListCommands returns all commands ordered by priority (descending), then name.
+func (s *SQLiteStore) ListCommands() []data.Command {
+	rows, err := s.db.Query(`SELECT name, kind, prover, description, priority, body FROM commands ORDER BY priority DESC, name`)
+	if err != nil {
+		slog.Error("ListCommands query failed", "error", err)
+		return nil
+	}
+	defer rows.Close()
+
+	var commands []data.Command
+	for rows.Next() {
+		var c data.Command
+		if err := rows.Scan(&c.Name, &c.Kind, &c.Prover, &c.Description, &c.Priority, &c.Body); err != nil {
+			slog.Error("ListCommands scan failed", "error", err)
+			continue
+		}
+		commands = append(commands, c)
+	}
+	return commands
+}
+
+// GetCommand returns a command by name.
+func (s *SQLiteStore) GetCommand(name string) (data.Command, bool) {
+	var c data.Command
+	err := s.db.QueryRow(
+		`SELECT name, kind, prover, description, priority, body FROM commands WHERE name = ?`, name,
+	).Scan(&c.Name, &c.Kind, &c.Prover, &c.Description, &c.Priority, &c.Body)
+
+	if err == sql.ErrNoRows {
+		return data.Command{}, false
+	}
+	if err != nil {
+		slog.Error("GetCommand query failed", "error", err, "name", name)
+		return data.Command{}, false
+	}
+	return c, true
+}
+
+// parseCommandFile parses a .md command file with TOML frontmatter (between +++ delimiters).
+func parseCommandFile(raw []byte) (data.Command, error) {
+	content := string(raw)
+	if !strings.HasPrefix(content, "+++\n") {
+		return data.Command{}, fmt.Errorf("missing +++ frontmatter delimiter")
+	}
+	rest := content[4:] // skip opening +++\n
+	endIdx := strings.Index(rest, "\n+++\n")
+	if endIdx < 0 {
+		return data.Command{}, fmt.Errorf("missing closing +++ frontmatter delimiter")
+	}
+	frontmatter := rest[:endIdx]
+	body := strings.TrimLeft(rest[endIdx+4:], "\n") // skip \n+++\n
+
+	var cmd data.Command
+	cmd.Body = body
+
+	// Parse simple TOML key = "value" pairs
+	for _, line := range strings.Split(frontmatter, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		key := strings.TrimSpace(parts[0])
+		val := strings.TrimSpace(parts[1])
+		// Remove quotes
+		val = strings.Trim(val, "\"")
+
+		switch key {
+		case "name":
+			cmd.Name = val
+		case "kind":
+			cmd.Kind = val
+		case "prover":
+			cmd.Prover = val
+		case "description":
+			cmd.Description = val
+		case "priority":
+			if n, err := strconv.Atoi(val); err == nil {
+				cmd.Priority = n
+			}
+		}
+	}
+	return cmd, nil
+}
+
 // RebuildFromDir rebuilds the entire SQLite cache from the git data repo directory.
 // It performs an atomic swap: DELETE all rows, then re-INSERT from the filesystem.
 func (s *SQLiteStore) RebuildFromDir(repoPath string) error {
@@ -480,7 +570,7 @@ func (s *SQLiteStore) RebuildFromDir(repoPath string) error {
 	defer tx.Rollback()
 
 	// Clear all tables
-	tables := []string{"contribution_results", "certificates", "contributions", "conjectures"}
+	tables := []string{"contribution_results", "certificates", "contributions", "conjectures", "commands"}
 	for _, table := range tables {
 		if _, err := tx.Exec("DELETE FROM " + table); err != nil {
 			return fmt.Errorf("clearing %s: %w", table, err)
@@ -662,6 +752,38 @@ func (s *SQLiteStore) RebuildFromDir(repoPath string) error {
 					tx.Exec(`UPDATE contributions SET certified_by = ? WHERE contribution_id = ?`,
 						string(updatedJSON), pr.ContributorContributionID)
 				}
+			}
+		}
+	}
+
+	// Walk commands/*.md
+	commandsDir := filepath.Join(repoPath, "commands")
+	if entries, err := os.ReadDir(commandsDir); err == nil {
+		for _, entry := range entries {
+			if entry.IsDir() || filepath.Ext(entry.Name()) != ".md" {
+				continue
+			}
+			raw, err := os.ReadFile(filepath.Join(commandsDir, entry.Name()))
+			if err != nil {
+				slog.Error("RebuildFromDir: failed to read command", "file", entry.Name(), "error", err)
+				continue
+			}
+			cmd, err := parseCommandFile(raw)
+			if err != nil {
+				slog.Error("RebuildFromDir: failed to parse command", "file", entry.Name(), "error", err)
+				continue
+			}
+			if cmd.Name == "" {
+				cmd.Name = strings.TrimSuffix(entry.Name(), ".md")
+			}
+			_, err = tx.Exec(
+				`INSERT INTO commands (name, kind, prover, description, priority, body)
+				 VALUES (?, ?, ?, ?, ?, ?)
+				 ON CONFLICT (name) DO NOTHING`,
+				cmd.Name, cmd.Kind, cmd.Prover, cmd.Description, cmd.Priority, cmd.Body,
+			)
+			if err != nil {
+				slog.Error("RebuildFromDir: failed to insert command", "name", cmd.Name, "error", err)
 			}
 		}
 	}

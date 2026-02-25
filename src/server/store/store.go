@@ -12,5 +12,7 @@ type Store interface {
 	ListContributionResults(contributionID string) []data.ContributionResult
 	ListCertificatePackages() []data.CertificatePackageInfo
 	ListCertificates() []data.CertificateSummary
+	ListCommands() []data.Command
+	GetCommand(name string) (data.Command, bool)
 	RebuildFromDir(repoPath string) error
 }

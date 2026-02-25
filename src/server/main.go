@@ -88,6 +88,7 @@ func main() {
 	contributionHandler := &handlers.ContributionHandler{Store: lite, GitStore: gs}
 	certificateHandler := &handlers.CertificateHandler{Store: lite, GitStore: gs}
 	packageHandler := &handlers.PackageHandler{GitStore: gs}
+	commandHandler := &handlers.CommandHandler{Store: lite}
 	webhookHandler := &handlers.WebhookHandler{
 		GitStore:  gs,
 		RebuildFn: lite.RebuildFromDir,
@@ -116,6 +117,8 @@ func main() {
 	r.Get("/contributions/{id}", contributionHandler.Get)
 	r.Get("/contributions/{id}/results", contributionHandler.ListResults)
 	r.Get("/certificates", certificateHandler.ListCertificates)
+	r.Get("/commands", commandHandler.List)
+	r.Get("/commands/{name}", commandHandler.Get)
 	r.Get("/certificate-packages", certificateHandler.List)
 	r.Get("/certificate-packages/{contributionID}/archive", certificateHandler.DownloadArchive)
 

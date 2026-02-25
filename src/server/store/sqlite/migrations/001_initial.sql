@@ -56,3 +56,12 @@ CREATE TABLE IF NOT EXISTS certificates (
     created_at         TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS commands (
+    name        TEXT PRIMARY KEY,
+    kind        TEXT NOT NULL DEFAULT 'prove',
+    prover      TEXT NOT NULL DEFAULT '',
+    description TEXT NOT NULL DEFAULT '',
+    priority    INTEGER NOT NULL DEFAULT 0,
+    body        TEXT NOT NULL DEFAULT ''
+);
+

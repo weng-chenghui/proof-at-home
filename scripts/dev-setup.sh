@@ -31,7 +31,7 @@ cd "$TMPDIR/data"
 git config user.email "dev@proof-at-home.local"
 git config user.name "Proof@Home Dev"
 git add -A
-git commit -m "Initial data: 3 conjectures, 1 contribution, 1 certificate"
+git commit -m "Initial data: 3 conjectures, 1 contribution, 1 certificate, 4 commands"
 git push origin main
 
 echo "  Populated bare repo with example data"

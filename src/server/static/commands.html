@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Commands — proof-at-home</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/shared.css">
+</head>
+<body>
+    <nav id="navbar"></nav>
+    <div class="container">
+        <h1>Commands</h1>
+
+        <div class="filter-bar">
+            <select id="filterKind">
+                <option value="">All kinds</option>
+            </select>
+            <select id="filterProver">
+                <option value="">All provers</option>
+            </select>
+        </div>
+
+        <div id="msg" class="msg" style="display:none"></div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Kind</th>
+                    <th>Prover</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+        </table>
+    </div>
+    <script src="/shared.js"></script>
+    <script>
+        let allCommands = [];
+
+        async function load() {
+            try {
+                allCommands = await api('GET', '/commands');
+                populateFilters();
+                render();
+            } catch (e) {
+                showMsg('msg', 'Failed to load commands: ' + (e.error || e.message || 'unknown error'), true);
+            }
+        }
+
+        function populateFilters() {
+            const kindSel = document.getElementById('filterKind');
+            const kinds = [...new Set(allCommands.map(c => c.kind).filter(Boolean))].sort();
+            kinds.forEach(k => {
+                const opt = document.createElement('option');
+                opt.value = k;
+                opt.textContent = k;
+                kindSel.appendChild(opt);
+            });
+
+            const proverSel = document.getElementById('filterProver');
+            const provers = [...new Set(allCommands.map(c => c.prover).filter(Boolean))].sort();
+            provers.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p;
+                opt.textContent = p;
+                proverSel.appendChild(opt);
+            });
+        }
+
+        function render() {
+            const kind = document.getElementById('filterKind').value;
+            const prover = document.getElementById('filterProver').value;
+            const filtered = allCommands.filter(c =>
+                (!kind || c.kind === kind) &&
+                (!prover || c.prover === prover)
+            );
+            const tbody = document.getElementById('tbody');
+            tbody.innerHTML = filtered.map(c => `
+                <tr>
+                    <td><a href="/command.html?name=${encodeURIComponent(c.name)}">${escapeHtml(c.name)}</a></td>
+                    <td>${escapeHtml(c.kind)}</td>
+                    <td>${escapeHtml(c.prover)}</td>
+                    <td>${escapeHtml(c.description)}</td>
+                </tr>
+            `).join('');
+        }
+
+        document.getElementById('filterKind').addEventListener('change', render);
+        document.getElementById('filterProver').addEventListener('change', render);
+        document.addEventListener('DOMContentLoaded', load);
+    </script>
+</body>
+</html>

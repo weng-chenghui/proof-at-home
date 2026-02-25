@@ -53,6 +53,17 @@ type ContributionSummary struct {
 	CertifiedBy          []string    `json:"certified_by,omitempty"`
 }
 
+// ── Command types ──
+
+type Command struct {
+	Name        string `json:"name"`
+	Kind        string `json:"kind"`
+	Prover      string `json:"prover"`
+	Description string `json:"description"`
+	Priority    int    `json:"priority"`
+	Body        string `json:"body"`
+}
+
 // ── Certificate types ──
 
 type CertificatePackageInfo struct {
