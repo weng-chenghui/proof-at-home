@@ -2,7 +2,42 @@
 
 **Donate unused AI budget to prove mathematical lemmas — verified, archived, and NFT-stamped.**
 
-Proof@Home is a CLI tool that turns your Anthropic API credits into formally verified mathematical proofs. It fetches open conjectures from a server, uses Claude to generate proof scripts, verifies them with Rocq or Lean, and archives the results with SHA-256 hashes in NFT-compatible metadata.
+Proof@Home turns your Anthropic API credits into formally verified mathematical proofs. A Rust CLI fetches open conjectures from a git-backed Go server, uses Claude to generate proof scripts, verifies them with Rocq or Lean, and seals the results into git commits with NFT metadata.
+
+All data flows through **git as the source of truth**. The server writes contributions, certificates, and conjectures to branches, creates pull requests via GitHub/GitLab, and rebuilds a read-only SQLite cache on merge. Every artifact is traceable, forkable, and auditable by design.
+
+## Why NFTs?
+
+AI-generated content creates an attribution problem: if Claude wrote the proof, who deserves academic credit? In most scholarly contexts the answer is "not the AI" — and that conclusion usually extends to the human who prompted it. Novel intellectual contribution is the currency of academia, and running `proof-at-home prove` doesn't produce it.
+
+But formalizing mathematics requires far more than novelty. It requires **budget, computation, and time** — resources that are real, measurable, and chronically undervalued:
+
+| Contribution | What it costs | Why academia ignores it |
+|---|---|---|
+| **Donating API budget** | Real money spent on Anthropic credits to generate candidate proofs | "Just paying for a service" |
+| **Certifying others' proofs** | Hours comparing, ranking, and approving proof packages from multiple provers | "Just reviewing, not creating" |
+| **Tuning machine proofs** | Iterating on AI output to make it compile — fixing import paths, tactic syntax, version mismatches | "Just engineering, not mathematics" |
+| **Learning math to ask better questions** | Studying enough to write good conjectures, understand proof strategies, and formulate hints | "Just learning, not contributing" |
+| **Porting between provers** | Translating a Rocq proof to Lean 4 or vice versa — requires deep knowledge of both systems | "Just translation, not original work" |
+
+None of these produce a novel theorem. All of them are necessary to grow the corpus of formally verified mathematics. The NFT is the credit mechanism for this work:
+
+- **Digital patronage** — like a donor's name on a university building, the NFT records "this theorem was formalized because of my financial and computational support."
+- **Curation credit** — certifiers invest human judgment to compare, rank, and approve AI-generated proofs. The certification NFT records that editorial work.
+- **Provenance, not ownership** — the proofs themselves are public domain (CC0). The NFT captures *who funded and verified* the work, not who "owns" it.
+
+This makes Proof@Home a form of **Retroactive Public Goods Funding** for mathematics: contributors spend real money, real compute, and real time to produce freely available formalizations, and the NFT is the permanent receipt of that contribution.
+
+### NFT metadata
+
+Two types of NFTs are generated:
+
+| Role | Key attributes |
+|---|---|
+| **Prover** | Username, Problems Proved/Attempted, Cost Donated (USD), Proof Assistant, Archive SHA-256, Proof Status |
+| **Certifier** | Reviewer, Packages Reviewed, Problems Compared, Top Prover, Recommendation, Archive SHA-256, AI Comparison Cost (USD) |
+
+NFT metadata is OpenSea-compatible JSON, generated locally and committed to the data repository when a contribution or certificate is sealed.
 
 ## Quick Start
 
@@ -16,52 +51,52 @@ Proof@Home is a CLI tool that turns your Anthropic API credits into formally ver
 ### 1. Build
 
 ```bash
-cd proof-at-home
-
 # Build the CLI
 cargo build --release
 
-# Verify the Go server compiles
-go build ./src/server/...
+# Build the Go server
+go build -o pah-server ./src/server/...
 ```
 
 The CLI binary is at `target/release/proof-at-home`.
 
-### 2. Set up
+### 2. Set up the local dev environment
 
 ```bash
-# Interactive setup wizard
-./target/release/proof-at-home init
-```
+# Initialize a local git data repo with example data
+./scripts/dev-setup.sh
 
-This asks for your name, username, Anthropic API key, and the server URL. Config is saved to `~/.proof-at-home/config.toml`.
-
-### 3. Set your donation budget
-
-```bash
-./target/release/proof-at-home donate
-```
-
-Read and accept the legal agreement, then pick an amount ($1–$10 or custom). This is the maximum API cost the tool will spend in a contribution run.
-
-### 4. Start the conjecture server
-
-In a separate terminal:
-
-```bash
+# Start the server (LocalForge auto-merges branches, no GitHub required)
 ./scripts/dev-server.sh
-# or: CONJECTURES_DIR=conjectures go run ./src/server/...
 ```
 
-Verify it's running:
+This creates a bare git repo at `.dev/data-repo.git` populated with sample conjectures and contributions.
+
+Verify:
 
 ```bash
 curl http://localhost:8080/health
 # {"status":"ok"}
 
 curl http://localhost:8080/conjectures
-# [{"id":"prob_001","title":"Natural number addition is commutative", ...}, ...]
+# [{"id":"prob_001","title":"Natural number addition is commutative", ...}]
 ```
+
+### 3. Configure the CLI
+
+```bash
+./target/release/proof-at-home init
+```
+
+Asks for your name, username, Anthropic API key, and server URL. Config is saved to `~/.proof-at-home/config.toml`.
+
+### 4. Set your donation budget
+
+```bash
+./target/release/proof-at-home donate
+```
+
+Read and accept the legal agreement, then pick an amount ($1–$10 or custom). This caps the API cost per contribution run.
 
 ### 5. Run a proof contribution
 
@@ -71,13 +106,12 @@ curl http://localhost:8080/conjectures
 
 This will:
 
-1. Connect to the server and fetch available conjectures
+1. Fetch available conjectures from the server
 2. For each conjecture, call Claude to generate a proof (up to 5 retries with error feedback)
 3. Verify each proof with `rocq c` or `lean`
-4. Submit results to the server
+4. Submit results to the server (written to a git branch)
 5. Stop when your budget is exhausted
-6. Archive all proofs to `~/.proof-at-home/contributions/<contribution-id>/proofs.tar.gz`
-7. Generate NFT-compatible metadata with the archive's SHA-256 hash
+6. Seal the contribution — archive, SHA-256 hash, Ed25519 signature, NFT metadata, and a pull request on the data repository
 
 ### 6. Check your stats
 
@@ -87,7 +121,7 @@ This will:
 
 ## Certifying Proofs
 
-Certifiers evaluate and compare proof packages submitted by different provers. The `certify` subcommand tree provides AI-assisted comparison, template-based reporting, and NFT-compatible sealing.
+Certifiers evaluate and compare proof packages submitted by different provers. The `certify` subcommand provides AI-assisted comparison, template-based reporting, and NFT-sealed certification.
 
 ### Workflow
 
@@ -110,26 +144,8 @@ proof-at-home certify report                  # default template
 proof-at-home certify report --template minimal
 proof-at-home certify report --template detailed
 
-# 6. Seal the certification (archive + NFT metadata + server submission)
+# 6. Seal the certification (archive + NFT metadata + PR on data repo)
 proof-at-home certify seal
-```
-
-### Certification directory
-
-Each certification lives under `~/.proof-at-home/certifications/<certification-uuid>/`:
-
-```
-├── packages/
-│   ├── <prover-contribution-uuid-1>/  # Extracted proof files
-│   │   ├── proofs.tar.gz              # Original archive
-│   │   └── *.v / *.lean              # Proof scripts
-│   └── <prover-contribution-uuid-2>/
-├── ai_comparison.json               # AI comparison output (per-conjecture + rollup)
-├── certification_report.toml               # Human-written certification report
-├── certification_summary.json              # Machine-readable summary
-├── certification_package.tar.gz            # Sealed archive
-├── certification_nft_metadata.json         # NFT metadata for certifier credit
-└── certification_audit.jsonl               # Audit log of AI comparison calls
 ```
 
 ### AI comparison scoring
@@ -156,53 +172,78 @@ Three template variants are available via `--template`:
 
 ### Sealing
 
-`certify seal` validates the report, archives everything into `certification_package.tar.gz`, computes SHA-256, generates NFT metadata crediting the certifier, and submits the summary to the server.
+`certify seal` validates the report, archives everything, computes SHA-256, generates NFT metadata crediting the certifier, and creates a pull request on the data repository.
 
-### Certification demo with example provers
+## How It Works
 
-The `examples/review-demo/` directory contains dummy proved proofs from three provers (alice, bob, carol) for `prob_001` and `prob_002`, each using a different proof style:
-
-| Prover | Style | prob_001 (add_comm) | prob_002 (le_antisym) |
-|---|---|---|---|
-| **alice** | Manual induction | Step-by-step induction with rewrites | Structural induction on both hypotheses |
-| **bob** | Automation | One-liner via `lia` | One-liner via `lia` |
-| **carol** | Library reuse | `exact Nat.add_comm` | Helper lemma + `Nat.le_antisymm` |
-
-To run the full certification demo:
-
-```bash
-# 1. Generate proof archives and seed contribution data
-./scripts/seed-review-demo.sh
-
-# 2. Start the server with seed data
-SEED_CERTIFICATIONS=examples/review-demo/seed \
-  CONJECTURES_DIR=conjectures \
-  go run ./src/server/...
-
-# 3. Verify packages are available
-curl http://localhost:8080/certificate-packages | python3 -m json.tool
-
-# 4. Run the certifier workflow
-proof-at-home certify start        # select alice, bob, carol
-proof-at-home certify list
-proof-at-home certify ai-compare   # AI scores all proofs
-proof-at-home certify report       # fill in the TOML template
-proof-at-home certify seal         # archive + NFT metadata
+```
+┌──────────────┐                          ┌──────────────┐
+│  CLI client   │  REST API               │  Go server    │
+│  (Rust)       │ ──────────────────────▶ │  (chi router) │
+│               │ ◀────────────────────── │               │
+└──────┬───────┘                          └──────┬───────┘
+       │                                         │
+       │  For each conjecture:                   │ Writes to git branches,
+       ▼                                         │ creates PRs via forge
+┌──────────────┐  prompt   ┌──────────┐          ▼
+│ Anthropic API │ ───────▶ │  Claude   │  ┌─────────────────┐
+│               │ ◀─────── │          │  │  Git data repo   │
+└──────┬───────┘  proof    └──────────┘  │  (source of truth)│
+       │                                  │  ├── conjectures/ │
+       ▼                                  │  ├── contributions/│
+┌──────────────┐                          │  └── certificates/ │
+│  rocq c/lean │  verify                  └────────┬────────┘
+└──────┬───────┘                                   │
+       │                                  webhook (push to main)
+       ▼                                           │
+┌──────────────┐                          ┌────────▼────────┐
+│  Seal:       │                          │  SQLite cache    │
+│  tar.gz +    │                          │  (read-only,     │
+│  SHA-256 +   │                          │   rebuilt on merge)│
+│  Ed25519 +   │                          └─────────────────┘
+│  NFT metadata│
+└──────────────┘
 ```
 
-You can also import archives manually without the server:
+### Data flow
 
-```bash
-proof-at-home certify start
-proof-at-home certify import examples/review-demo/alice-proofs.tar.gz
-proof-at-home certify import examples/review-demo/bob-proofs.tar.gz
-proof-at-home certify import examples/review-demo/carol-proofs.tar.gz
-proof-at-home certify ai-compare
-```
+1. **CLI** generates proofs and submits them via the REST API.
+2. **Server** writes JSON and proof files to a **git branch** (e.g., `contrib/<uuid>`).
+3. On seal, the server **pushes** the branch and creates a **pull request** via the forge API (GitHub, GitLab, or auto-merge for local dev).
+4. When the PR merges to `main`, a **webhook** notifies the server, which pulls the latest `main` and **rebuilds** the SQLite cache.
+5. All reads hit the **SQLite cache** for fast responses; all writes go through **git**.
+
+### Forge backends
+
+| Backend | Use case | PR behavior |
+|---|---|---|
+| **GitHub** | Production | Creates GitHub pull requests |
+| **GitLab** | Production | Creates GitLab merge requests |
+| **Local** | Development | Auto-merges branches into main |
+
+## Server API
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/health` | Health check |
+| `GET` | `/conjectures` | List conjectures (summary) |
+| `GET` | `/conjectures/{id}` | Full conjecture details |
+| `GET` | `/contributions` | List contributions |
+| `GET` | `/contributions/{id}` | Get contribution details |
+| `GET` | `/contributions/{id}/results` | List results for a contribution |
+| `POST` | `/contributions` | Create a new contribution |
+| `POST` | `/contributions/{id}/results` | Submit a proof result |
+| `PATCH` | `/contributions/{id}` | Finalize a contribution |
+| `POST` | `/contributions/{id}/seal` | Seal contribution (archive + NFT + PR) |
+| `GET` | `/certificates` | List certificates |
+| `GET` | `/certificate-packages` | List proof packages available for certification |
+| `GET` | `/certificate-packages/{id}/archive` | Download a prover's archive |
+| `POST` | `/certificates` | Submit a certificate |
+| `POST` | `/certificates/{id}/seal` | Seal certificate (archive + NFT + PR) |
+| `POST` | `/conjecture-packages` | Submit conjecture package (tar.gz or git URL) |
+| `POST` | `/webhooks/git` | Git webhook (signature-verified) |
 
 ## Sample Conjectures
-
-The `conjectures/` directory includes three starter conjectures:
 
 | ID | Title | Prover | Difficulty |
 |---|---|---|---|
@@ -210,7 +251,7 @@ The `conjectures/` directory includes three starter conjectures:
 | `prob_002` | ≤ antisymmetry on naturals | Rocq | Medium |
 | `prob_003` | List.reverse is involutive | Lean 4 | Medium |
 
-Add your own by dropping JSON files into `conjectures/` — the server loads them at startup. You can also submit conjectures at runtime using the CLI:
+Add your own by dropping JSON files into the data repository's `conjectures/` directory, or submit them at runtime:
 
 ```bash
 # Submit a directory of conjecture JSON files
@@ -239,89 +280,62 @@ proof-at-home submit-package https://github.com/example/conjectures.git
 }
 ```
 
-## How It Works
-
-```
-┌─────────────┐   GET /conjectures    ┌─────────────┐
-│             │ ───────────────────▶  │             │
-│  CLI client │                       │  Go server  │
-│  (Rust)     │  POST /results        │  (in-memory)│
-│             │ ◀───────────────────  │             │
-└──────┬──────┘                       └─────────────┘
-       │
-       │  For each conjecture:
-       │
-       ▼
-┌──────────────┐    prompt    ┌──────────────┐
-│ Claude CLI / │ ──────────▶ │   Claude AI   │
-│ Anthropic API│ ◀────────── │              │
-└──────┬───────┘   proof     └──────────────┘
-       │
-       ▼
-┌──────────────┐
-│  rocq c/lean │  ← verify proof compiles
-└──────┬───────┘
-       │
-       ▼
-┌──────────────┐
-│  tar.gz +    │  ← archive + SHA-256 + NFT metadata
-│  SHA-256     │
-└──────────────┘
-```
-
-## Server API
-
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/health` | Health check |
-| `GET` | `/conjectures` | List all conjectures (summary) |
-| `GET` | `/conjectures/{id}` | Full conjecture details |
-| `POST` | `/results` | Submit one proof result |
-| `POST` | `/results/batch` | Submit contribution summary with archive hash |
-| `GET` | `/certificate-packages` | List available proof packages for certification |
-| `GET` | `/certificate-packages/{id}/archive` | Download a prover's archive |
-| `POST` | `/conjectures/packages` | Submit conjecture package (tar.gz body or JSON git URL) |
-| `POST` | `/certificates` | Submit certificate summary |
-
 ## Project Structure
 
 ```
 proof-at-home/
-├── Cargo.toml                      # Rust workspace
-├── go.mod                          # Go module
+├── Cargo.toml                          # Rust workspace
+├── go.mod                              # Go module (chi, sqlite, jwt)
 ├── src/
-│   ├── client/                     # Rust CLI
+│   ├── client/                         # Rust CLI
 │   │   └── src/
-│   │       ├── main.rs             # clap entry point (init/donate/prove/status/certify/submit-package)
-│   │       ├── commands/           # CLI subcommands (including certify)
-│   │       ├── prover/             # Claude invocation + coqc/lean verification
-│   │       ├── certifier/          # AI comparison, report templates, certification types
-│   │       ├── server_client/      # HTTP client for the conjecture server
-│   │       ├── budget/             # Cost tracking and budget enforcement
-│   │       ├── archive/            # tar.gz + SHA-256
-│   │       ├── config/             # TOML config (~/.proof-at-home/config.toml)
-│   │       └── nft/                # OpenSea-compatible metadata generation
-│   └── server/                     # Go HTTP server (stdlib only)
-│       ├── main.go
-│       ├── handlers/               # Route handlers (conjectures, contributions, certificates)
-│       ├── store/                  # In-memory store
-│       └── data/                   # Structs
-├── .claude/commands/               # Parameterized prove-lemma strategies
-├── conjectures/                    # Conjecture JSON files
+│   │       ├── main.rs                 # clap entry point
+│   │       ├── commands/               # Subcommands (prove, certify, seal, publish, ...)
+│   │       ├── prover/                 # Claude invocation + rocq/lean verification
+│   │       ├── certifier/              # AI comparison, report templates, sealing
+│   │       ├── server_client/          # HTTP client for the server API
+│   │       ├── commands_store/         # Extensible command system (load from files/git)
+│   │       ├── budget/                 # Cost tracking and budget enforcement
+│   │       ├── archive/                # tar.gz + SHA-256
+│   │       ├── config/                 # TOML config (~/.proof-at-home/config.toml)
+│   │       ├── nft/                    # OpenSea-compatible NFT metadata generation
+│   │       └── signing.rs              # Ed25519 signatures for git commits
+│   └── server/                         # Go HTTP server
+│       ├── main.go                     # Entry point (chi router, forge init, SQLite)
+│       ├── config/                     # Environment-based configuration
+│       ├── handlers/                   # Route handlers (contributions, certificates, webhooks)
+│       ├── store/
+│       │   └── gitstore/               # Git-backed source of truth
+│       │       ├── gitstore.go         # Branch/commit/push operations
+│       │       ├── forge.go            # ForgeClient interface (CreatePR, webhooks)
+│       │       ├── github.go           # GitHub forge implementation
+│       │       ├── gitlab.go           # GitLab forge implementation
+│       │       └── local.go            # LocalForge (auto-merge for dev)
+│       ├── sqlite/                     # Read-only SQLite cache (rebuilt from git)
+│       ├── middleware/                  # JWT auth (optional)
+│       ├── data/                       # Shared data types
+│       ├── logging/                    # Structured logging (slog)
+│       └── static/                     # Embedded web UI
 ├── examples/
-│   └── review-demo/                # Demo proofs from alice/bob/carol
-│       ├── alice/                  # Manual induction style
-│       ├── bob/                    # Automation (lia) style
-│       ├── carol/                  # Library reuse style
-│       └── seed/                   # Seed contribution JSON for the server
-└── scripts/
-    ├── dev-server.sh               # Start the Go server
-    └── seed-review-demo.sh         # Package demo proofs + generate seed data
+│   ├── data-repo/                      # Example git data repo structure
+│   │   ├── conjectures/                # Sample conjecture JSON
+│   │   ├── contributions/              # Sample contribution with proofs and results
+│   │   └── certificates/               # Sample certificate
+│   ├── commands/                       # Example prover/certifier command files
+│   └── review-demo/                    # Demo proofs from alice/bob/carol
+├── tests/
+│   └── integration/                    # Integration tests for the git-backed API
+├── scripts/
+│   ├── dev-setup.sh                    # Initialize local git data repo
+│   ├── dev-server.sh                   # Start server with LocalForge
+│   └── seed-review-demo.sh             # Seed demo certification data
+├── .github/workflows/ci.yml            # CI: Rust + Go + integration tests
+└── conjectures/                        # Starter conjecture files
 ```
 
 ## Configuration
 
-Config lives at `~/.proof-at-home/config.toml`:
+### CLI config (`~/.proof-at-home/config.toml`)
 
 ```toml
 [identity]
@@ -349,6 +363,20 @@ donated_usd = 5.0
 run_spent = 0.0
 total_spent = 0.0
 ```
+
+### Server environment variables
+
+| Variable | Description | Default |
+|---|---|---|
+| `PORT` | Listen port | `8080` |
+| `DATABASE_PATH` | SQLite cache file | `:memory:` |
+| `GIT_DATA_REPO_URL` | URL/path of the bare data repo | — |
+| `GIT_DATA_REPO_PATH` | Local clone path | — |
+| `GIT_FORGE_TYPE` | `github`, `gitlab`, or `local` | — |
+| `GIT_FORGE_TOKEN` | API token for GitHub/GitLab | — |
+| `GIT_FORGE_PROJECT` | `owner/repo` or GitLab project ID | — |
+| `AUTH_ENABLED` | Enable JWT authentication | `false` |
+| `CORS_ORIGINS` | Allowed CORS origins | `*` |
 
 ## License
 
