@@ -50,8 +50,8 @@
             <template x-for="(row, idx) in rankings" :key="idx">
                 <div style="display:flex;gap:0.75rem;align-items:end;margin-bottom:0.75rem;flex-wrap:wrap;">
                     <div class="form-group" style="flex:2;margin-bottom:0">
-                        <label>Prover Contribution ID</label>
-                        <input type="text" x-model="row.prover_contribution_id" readonly>
+                        <label>Contributor Contribution ID</label>
+                        <input type="text" x-model="row.contributor_contribution_id" readonly>
                     </div>
                     <div class="form-group" style="flex:1;margin-bottom:0">
                         <label>Rank</label>
@@ -64,7 +64,7 @@
                     <button type="button" class="btn-danger btn-sm" @click="removeRanking(idx)" style="margin-bottom:0.05rem">Remove</button>
                 </div>
             </template>
-            <button type="button" class="btn-secondary btn-sm mb-1" @click="rankings.push({prover_contribution_id:'',rank:rankings.length+1,overall_score:0})">+ Add Ranking Manually</button>
+            <button type="button" class="btn-secondary btn-sm mb-1" @click="rankings.push({contributor_contribution_id:'',rank:rankings.length+1,overall_score:0})">+ Add Ranking Manually</button>
 
             <div class="mt-1">
                 <button type="submit">Submit Certificate</button>
@@ -86,10 +86,10 @@
                 }
                 picker.innerHTML = packagesCache.map((p, i) => `
                     <label class="package-card" onclick="togglePackage(this, ${i})">
-                        <input type="checkbox" data-contribution-id="${escapeHtml(p.prover_contribution_id)}" onchange="onPackageSelectionChange()">
+                        <input type="checkbox" data-contribution-id="${escapeHtml(p.contributor_contribution_id)}" onchange="onPackageSelectionChange()">
                         <div class="package-card-info">
-                            <strong>${escapeHtml(p.prover_username || 'Unknown')}</strong>
-                            <span>Contribution: ${escapeHtml(p.prover_contribution_id)}</span>
+                            <strong>${escapeHtml(p.contributor_username || 'Unknown')}</strong>
+                            <span>Contribution: ${escapeHtml(p.contributor_contribution_id)}</span>
                             <span>${escapeHtml(p.prover || '—')}</span>
                             <span>${(p.conjecture_ids || []).length} conjectures</span>
                             <span>${escapeHtml(p.proof_status || 'pending')}</span>
@@ -123,10 +123,10 @@
 
                 // Rebuild rankings from selected packages, preserving existing rank/score
                 const existingMap = {};
-                data.rankings.forEach(r => { existingMap[r.prover_contribution_id] = r; });
+                data.rankings.forEach(r => { existingMap[r.contributor_contribution_id] = r; });
                 data.rankings = selectedIds.map((id, i) => {
                     if (existingMap[id]) return existingMap[id];
-                    return { prover_contribution_id: id, rank: i + 1, overall_score: 0 };
+                    return { contributor_contribution_id: id, rank: i + 1, overall_score: 0 };
                 });
             }, 0);
         }
@@ -144,7 +144,7 @@
                     this.packages_certified = this.rankings.length;
                     // Uncheck the corresponding package card
                     if (removed) {
-                        const cb = document.querySelector(`#package-picker input[data-contribution-id="${removed.prover_contribution_id}"]`);
+                        const cb = document.querySelector(`#package-picker input[data-contribution-id="${removed.contributor_contribution_id}"]`);
                         if (cb) {
                             cb.checked = false;
                             cb.closest('.package-card').classList.remove('selected');
@@ -160,7 +160,7 @@
                         conjectures_compared: this.conjectures_compared,
                         recommendation: this.recommendation,
                         package_rankings: this.rankings.map(r => ({
-                            prover_contribution_id: r.prover_contribution_id,
+                            contributor_contribution_id: r.contributor_contribution_id,
                             rank: r.rank,
                             overall_score: r.overall_score
                         }))

@@ -133,6 +133,7 @@ func main() {
 		}
 
 		r.Post("/conjecture-packages", packageHandler.Submit)
+		r.Post("/conjecture-packages/{batchId}/seal", packageHandler.SealConjecturePackage)
 		r.Post("/contributions", contributionHandler.Create)
 		r.Patch("/contributions/{id}", contributionHandler.Update)
 		r.Post("/contributions/{id}/results", contributionHandler.SubmitResult)

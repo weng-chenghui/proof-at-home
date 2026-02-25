@@ -19,6 +19,7 @@ But any contribution to mathematics is a contribution — whether or not academi
 | **Tuning machine proofs** | Iterating on AI output to make it compile — fixing import paths, tactic syntax, version mismatches | "Just engineering, not mathematics" |
 | **Learning math to ask better questions** | Studying enough to write good conjectures, understand proof strategies, and formulate hints | "Just learning, not contributing" |
 | **Porting between provers** | Translating a Rocq proof to Lean 4 or vice versa — requires deep knowledge of both systems | "Just translation, not original work" |
+| **Submitting conjectures** | Formulating well-posed conjectures with preambles, skeletons, and hints for others to prove | "Just asking questions, not answering them" |
 
 None of these produce a novel theorem. All of them are necessary to grow the corpus of formally verified mathematics. The NFT is the credit mechanism for this work:
 
@@ -30,12 +31,13 @@ This makes Proof@Home a form of **Retroactive Public Goods Funding** for mathema
 
 ### NFT metadata
 
-Two types of NFTs are generated:
+Three types of NFTs are generated:
 
 | Role | Key attributes |
 |---|---|
-| **Prover** | Username, Problems Proved/Attempted, Cost Donated (USD), Proof Assistant, Archive SHA-256, Proof Status |
-| **Certifier** | Reviewer, Packages Reviewed, Problems Compared, Top Prover, Recommendation, Archive SHA-256, AI Comparison Cost (USD) |
+| **Contributor** | Username, Problems Proved/Attempted, Cost Donated (USD), Proof Assistant, Archive SHA-256, Proof Status |
+| **Certifier** | Reviewer, Packages Reviewed, Problems Compared, Top Contributor, Recommendation, Archive SHA-256, AI Comparison Cost (USD) |
+| **Submitter** | Username, Batch ID, Conjectures Submitted, Conjecture IDs, Difficulties, Proof Assistants, Git Commit |
 
 NFT metadata is OpenSea-compatible JSON, generated locally and committed to the data repository when a contribution or certificate is sealed.
 
@@ -241,6 +243,7 @@ Three template variants are available via `--template`:
 | `POST` | `/certificates` | Submit a certificate |
 | `POST` | `/certificates/{id}/seal` | Seal certificate (archive + NFT + PR) |
 | `POST` | `/conjecture-packages` | Submit conjecture package (tar.gz or git URL) |
+| `POST` | `/conjecture-packages/{batchId}/seal` | Seal conjecture package (submitter NFT + PR) |
 | `POST` | `/webhooks/git` | Git webhook (signature-verified) |
 
 ## Sample Conjectures

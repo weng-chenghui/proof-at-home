@@ -46,7 +46,7 @@ fn build_default_template(
             let pr = comp
                 .package_rankings
                 .iter()
-                .find(|r| r.prover_contribution_id == pkg.prover_contribution_id);
+                .find(|r| r.contributor_contribution_id == pkg.contributor_contribution_id);
             match pr {
                 Some(r) => (r.rank, r.summary.clone(), String::new()),
                 None => (0, String::new(), String::new()),
@@ -57,13 +57,13 @@ fn build_default_template(
 
         out.push_str(&format!(
             "[[package_assessments]]\n\
-             prover_contribution_id = \"{}\"\n\
-             prover_username = \"{}\"\n\
+             contributor_contribution_id = \"{}\"\n\
+             contributor_username = \"{}\"\n\
              rank = {}               # [required] 1 = best\n\
              strengths = \"{}\"      # [required] Key strengths of this proof package\n\
              weaknesses = \"{}\"     # [required] Key weaknesses\n\
              notes = \"\"            # Optional additional notes\n\n",
-            pkg.prover_contribution_id, pkg.prover_username, rank, strengths, weaknesses,
+            pkg.contributor_contribution_id, pkg.contributor_username, rank, strengths, weaknesses,
         ));
     }
 
@@ -96,20 +96,20 @@ fn build_minimal_template(
             .and_then(|c| {
                 c.package_rankings
                     .iter()
-                    .find(|r| r.prover_contribution_id == pkg.prover_contribution_id)
+                    .find(|r| r.contributor_contribution_id == pkg.contributor_contribution_id)
             })
             .map(|r| r.rank)
             .unwrap_or(0);
 
         out.push_str(&format!(
             "[[package_assessments]]\n\
-             prover_contribution_id = \"{}\"\n\
-             prover_username = \"{}\"\n\
+             contributor_contribution_id = \"{}\"\n\
+             contributor_username = \"{}\"\n\
              rank = {}\n\
              strengths = \"\"\n\
              weaknesses = \"\"\n\
              notes = \"\"\n\n",
-            pkg.prover_contribution_id, pkg.prover_username, rank,
+            pkg.contributor_contribution_id, pkg.contributor_username, rank,
         ));
     }
 
@@ -134,7 +134,7 @@ fn build_detailed_template(
             for r in &pc.rankings {
                 out.push_str(&format!(
                     "#   {} — overall: {}, reasoning: {}\n",
-                    r.prover_username, r.scores.overall, r.reasoning,
+                    r.contributor_username, r.scores.overall, r.reasoning,
                 ));
             }
             out.push_str(&format!(
@@ -184,9 +184,9 @@ pub fn validate_report(report_path: &Path) -> Result<Vec<String>> {
     }
 
     for (i, pr) in report.package_assessments.iter().enumerate() {
-        if pr.prover_contribution_id.is_empty() {
+        if pr.contributor_contribution_id.is_empty() {
             errors.push(format!(
-                "package_assessments[{}].prover_contribution_id is required",
+                "package_assessments[{}].contributor_contribution_id is required",
                 i
             ));
         }

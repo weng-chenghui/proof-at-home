@@ -16,7 +16,7 @@ use crate::config::Config;
 pub fn build_comparison_prompt(
     conjecture_title: &str,
     prover: &str,
-    proofs: &[(String, String, String)], // (prover_contribution_id, prover_username, proof_script)
+    proofs: &[(String, String, String)], // (contributor_contribution_id, contributor_username, proof_script)
     command_name: Option<&str>,
 ) -> String {
     let proofs_block = build_proofs_block(proofs);
@@ -47,7 +47,7 @@ fn build_proofs_block(proofs: &[(String, String, String)]) -> String {
     let mut block = String::new();
     for (contribution_id, username, script) in proofs {
         block.push_str(&format!(
-            "\n### Prover: {} (contribution: {})\n```\n{}\n```\n",
+            "\n### Contributor: {} (contribution: {})\n```\n{}\n```\n",
             username, contribution_id, script
         ));
     }
@@ -62,7 +62,7 @@ fn build_inline_comparison_prompt(
 ) -> String {
     format!(
         "You are a {} proof certifier. Compare the following proofs of \"{}\" \
-         from different provers.\n\n## Proofs\n{}\n\
+         from different contributors.\n\n## Proofs\n{}\n\
 ## Scoring Criteria (1-10 each)\n\n\
 1. **Succinctness**: Shorter, cleaner proofs score higher. Avoid unnecessary steps.\n\
 2. **Library reuse**: Good use of existing library lemmas (e.g., mathlib, mathcomp) rather than reinventing.\n\
@@ -72,8 +72,8 @@ fn build_inline_comparison_prompt(
 6. **Overall**: Weighted combination reflecting overall proof quality.\n\n\
 ## Output format\n\n\
 Return valid JSON and nothing else (no markdown fences):\n\
-{{\n  \"rankings\": [\n    {{\n      \"prover_contribution_id\": \"...\",\n      \
-\"prover_username\": \"...\",\n      \"scores\": {{ \"succinctness\": N, \"library_reuse\": N, \
+{{\n  \"rankings\": [\n    {{\n      \"contributor_contribution_id\": \"...\",\n      \
+\"contributor_username\": \"...\",\n      \"scores\": {{ \"succinctness\": N, \"library_reuse\": N, \
 \"generality\": N, \"modularity\": N, \"math_strategy\": N, \"overall\": N }},\n      \
 \"reasoning\": \"1-2 sentence explanation\"\n    }}\n  ],\n  \
 \"analysis\": \"2-3 sentence overall comparison\"\n}}\n",
@@ -118,8 +118,8 @@ fn build_rankings_block(package_rankings: &[PackageRanking]) -> String {
             "### {} (contribution: {}) — Rank #{}\n\
              - Succinctness: {}, Library Reuse: {}, Generality: {}, Modularity: {}, Math Strategy: {}, Overall: {}\n\
              - Conjectures compared: {}\n\n",
-            pr.prover_username,
-            pr.prover_contribution_id,
+            pr.contributor_username,
+            pr.contributor_contribution_id,
             pr.rank,
             pr.avg_scores.succinctness,
             pr.avg_scores.library_reuse,
@@ -137,10 +137,10 @@ fn build_rankings_block(package_rankings: &[PackageRanking]) -> String {
 fn build_inline_rollup_prompt(rankings_block: &str) -> String {
     format!(
         "You are a proof certifier. Given the following package-level score averages across \
-         all compared conjectures, write a brief narrative summary (2-3 sentences) for each prover \
+         all compared conjectures, write a brief narrative summary (2-3 sentences) for each contributor \
          and a final overall ranking explanation.\n\n## Package Rankings\n\n{}\
          Return valid JSON and nothing else (no markdown fences):\n\
-         {{\n  \"summaries\": [\n    {{ \"prover_contribution_id\": \"...\", \"summary\": \"...\" }}\n  ]\n}}\n",
+         {{\n  \"summaries\": [\n    {{ \"contributor_contribution_id\": \"...\", \"summary\": \"...\" }}\n  ]\n}}\n",
         rankings_block
     )
 }
@@ -347,8 +347,8 @@ struct ComparisonResponse {
 
 #[derive(Deserialize)]
 struct ComparisonRanking {
-    prover_contribution_id: String,
-    prover_username: String,
+    contributor_contribution_id: String,
+    contributor_username: String,
     scores: ComparisonScores,
     reasoning: String,
 }
@@ -370,7 +370,7 @@ struct RollupResponse {
 
 #[derive(Deserialize)]
 struct RollupSummary {
-    prover_contribution_id: String,
+    contributor_contribution_id: String,
     summary: String,
 }
 
@@ -409,7 +409,7 @@ pub async fn run_comparison(
     let mut prover = String::from("Rocq");
 
     for pkg in &state.packages {
-        let pkg_dir = packages_dir.join(&pkg.prover_contribution_id);
+        let pkg_dir = packages_dir.join(&pkg.contributor_contribution_id);
         if !pkg_dir.exists() {
             continue;
         }
@@ -434,8 +434,8 @@ pub async fn run_comparison(
                 .with_context(|| format!("Failed to read {}", proof_path.display()))?;
 
             conjecture_proofs.entry(pid.clone()).or_default().push((
-                pkg.prover_contribution_id.clone(),
-                pkg.prover_username.clone(),
+                pkg.contributor_contribution_id.clone(),
+                pkg.contributor_username.clone(),
                 script,
             ));
 
@@ -497,8 +497,8 @@ pub async fn run_comparison(
             .rankings
             .into_iter()
             .map(|r| CertificateRanking {
-                prover_contribution_id: r.prover_contribution_id,
-                prover_username: r.prover_username,
+                contributor_contribution_id: r.contributor_contribution_id,
+                contributor_username: r.contributor_username,
                 scores: CertificateScores {
                     succinctness: r.scores.succinctness,
                     library_reuse: r.scores.library_reuse,
@@ -524,8 +524,8 @@ pub async fn run_comparison(
     for pc in &conjecture_comparisons {
         for ranking in &pc.rankings {
             prover_scores
-                .entry(ranking.prover_contribution_id.clone())
-                .or_insert_with(|| (ranking.prover_username.clone(), Vec::new()))
+                .entry(ranking.contributor_contribution_id.clone())
+                .or_insert_with(|| (ranking.contributor_username.clone(), Vec::new()))
                 .1
                 .push(&ranking.scores);
         }
@@ -537,8 +537,8 @@ pub async fn run_comparison(
             let n = scores.len() as u32;
             let avg = CertificateScores::average_with(&scores);
             PackageRanking {
-                prover_contribution_id: contribution_id,
-                prover_username: username,
+                contributor_contribution_id: contribution_id,
+                contributor_username: username,
                 avg_scores: avg,
                 conjectures_compared: n,
                 rank: 0,                // filled below
@@ -573,7 +573,7 @@ pub async fn run_comparison(
             for s in rollup.summaries {
                 if let Some(pr) = package_rankings
                     .iter_mut()
-                    .find(|p| p.prover_contribution_id == s.prover_contribution_id)
+                    .find(|p| p.contributor_contribution_id == s.contributor_contribution_id)
                 {
                     pr.summary = s.summary;
                 }

@@ -315,14 +315,14 @@ func (s *SQLiteStore) ListCertificatePackages() []data.CertificatePackageInfo {
 		}
 
 		packages = append(packages, data.CertificatePackageInfo{
-			ProverContributionID: contributionID,
-			ProverUsername:       username,
-			Prover:               prover,
-			ConjectureIDs:        conjectureIDs,
-			ArchiveURL:           fmt.Sprintf("/certificate-packages/%s/archive", contributionID),
-			ArchiveSHA256:        archiveSHA256,
-			ProofStatus:          proofStatus,
-			CertifiedBy:          certifiedBy,
+			ContributorContributionID: contributionID,
+			ContributorUsername:       username,
+			Prover:                    prover,
+			ConjectureIDs:             conjectureIDs,
+			ArchiveURL:                fmt.Sprintf("/certificate-packages/%s/archive", contributionID),
+			ArchiveSHA256:             archiveSHA256,
+			ProofStatus:               proofStatus,
+			CertifiedBy:               certifiedBy,
 		})
 	}
 	return packages
@@ -368,9 +368,9 @@ func (s *SQLiteStore) AddCertificate(r data.CertificateSummary) {
 	for _, pr := range r.PackageRankings {
 		// Read current certified_by, add certifier, write back
 		var currentJSON string
-		err := tx.QueryRow(`SELECT certified_by FROM contributions WHERE contribution_id = ?`, pr.ProverContributionID).Scan(&currentJSON)
+		err := tx.QueryRow(`SELECT certified_by FROM contributions WHERE contribution_id = ?`, pr.ContributorContributionID).Scan(&currentJSON)
 		if err != nil {
-			slog.Error("AddCertificate read certified_by failed", "error", err, "contribution_id", pr.ProverContributionID)
+			slog.Error("AddCertificate read certified_by failed", "error", err, "contribution_id", pr.ContributorContributionID)
 			continue
 		}
 
@@ -389,9 +389,9 @@ func (s *SQLiteStore) AddCertificate(r data.CertificateSummary) {
 			current = append(current, r.CertifierUsername)
 			updatedJSON, _ := json.Marshal(current)
 			_, err = tx.Exec(`UPDATE contributions SET certified_by = ? WHERE contribution_id = ?`,
-				string(updatedJSON), pr.ProverContributionID)
+				string(updatedJSON), pr.ContributorContributionID)
 			if err != nil {
-				slog.Error("AddCertificate update certified_by failed", "error", err, "contribution_id", pr.ProverContributionID)
+				slog.Error("AddCertificate update certified_by failed", "error", err, "contribution_id", pr.ContributorContributionID)
 			}
 		}
 	}
@@ -643,7 +643,7 @@ func (s *SQLiteStore) RebuildFromDir(repoPath string) error {
 			// Update certified_by for contributions referenced in rankings
 			for _, pr := range cs.PackageRankings {
 				var currentJSON string
-				err := tx.QueryRow(`SELECT certified_by FROM contributions WHERE contribution_id = ?`, pr.ProverContributionID).Scan(&currentJSON)
+				err := tx.QueryRow(`SELECT certified_by FROM contributions WHERE contribution_id = ?`, pr.ContributorContributionID).Scan(&currentJSON)
 				if err != nil {
 					continue
 				}
@@ -660,7 +660,7 @@ func (s *SQLiteStore) RebuildFromDir(repoPath string) error {
 					current = append(current, cs.CertifierUsername)
 					updatedJSON, _ := json.Marshal(current)
 					tx.Exec(`UPDATE contributions SET certified_by = ? WHERE contribution_id = ?`,
-						string(updatedJSON), pr.ProverContributionID)
+						string(updatedJSON), pr.ContributorContributionID)
 				}
 			}
 		}

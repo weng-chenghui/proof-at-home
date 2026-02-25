@@ -1,3 +1,5 @@
+// "prover" = machine/software (proof assistant, e.g. rocq/lean4);
+// "contributor" = the human person who submitted or ran the proof.
 use anyhow::{Context, Result};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -326,6 +328,14 @@ pub struct PackageSubmitResponse {
     pub status: String,
     pub added_conjecture_ids: Vec<String>,
     pub count: u32,
+    pub batch_id: String,
+    pub commit_sha: String,
+    #[allow(dead_code)]
+    pub pr_url: String,
+    #[serde(default)]
+    pub difficulties: Vec<String>,
+    #[serde(default)]
+    pub proof_assistants: Vec<String>,
 }
 
 impl ServerClient {
@@ -367,14 +377,38 @@ impl ServerClient {
         let result: PackageSubmitResponse = resp.json().await?;
         Ok(result)
     }
+
+    /// Seal a conjecture package with NFT metadata. Returns the PR URL.
+    pub async fn seal_conjecture_package(
+        &self,
+        batch_id: &str,
+        nft_metadata: &serde_json::Value,
+    ) -> Result<SealResponse> {
+        let resp = self
+            .authed(self.client.post(format!(
+                "{}/conjecture-packages/{}/seal",
+                self.base_url, batch_id
+            )))
+            .json(nft_metadata)
+            .send()
+            .await
+            .context("Failed to seal conjecture package")?;
+        if !resp.status().is_success() {
+            let body = resp.text().await.unwrap_or_default();
+            anyhow::bail!("Server returned error: {}", body);
+        }
+        let result: SealResponse = resp.json().await?;
+        Ok(result)
+    }
 }
 
 // ── Certificate-related API types ──
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CertificatePackageInfo {
-    pub prover_contribution_id: String,
-    pub prover_username: String,
+    pub contributor_contribution_id: String,
+    pub contributor_username: String,
+    /// The proof assistant software (e.g. "rocq", "lean4") — not the human.
     pub prover: String,
     pub conjecture_ids: Vec<String>,
     pub archive_url: String,
@@ -399,7 +433,7 @@ pub struct CertificateSummary {
 
 #[derive(Debug, Serialize, JsonSchema)]
 pub struct PackageRankingSummary {
-    pub prover_contribution_id: String,
+    pub contributor_contribution_id: String,
     pub rank: u32,
     pub overall_score: f64,
 }

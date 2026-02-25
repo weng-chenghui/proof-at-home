@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -176,8 +177,8 @@ func TestCertificates(t *testing.T) {
 
 func TestCertificatePackages(t *testing.T) {
 	var pkgs []struct {
-		ProverContributionID string   `json:"prover_contribution_id"`
-		ProverUsername       string   `json:"prover_username"`
+		ContributorContributionID string   `json:"contributor_contribution_id"`
+		ContributorUsername       string   `json:"contributor_username"`
 		Prover               string   `json:"prover"`
 		ConjectureIDs        []string `json:"conjecture_ids"`
 		CertifiedBy          []string `json:"certified_by"`
@@ -187,14 +188,34 @@ func TestCertificatePackages(t *testing.T) {
 		t.Fatalf("len(packages) = %d, want 1", len(pkgs))
 	}
 	p := pkgs[0]
-	if p.ProverUsername != "alice" {
-		t.Errorf("prover_username = %q, want %q", p.ProverUsername, "alice")
+	if p.ContributorUsername != "alice" {
+		t.Errorf("contributor_username = %q, want %q", p.ContributorUsername, "alice")
 	}
 	if p.Prover != "rocq" {
 		t.Errorf("prover = %q, want %q", p.Prover, "rocq")
 	}
 	if len(p.CertifiedBy) == 0 {
 		t.Error("certified_by is empty, expected certifier-bot")
+	}
+}
+
+// ── Certificate Packages: verify contributor_* JSON keys (not prover_*) ──
+
+func TestCertificatePackages_ContributorKeys(t *testing.T) {
+	body := get(t, "/certificate-packages")
+	// The response should contain "contributor_contribution_id" and "contributor_username"
+	if !strings.Contains(string(body), "contributor_contribution_id") {
+		t.Error("response missing contributor_contribution_id key")
+	}
+	if !strings.Contains(string(body), "contributor_username") {
+		t.Error("response missing contributor_username key")
+	}
+	// Should NOT contain the old prover_* keys
+	if strings.Contains(string(body), "prover_contribution_id") {
+		t.Error("response still contains old prover_contribution_id key")
+	}
+	if strings.Contains(string(body), "prover_username") {
+		t.Error("response still contains old prover_username key")
 	}
 }
 

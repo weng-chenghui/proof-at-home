@@ -1,3 +1,5 @@
+// "prover" = machine/software (proof assistant, e.g. rocq/lean4);
+// "contributor" = the human person who submitted or ran the proof.
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -29,8 +31,9 @@ impl std::fmt::Display for CertificationStatus {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CertificatePackage {
-    pub prover_contribution_id: String,
-    pub prover_username: String,
+    pub contributor_contribution_id: String,
+    pub contributor_username: String,
+    /// The proof assistant software (e.g. "rocq", "lean4") — not the human.
     pub prover: String,
     pub conjecture_ids: Vec<String>,
     pub archive_sha256: String,
@@ -48,8 +51,8 @@ pub struct ConjectureComparison {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CertificateRanking {
-    pub prover_contribution_id: String,
-    pub prover_username: String,
+    pub contributor_contribution_id: String,
+    pub contributor_username: String,
     pub scores: CertificateScores,
     pub reasoning: String,
 }
@@ -87,8 +90,8 @@ impl CertificateScores {
 /// Package-level rollup
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct PackageRanking {
-    pub prover_contribution_id: String,
-    pub prover_username: String,
+    pub contributor_contribution_id: String,
+    pub contributor_username: String,
     pub avg_scores: CertificateScores,
     pub conjectures_compared: u32,
     pub rank: u32,
@@ -129,8 +132,8 @@ pub struct ReportSummary {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct PackageAssessment {
-    pub prover_contribution_id: String,
-    pub prover_username: String,
+    pub contributor_contribution_id: String,
+    pub contributor_username: String,
     pub rank: u32,
     pub strengths: String,
     pub weaknesses: String,

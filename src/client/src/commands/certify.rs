@@ -161,8 +161,8 @@ async fn cmd_start() -> Result<()> {
             .map(|p| {
                 format!(
                     "{} ({}) — {} conjectures [{}]",
-                    p.prover_username,
-                    &p.prover_contribution_id[..8],
+                    p.contributor_username,
+                    &p.contributor_contribution_id[..8],
                     p.conjecture_ids.len(),
                     p.prover,
                 )
@@ -176,17 +176,17 @@ async fn cmd_start() -> Result<()> {
 
         for idx in selections {
             let pkg_info = &available[idx];
-            let dest_dir = packages_dir.join(&pkg_info.prover_contribution_id);
+            let dest_dir = packages_dir.join(&pkg_info.contributor_contribution_id);
             std::fs::create_dir_all(&dest_dir)?;
 
             print!(
                 "  Downloading {} ({})...",
-                pkg_info.prover_username,
-                &pkg_info.prover_contribution_id[..8]
+                pkg_info.contributor_username,
+                &pkg_info.contributor_contribution_id[..8]
             );
             let archive_dest = dest_dir.join("proofs.tar.gz");
             match server
-                .download_package(&pkg_info.prover_contribution_id, &archive_dest)
+                .download_package(&pkg_info.contributor_contribution_id, &archive_dest)
                 .await
             {
                 Ok(()) => {
@@ -198,8 +198,8 @@ async fn cmd_start() -> Result<()> {
                     let sha = compute_sha256(&archive_dest)?;
 
                     state.packages.push(CertificatePackage {
-                        prover_contribution_id: pkg_info.prover_contribution_id.clone(),
-                        prover_username: pkg_info.prover_username.clone(),
+                        contributor_contribution_id: pkg_info.contributor_contribution_id.clone(),
+                        contributor_username: pkg_info.contributor_username.clone(),
                         prover: pkg_info.prover.clone(),
                         conjecture_ids: pkg_info.conjecture_ids.clone(),
                         archive_sha256: sha,
@@ -286,8 +286,8 @@ async fn cmd_import(path: &Path) -> Result<()> {
     };
 
     state.packages.push(CertificatePackage {
-        prover_contribution_id: contribution_id.to_string(),
-        prover_username: String::new(), // unknown for local imports
+        contributor_contribution_id: contribution_id.to_string(),
+        contributor_username: String::new(), // unknown for local imports
         prover,
         conjecture_ids: conjecture_ids.clone(),
         archive_sha256: sha,
@@ -323,23 +323,23 @@ fn cmd_list() -> Result<()> {
 
     println!(
         "  {:<40} {:<20} {:<10} {:<8}",
-        "Contribution ID", "Prover", "Assistant", "Conjectures"
+        "Contribution ID", "Contributor", "Assistant", "Conjectures"
     );
     println!("  {}", "-".repeat(78));
 
     for pkg in &state.packages {
-        let display_id = if pkg.prover_contribution_id.len() > 36 {
-            &pkg.prover_contribution_id[..36]
+        let display_id = if pkg.contributor_contribution_id.len() > 36 {
+            &pkg.contributor_contribution_id[..36]
         } else {
-            &pkg.prover_contribution_id
+            &pkg.contributor_contribution_id
         };
         println!(
             "  {:<40} {:<20} {:<10} {:<8}",
             display_id,
-            if pkg.prover_username.is_empty() {
+            if pkg.contributor_username.is_empty() {
                 "(local)"
             } else {
-                &pkg.prover_username
+                &pkg.contributor_username
             },
             pkg.prover,
             pkg.conjecture_ids.len(),
@@ -385,7 +385,7 @@ async fn cmd_ai_compare(command_name: Option<&str>) -> Result<()> {
         for r in &pc.rankings {
             println!(
                 "    {} — overall: {} | suc: {} lib: {} gen: {} mod: {} math: {}",
-                r.prover_username,
+                r.contributor_username,
                 r.scores.overall,
                 r.scores.succinctness,
                 r.scores.library_reuse,
@@ -402,7 +402,7 @@ async fn cmd_ai_compare(command_name: Option<&str>) -> Result<()> {
     for pr in &result.package_rankings {
         println!(
             "  #{} {} — overall avg: {} ({} conjectures)",
-            pr.rank, pr.prover_username, pr.avg_scores.overall, pr.conjectures_compared
+            pr.rank, pr.contributor_username, pr.avg_scores.overall, pr.conjectures_compared
         );
         if !pr.summary.is_empty() {
             println!("     {}", pr.summary);
@@ -518,11 +518,11 @@ async fn cmd_seal() -> Result<()> {
     };
 
     // 3. Build certification_summary.json
-    let top_prover = report
+    let top_contributor = report
         .package_assessments
         .iter()
         .min_by_key(|r| r.rank)
-        .map(|r| r.prover_username.clone())
+        .map(|r| r.contributor_username.clone())
         .unwrap_or_default();
 
     let package_ranking_summaries: Vec<serde_json::Value> = report
@@ -534,13 +534,13 @@ async fn cmd_seal() -> Result<()> {
                 .and_then(|c| {
                     c.package_rankings
                         .iter()
-                        .find(|pr| pr.prover_contribution_id == r.prover_contribution_id)
+                        .find(|pr| pr.contributor_contribution_id == r.contributor_contribution_id)
                 })
                 .map(|pr| pr.avg_scores.overall as f64)
                 .unwrap_or(0.0);
 
             serde_json::json!({
-                "prover_contribution_id": r.prover_contribution_id,
+                "contributor_contribution_id": r.contributor_contribution_id,
                 "rank": r.rank,
                 "overall_score": overall_score,
             })
@@ -587,15 +587,15 @@ async fn cmd_seal() -> Result<()> {
                 let overall_score = comparison
                     .as_ref()
                     .and_then(|c| {
-                        c.package_rankings
-                            .iter()
-                            .find(|pr| pr.prover_contribution_id == r.prover_contribution_id)
+                        c.package_rankings.iter().find(|pr| {
+                            pr.contributor_contribution_id == r.contributor_contribution_id
+                        })
                     })
                     .map(|pr| pr.avg_scores.overall as f64)
                     .unwrap_or(0.0);
 
                 crate::server_client::api::PackageRankingSummary {
-                    prover_contribution_id: r.prover_contribution_id.clone(),
+                    contributor_contribution_id: r.contributor_contribution_id.clone(),
                     rank: r.rank,
                     overall_score,
                 }
@@ -647,7 +647,7 @@ async fn cmd_seal() -> Result<()> {
     let certified_contribution_ids: Vec<String> = state
         .packages
         .iter()
-        .map(|p| p.prover_contribution_id.clone())
+        .map(|p| p.contributor_contribution_id.clone())
         .collect();
 
     let nft_info = CertificateInfo {
@@ -655,7 +655,7 @@ async fn cmd_seal() -> Result<()> {
         certificate_id: state.certification_id.clone(),
         packages_certified: state.packages.len() as u32,
         conjectures_compared,
-        top_prover: top_prover.clone(),
+        top_contributor: top_contributor.clone(),
         recommendation: report.summary.recommendation.clone(),
         ai_comparison_cost_usd: ai_cost,
         certified_contribution_ids,
@@ -704,7 +704,7 @@ async fn cmd_seal() -> Result<()> {
     println!("  NFT metadata: {}", nft_path.display());
     println!("  Packages:     {}", state.packages.len());
     println!("  Compared:     {} conjectures", conjectures_compared);
-    println!("  Top prover:   {}", top_prover);
+    println!("  Top contributor: {}", top_contributor);
     println!("  Recommendation: {}", report.summary.recommendation);
 
     Ok(())

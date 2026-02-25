@@ -249,27 +249,39 @@ func (gs *GitStore) SealCertificate(id string, nftMetadata any) (string, error) 
 
 // ── Conjecture operations ──
 
+// ConjectureSubmitResult holds all info needed by the submitter NFT flow.
+type ConjectureSubmitResult struct {
+	PRUrl     string
+	CommitSHA string
+}
+
 // AddConjectures creates a branch, writes conjecture JSON files, commits, and creates a PR.
-func (gs *GitStore) AddConjectures(conjectures []data.Conjecture, batchID string) (string, error) {
+// Returns the PR URL and the commit SHA.
+func (gs *GitStore) AddConjectures(conjectures []data.Conjecture, batchID string) (*ConjectureSubmitResult, error) {
 	gs.mu.Lock()
 	defer gs.mu.Unlock()
 
 	branch := fmt.Sprintf("conj/%s", batchID)
 
 	if err := gs.createBranch(branch); err != nil {
-		return "", err
+		return nil, err
 	}
 
 	for _, c := range conjectures {
 		path := filepath.Join("conjectures", c.ID+".json")
 		if err := gs.writeJSON(path, c); err != nil {
-			return "", err
+			return nil, err
 		}
 	}
 
 	msg := fmt.Sprintf("Add %d conjectures (batch %s)", len(conjectures), batchID)
 	if err := gs.commitAndPush(branch, msg); err != nil {
-		return "", err
+		return nil, err
+	}
+
+	sha, err := gs.getHeadSHA()
+	if err != nil {
+		return nil, err
 	}
 
 	prURL, err := gs.forge.CreatePR(
@@ -278,7 +290,43 @@ func (gs *GitStore) AddConjectures(conjectures []data.Conjecture, batchID string
 		msg,
 	)
 	if err != nil {
-		return "", fmt.Errorf("creating PR: %w", err)
+		return nil, fmt.Errorf("creating PR: %w", err)
+	}
+
+	return &ConjectureSubmitResult{PRUrl: prURL, CommitSHA: sha}, nil
+}
+
+// SealConjecturePackage writes nft_metadata.json to the conj/{batchID} branch, commits, pushes, and returns the PR URL.
+func (gs *GitStore) SealConjecturePackage(batchID string, nftMetadata any) (string, error) {
+	gs.mu.Lock()
+	defer gs.mu.Unlock()
+
+	branch := fmt.Sprintf("conj/%s", batchID)
+
+	if err := gs.checkoutBranch(branch); err != nil {
+		return "", err
+	}
+
+	path := filepath.Join("conjectures", "nft_metadata_"+batchID+".json")
+	if err := gs.writeJSON(path, nftMetadata); err != nil {
+		return "", err
+	}
+
+	if err := gs.commitAndPush(branch, fmt.Sprintf("Seal conjecture batch %s with NFT metadata", batchID)); err != nil {
+		return "", err
+	}
+
+	// The PR already exists from AddConjectures; just return a reference.
+	// For forges that support it, we could update the PR. For now, return the branch name.
+	prURL, err := gs.forge.CreatePR(
+		branch, "main",
+		fmt.Sprintf("Conjectures: batch %s (sealed)", batchID),
+		fmt.Sprintf("Sealed conjecture batch `%s` with submitter NFT metadata.", batchID),
+	)
+	if err != nil {
+		// PR may already exist (e.g. local forge), which is fine
+		slog.Warn("SealConjecturePackage: CreatePR returned error (may already exist)", "error", err)
+		return "", nil
 	}
 
 	return prURL, nil

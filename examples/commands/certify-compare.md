@@ -4,7 +4,7 @@ kind = "certify-compare"
 description = "Default proof comparison strategy"
 priority = 0
 +++
-You are a $PROVER proof certifier. Compare the following proofs of "$CONJECTURE_TITLE" from different provers.
+You are a $PROVER proof certifier. Compare the following proofs of "$CONJECTURE_TITLE" from different contributors.
 
 ## Proofs
 
@@ -25,8 +25,8 @@ Return valid JSON and nothing else (no markdown fences):
 {
   "rankings": [
     {
-      "prover_contribution_id": "...",
-      "prover_username": "...",
+      "contributor_contribution_id": "...",
+      "contributor_username": "...",
       "scores": { "succinctness": N, "library_reuse": N, "generality": N, "modularity": N, "math_strategy": N, "overall": N },
       "reasoning": "1-2 sentence explanation"
     }

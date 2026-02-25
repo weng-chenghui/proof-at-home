@@ -1,7 +1,11 @@
 package data
 
+// "prover" = machine/software (proof assistant, e.g. rocq/lean4);
+// "contributor" = the human person who submitted or ran the proof.
+
 import "encoding/json"
 
+// Conjecture.Prover refers to the proof assistant software (e.g. "rocq", "lean4"), not the human.
 type Conjecture struct {
 	ID             string          `json:"id"`
 	Title          string          `json:"title"`
@@ -52,14 +56,14 @@ type ContributionSummary struct {
 // ── Certificate types ──
 
 type CertificatePackageInfo struct {
-	ProverContributionID string   `json:"prover_contribution_id"`
-	ProverUsername       string   `json:"prover_username"`
-	Prover               string   `json:"prover"`
-	ConjectureIDs        []string `json:"conjecture_ids"`
-	ArchiveURL           string   `json:"archive_url"`
-	ArchiveSHA256        string   `json:"archive_sha256"`
-	ProofStatus          string   `json:"proof_status,omitempty"`
-	CertifiedBy          []string `json:"certified_by,omitempty"`
+	ContributorContributionID string   `json:"contributor_contribution_id"`
+	ContributorUsername       string   `json:"contributor_username"`
+	Prover                    string   `json:"prover"` // proof assistant software, not the human
+	ConjectureIDs             []string `json:"conjecture_ids"`
+	ArchiveURL                string   `json:"archive_url"`
+	ArchiveSHA256             string   `json:"archive_sha256"`
+	ProofStatus               string   `json:"proof_status,omitempty"`
+	CertifiedBy               []string `json:"certified_by,omitempty"`
 }
 
 type CertificateSummary struct {
@@ -74,7 +78,7 @@ type CertificateSummary struct {
 }
 
 type PackageRankingSummary struct {
-	ProverContributionID string  `json:"prover_contribution_id"`
-	Rank                 int     `json:"rank"`
-	OverallScore         float64 `json:"overall_score"`
+	ContributorContributionID string  `json:"contributor_contribution_id"`
+	Rank                      int     `json:"rank"`
+	OverallScore              float64 `json:"overall_score"`
 }

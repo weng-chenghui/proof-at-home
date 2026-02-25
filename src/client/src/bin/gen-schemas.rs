@@ -5,7 +5,8 @@ use std::path::Path;
 // Re-use types from the main crate
 use proof_at_home::certifier::types::{CertificationReport, CertificationState, ComparisonResult};
 use proof_at_home::nft::metadata::{
-    CertificateInfo, ContributionInfo, NftCertificateMetadata, NftSessionMetadata,
+    CertificateInfo, ConjectureSubmitterInfo, ContributionInfo, NftCertificateMetadata,
+    NftSessionMetadata, NftSubmitterMetadata,
 };
 use proof_at_home::server_client::api::{
     CertificateSummary, Conjecture, ContributionResult, ContributionSummary,
@@ -36,6 +37,8 @@ fn main() {
     write_schema::<CertificateSummary>(out_dir, "certificate-summary.schema.json");
     write_schema::<CertificationReport>(out_dir, "certification-report.schema.json");
     write_schema::<ContributionResult>(out_dir, "contribution-result.schema.json");
+    write_schema::<ConjectureSubmitterInfo>(out_dir, "submitter-nft-metadata.schema.json");
+    write_schema::<NftSubmitterMetadata>(out_dir, "nft-submitter-output.schema.json");
 
-    println!("\nDone. {} schemas written to {}", 11, out_dir.display());
+    println!("\nDone. {} schemas written to {}", 13, out_dir.display());
 }
