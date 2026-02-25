@@ -1,4 +1,4 @@
-.PHONY: build build-client build-server clean run-server run-init run-donate run-prove run-status test conjectures help dev-setup dev-run dev-clean dev-reset
+.PHONY: build build-client build-server clean run-server run-init run-donate run-prove run-status test test-integration conjectures help dev-setup dev-run dev-clean dev-reset
 
 # Paths
 CLIENT_BIN = target/release/proof-at-home
@@ -66,6 +66,9 @@ test-client: ## Run Rust tests
 
 test-server: ## Run Go tests
 	go test ./src/server/...
+
+test-integration: ## Run integration tests (requires running server)
+	go test -v -count=1 ./tests/integration/...
 
 check: ## Cargo check (fast type-checking, no codegen)
 	cargo check
