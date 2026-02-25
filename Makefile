@@ -1,4 +1,4 @@
-.PHONY: build build-client build-server clean run-server run-init run-donate run-prove run-status test test-integration conjectures help dev-setup dev-run dev-clean dev-reset
+.PHONY: build build-client build-server clean run-server run-init run-donate run-prove run-status test test-integration conjectures help dev-setup dev-run dev-clean dev-reset setup-github setup-gitlab
 
 # Paths
 CLIENT_BIN = target/release/proof-at-home
@@ -56,6 +56,12 @@ dev-clean: ## Remove local dev state (.dev/)
 	@echo "Dev environment cleaned. Run 'make dev-setup' to recreate."
 
 dev-reset: dev-clean dev-setup ## Clean and recreate dev environment
+
+setup-github: ## Create data repo on GitHub (usage: make setup-github SERVER_URL=https://...)
+	@./scripts/setup-github.sh $(SERVER_URL)
+
+setup-gitlab: ## Create data repo on GitLab (usage: make setup-gitlab SERVER_URL=https://...)
+	@./scripts/setup-gitlab.sh $(SERVER_URL)
 
 # ── Test ───────────────────────────────────────────────
 
