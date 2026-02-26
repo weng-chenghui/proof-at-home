@@ -68,11 +68,11 @@ fn save_certification_state(certification_dir: &Path, state: &CertificationState
 /// Get the active certification directory and loaded state
 fn get_active_certification() -> Result<(PathBuf, CertificationState)> {
     let certification_id = get_active_certification_id()?
-        .context("No active certification. Run `proof-at-home certify start` first.")?;
+        .context("No active certification. Run `pah certificate create` first.")?;
     let certification_dir = certifications_dir()?.join(&certification_id);
     if !certification_dir.exists() {
         anyhow::bail!(
-            "Certification directory not found: {}. Run `proof-at-home certify start`.",
+            "Certification directory not found: {}. Run `pah certificate create`.",
             certification_dir.display()
         );
     }
@@ -80,51 +80,47 @@ fn get_active_certification() -> Result<(PathBuf, CertificationState)> {
     Ok((certification_dir, state))
 }
 
-// ── Subcommand dispatch ──
+// ── certificate list (NEW: fetch from server) ──
 
-use clap::Subcommand;
+pub async fn cmd_list() -> Result<()> {
+    let cfg = Config::load()?;
+    let client = ServerClient::new(&cfg.api.server_url, &cfg.api.auth_token);
+    let certificates = client.fetch_certificates().await?;
 
-#[derive(Subcommand)]
-pub enum CertifyAction {
-    /// Start a new certification session (optionally fetch packages from server)
-    Start,
-    /// Import a local proof archive into the active certification session
-    Import {
-        /// Path to a proof archive (.tar.gz)
-        path: PathBuf,
-    },
-    /// List packages loaded in the active certification session
-    List,
-    /// AI-compare proofs across packages
-    AiCompare {
-        /// Use a specific comparison strategy command (by name)
-        #[arg(long = "by")]
-        by: Option<String>,
-    },
-    /// Generate or edit certification report from template
-    Report {
-        /// Template variant: default, minimal, detailed
-        #[arg(long, default_value = "default")]
-        template: String,
-    },
-    /// Seal certification package with NFT metadata
-    Seal,
-}
-
-pub async fn run_certify(action: CertifyAction) -> Result<()> {
-    match action {
-        CertifyAction::Start => cmd_start().await,
-        CertifyAction::Import { path } => cmd_import(&path).await,
-        CertifyAction::List => cmd_list(),
-        CertifyAction::AiCompare { by } => cmd_ai_compare(by.as_deref()).await,
-        CertifyAction::Report { template } => cmd_report(&template),
-        CertifyAction::Seal => cmd_seal().await,
+    if certificates.is_empty() {
+        println!("No certificates found.");
+        return Ok(());
     }
+
+    println!(
+        "{:<40} {:<20} {:<10} {:<10} Recommendation",
+        "ID", "Certifier", "Packages", "Compared"
+    );
+    println!("{}", "-".repeat(100));
+
+    for c in &certificates {
+        let display_id = if c.certificate_id.len() > 36 {
+            &c.certificate_id[..36]
+        } else {
+            &c.certificate_id
+        };
+        println!(
+            "{:<40} {:<20} {:<10} {:<10} {}",
+            display_id,
+            c.certifier_username,
+            c.packages_certified,
+            c.conjectures_compared,
+            c.recommendation
+        );
+    }
+
+    println!("\nTotal: {}", certificates.len());
+    Ok(())
 }
 
-// ── certify start ──
+// ── certificate create (was certify start) ──
 
-async fn cmd_start() -> Result<()> {
+pub async fn cmd_create() -> Result<()> {
     let config = Config::load()?;
     let certification_id = uuid::Uuid::new_v4().to_string();
     let certification_dir = certifications_dir()?.join(&certification_id);
@@ -139,7 +135,6 @@ async fn cmd_start() -> Result<()> {
         status: CertificationStatus::Open,
     };
 
-    // Try to fetch available packages from server
     let server = ServerClient::new(&config.api.server_url, &config.api.auth_token);
     let available = match server.fetch_contribution_reviews().await {
         Ok(pkgs) => pkgs,
@@ -149,7 +144,7 @@ async fn cmd_start() -> Result<()> {
                 "Warning".yellow(),
                 e
             );
-            eprintln!("You can import local archives with `proof-at-home certify import <path>`.");
+            eprintln!("You can import local archives with `pah certificate import <path>`.");
             Vec::new()
         }
     };
@@ -191,10 +186,8 @@ async fn cmd_start() -> Result<()> {
             {
                 Ok(()) => {
                     println!(" {}", "done".green());
-                    // Extract archive
                     extract_archive(&archive_dest, &dest_dir)?;
 
-                    // Compute SHA-256
                     let sha = compute_sha256(&archive_dest)?;
 
                     state.packages.push(CertificatePackage {
@@ -226,16 +219,16 @@ async fn cmd_start() -> Result<()> {
     if state.packages.is_empty() {
         println!(
             "\n  Import local archives with: {}",
-            "proof-at-home certify import <path>".cyan()
+            "pah certificate import <path>".cyan()
         );
     }
 
     Ok(())
 }
 
-// ── certify import ──
+// ── certificate import ──
 
-async fn cmd_import(path: &Path) -> Result<()> {
+pub async fn cmd_import(path: &Path) -> Result<()> {
     let (certification_dir, mut state) = get_active_certification()?;
 
     if state.status == CertificationStatus::Sealed {
@@ -251,31 +244,24 @@ async fn cmd_import(path: &Path) -> Result<()> {
 
     let packages_dir = certification_dir.join("packages");
 
-    // Derive a contribution ID from the archive filename or generate one
     let archive_stem = path
         .file_stem()
         .and_then(|s| s.to_str())
         .unwrap_or("unknown");
-    // Strip .tar if double extension
     let contribution_id = archive_stem.strip_suffix(".tar").unwrap_or(archive_stem);
     let dest_dir = packages_dir.join(contribution_id);
     std::fs::create_dir_all(&dest_dir)?;
 
-    // Copy archive
     let archive_dest = dest_dir.join("proofs.tar.gz");
     std::fs::copy(path, &archive_dest)
         .with_context(|| format!("Failed to copy archive to {}", archive_dest.display()))?;
 
-    // Extract
     extract_archive(&archive_dest, &dest_dir)?;
 
-    // Compute SHA-256
     let sha = compute_sha256(&archive_dest)?;
 
-    // Scan for proof files to build conjecture_ids list
     let conjecture_ids = scan_proof_files(&dest_dir)?;
 
-    // Detect prover
     let prover = if conjecture_ids
         .iter()
         .any(|p| dest_dir.join(format!("{}.lean", p)).exists())
@@ -287,7 +273,7 @@ async fn cmd_import(path: &Path) -> Result<()> {
 
     state.packages.push(CertificatePackage {
         contributor_contribution_id: contribution_id.to_string(),
-        contributor_username: String::new(), // unknown for local imports
+        contributor_username: String::new(),
         prover,
         conjecture_ids: conjecture_ids.clone(),
         archive_sha256: sha,
@@ -306,53 +292,9 @@ async fn cmd_import(path: &Path) -> Result<()> {
     Ok(())
 }
 
-// ── certify list ──
+// ── certificate compare ──
 
-fn cmd_list() -> Result<()> {
-    let (_certification_dir, state) = get_active_certification()?;
-
-    println!(
-        "Certification: {} (status: {})\n",
-        state.certification_id, state.status
-    );
-
-    if state.packages.is_empty() {
-        println!("  No packages loaded.");
-        return Ok(());
-    }
-
-    println!(
-        "  {:<40} {:<20} {:<10} {:<8}",
-        "Contribution ID", "Contributor", "Assistant", "Conjectures"
-    );
-    println!("  {}", "-".repeat(78));
-
-    for pkg in &state.packages {
-        let display_id = if pkg.contributor_contribution_id.len() > 36 {
-            &pkg.contributor_contribution_id[..36]
-        } else {
-            &pkg.contributor_contribution_id
-        };
-        println!(
-            "  {:<40} {:<20} {:<10} {:<8}",
-            display_id,
-            if pkg.contributor_username.is_empty() {
-                "(local)"
-            } else {
-                &pkg.contributor_username
-            },
-            pkg.prover,
-            pkg.conjecture_ids.len(),
-        );
-    }
-
-    println!("\n  Total packages: {}", state.packages.len());
-    Ok(())
-}
-
-// ── certify ai-compare ──
-
-async fn cmd_ai_compare(strategy_name: Option<&str>) -> Result<()> {
+pub async fn cmd_compare(strategy_name: Option<&str>) -> Result<()> {
     let config = Config::load()?;
     let (certification_dir, mut state) = get_active_certification()?;
 
@@ -363,16 +305,13 @@ async fn cmd_ai_compare(strategy_name: Option<&str>) -> Result<()> {
     let result =
         comparison::run_comparison(&config, &state, &certification_dir, strategy_name).await?;
 
-    // Write ai_comparison.json
     let comp_path = certification_dir.join("ai_comparison.json");
     let content = serde_json::to_string_pretty(&result)?;
     std::fs::write(&comp_path, content)?;
 
-    // Update session status
     state.status = CertificationStatus::Compared;
     save_certification_state(&certification_dir, &state)?;
 
-    // Print results table
     println!("\n{}", "=== AI Comparison Results ===".bold());
     println!(
         "Model: {}  |  Cost: ${:.4}\n",
@@ -417,14 +356,13 @@ async fn cmd_ai_compare(strategy_name: Option<&str>) -> Result<()> {
     Ok(())
 }
 
-// ── certify report ──
+// ── certificate report ──
 
-fn cmd_report(template_variant: &str) -> Result<()> {
+pub fn cmd_report(template_variant: &str) -> Result<()> {
     let (certification_dir, state) = get_active_certification()?;
     let report_path = certification_dir.join("certification_report.toml");
 
     if !report_path.exists() {
-        // Load AI comparison if available
         let comp_path = certification_dir.join("ai_comparison.json");
         let comparison: Option<ComparisonResult> = if comp_path.exists() {
             let content = std::fs::read_to_string(&comp_path)?;
@@ -442,7 +380,6 @@ fn cmd_report(template_variant: &str) -> Result<()> {
             report_path.display()
         );
 
-        // Try to open in $EDITOR
         if let Ok(editor) = std::env::var("EDITOR") {
             println!("Opening in {}...", editor);
             let _ = std::process::Command::new(&editor)
@@ -455,7 +392,6 @@ fn cmd_report(template_variant: &str) -> Result<()> {
             );
         }
     } else {
-        // Validate existing report
         println!("Validating {}...\n", report_path.display());
         match templates::validate_report(&report_path) {
             Ok(errors) => {
@@ -477,20 +413,17 @@ fn cmd_report(template_variant: &str) -> Result<()> {
     Ok(())
 }
 
-// ── certify seal ──
+// ── certificate seal ──
 
-async fn cmd_seal() -> Result<()> {
+pub async fn cmd_seal() -> Result<()> {
     let config = Config::load()?;
     let (certification_dir, mut state) = get_active_certification()?;
 
     let is_reseal = state.status == CertificationStatus::Sealed;
 
-    // 1. Validate report exists and is valid
     let report_path = certification_dir.join("certification_report.toml");
     if !report_path.exists() {
-        anyhow::bail!(
-            "certification_report.toml not found. Run `proof-at-home certify report` first."
-        );
+        anyhow::bail!("certification_report.toml not found. Run `pah certificate report` first.");
     }
 
     let errors = templates::validate_report(&report_path)?;
@@ -504,7 +437,6 @@ async fn cmd_seal() -> Result<()> {
 
     let report = templates::parse_report(&report_path)?;
 
-    // 2. Check for AI comparison (warn if missing)
     let comp_path = certification_dir.join("ai_comparison.json");
     let comparison: Option<ComparisonResult> = if comp_path.exists() {
         let content = std::fs::read_to_string(&comp_path)?;
@@ -517,7 +449,6 @@ async fn cmd_seal() -> Result<()> {
         None
     };
 
-    // 3. Build certification_summary.json
     let top_contributor = report
         .package_assessments
         .iter()
@@ -525,6 +456,14 @@ async fn cmd_seal() -> Result<()> {
         .map(|r| r.contributor_username.clone())
         .unwrap_or_default();
 
+    let conjectures_compared = comparison
+        .as_ref()
+        .map(|c| c.conjecture_comparisons.len() as u32)
+        .unwrap_or(0);
+
+    let ai_cost = comparison.as_ref().map(|c| c.cost_usd).unwrap_or(0.0);
+
+    let summary_path = certification_dir.join("certification_summary.json");
     let package_ranking_summaries: Vec<serde_json::Value> = report
         .package_assessments
         .iter()
@@ -547,13 +486,6 @@ async fn cmd_seal() -> Result<()> {
         })
         .collect();
 
-    let conjectures_compared = comparison
-        .as_ref()
-        .map(|c| c.conjecture_comparisons.len() as u32)
-        .unwrap_or(0);
-
-    let ai_cost = comparison.as_ref().map(|c| c.cost_usd).unwrap_or(0.0);
-
     let summary = serde_json::json!({
         "certifier_username": report.certifier.username,
         "certification_id": state.certification_id,
@@ -565,14 +497,11 @@ async fn cmd_seal() -> Result<()> {
         "overall_assessment": report.summary.overall_assessment,
     });
 
-    let summary_path = certification_dir.join("certification_summary.json");
     std::fs::write(&summary_path, serde_json::to_string_pretty(&summary)?)?;
 
-    // 4. Archive everything into certification_package.tar.gz (for local convenience + IPFS)
     let archive_path = certification_dir.join("certification_package.tar.gz");
     create_certification_archive(&certification_dir, &archive_path)?;
 
-    // 5. Submit certificate to server → get commit SHA
     let server = ServerClient::new(&config.api.server_url, &config.api.auth_token);
 
     let server_summary = crate::server_client::api::Certificate {
@@ -618,7 +547,6 @@ async fn cmd_seal() -> Result<()> {
         }
     };
 
-    // 6. Sign the git commit SHA
     let (certifier_public_key, commit_signature) = match Config::signing_key_path()
         .ok()
         .filter(|p| p.exists())
@@ -636,14 +564,13 @@ async fn cmd_seal() -> Result<()> {
         },
         None => {
             eprintln!(
-                "{}: No signing key found. Run `proof-at-home init` to generate one.",
+                "{}: No signing key found. Run `pah setting set` to generate one.",
                 "Warning".yellow()
             );
             (String::new(), String::new())
         }
     };
 
-    // 7. Generate NFT metadata with git commit attributes
     let certified_contribution_ids: Vec<String> = state
         .packages
         .iter()
@@ -669,7 +596,6 @@ async fn cmd_seal() -> Result<()> {
     let nft_path = certification_dir.join("certification_nft_metadata.json");
     std::fs::write(&nft_path, serde_json::to_string_pretty(&nft_metadata)?)?;
 
-    // 8. Seal: send NFT metadata to server, which creates a PR
     print!("Sealing certificate (creating PR)... ");
     match server
         .seal_certificate(&state.certification_id, &nft_metadata)
@@ -685,7 +611,6 @@ async fn cmd_seal() -> Result<()> {
         }
     }
 
-    // 9. Mark session as sealed
     state.status = CertificationStatus::Sealed;
     save_certification_state(&certification_dir, &state)?;
 
@@ -696,7 +621,6 @@ async fn cmd_seal() -> Result<()> {
         );
     }
 
-    // Print summary
     println!("\n{}", "=== Certification Sealed ===".bold());
     println!("  Certification ID: {}", state.certification_id);
     println!("  Archive:      {}", archive_path.display());
@@ -708,6 +632,12 @@ async fn cmd_seal() -> Result<()> {
     println!("  Recommendation: {}", report.summary.recommendation);
 
     Ok(())
+}
+
+// ── certificate publish (delegates to publish module) ──
+
+pub async fn cmd_publish(id: &str) -> Result<()> {
+    super::publish::run_publish("certificate", id).await
 }
 
 // ── Helpers ──
@@ -729,7 +659,6 @@ fn compute_sha256(path: &Path) -> Result<String> {
     Ok(hex::encode(hash))
 }
 
-/// Scan a directory for .v and .lean files, return conjecture IDs (file stems)
 fn scan_proof_files(dir: &Path) -> Result<Vec<String>> {
     let mut ids = Vec::new();
     if let Ok(entries) = std::fs::read_dir(dir) {
@@ -748,13 +677,11 @@ fn scan_proof_files(dir: &Path) -> Result<Vec<String>> {
     Ok(ids)
 }
 
-/// Create a tar.gz archive of the certification directory contents (excluding the archive itself)
 fn create_certification_archive(certification_dir: &Path, archive_path: &Path) -> Result<()> {
     let file = std::fs::File::create(archive_path)?;
     let encoder = flate2::write::GzEncoder::new(file, flate2::Compression::default());
     let mut tar_builder = tar::Builder::new(encoder);
 
-    // Add specific files/dirs
     let items = [
         "packages",
         "ai_comparison.json",

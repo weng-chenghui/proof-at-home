@@ -1,9 +1,9 @@
-pub mod certify;
-pub mod donate;
-pub mod init;
-pub mod login;
+pub mod auth;
+pub mod certificate;
+pub mod conjecture;
+pub mod contribution;
+pub mod proof;
 pub mod publish;
 pub mod run;
-pub mod setup;
-pub mod status;
-pub mod submit_conjecture;
+pub mod setting;
+pub mod strategy;

@@ -51,7 +51,7 @@ pub struct Conjecture {
     pub dependencies: Option<Dependencies>,
 }
 
-#[derive(Debug, Serialize, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Proof {
     pub conjecture_id: String,
     pub username: String,
@@ -60,9 +60,11 @@ pub struct Proof {
     pub cost_usd: f64,
     pub attempts: u32,
     pub error_output: String,
+    #[serde(default)]
+    pub contribution_id: String,
 }
 
-#[derive(Debug, Serialize, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Contribution {
     pub username: String,
     pub contribution_id: String,
@@ -412,7 +414,7 @@ pub struct ContributionReview {
     pub certified_by: Vec<String>,
 }
 
-#[derive(Debug, Serialize, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct Certificate {
     pub certifier_username: String,
     pub certificate_id: String,
@@ -424,9 +426,101 @@ pub struct Certificate {
     pub nft_metadata: serde_json::Value,
 }
 
-#[derive(Debug, Serialize, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct ContributionRanking {
     pub contributor_contribution_id: String,
     pub rank: u32,
     pub overall_score: f64,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct Strategy {
+    pub name: String,
+    #[serde(default)]
+    pub kind: String,
+    #[serde(default)]
+    pub prover: String,
+    #[serde(default)]
+    pub description: String,
+    #[serde(default)]
+    pub priority: i32,
+    #[serde(default)]
+    pub body: String,
+}
+
+impl ServerClient {
+    pub async fn fetch_contributions(&self) -> Result<Vec<Contribution>> {
+        let items: Vec<Contribution> = self
+            .authed(self.client.get(format!("{}/contributions", self.base_url)))
+            .send()
+            .await
+            .context("Failed to fetch contributions")?
+            .json()
+            .await?;
+        Ok(items)
+    }
+
+    pub async fn fetch_contribution(&self, id: &str) -> Result<Contribution> {
+        let item: Contribution = self
+            .authed(
+                self.client
+                    .get(format!("{}/contributions/{}", self.base_url, id)),
+            )
+            .send()
+            .await
+            .context("Failed to fetch contribution")?
+            .json()
+            .await?;
+        Ok(item)
+    }
+
+    pub async fn fetch_proofs(&self, contribution_id: &str) -> Result<Vec<Proof>> {
+        let items: Vec<Proof> = self
+            .authed(self.client.get(format!(
+                "{}/contributions/{}/proofs",
+                self.base_url, contribution_id
+            )))
+            .send()
+            .await
+            .context("Failed to fetch proofs")?
+            .json()
+            .await?;
+        Ok(items)
+    }
+
+    pub async fn fetch_certificates(&self) -> Result<Vec<Certificate>> {
+        let items: Vec<Certificate> = self
+            .authed(self.client.get(format!("{}/certificates", self.base_url)))
+            .send()
+            .await
+            .context("Failed to fetch certificates")?
+            .json()
+            .await?;
+        Ok(items)
+    }
+
+    pub async fn fetch_strategies(&self) -> Result<Vec<Strategy>> {
+        let items: Vec<Strategy> = self
+            .authed(self.client.get(format!("{}/strategies", self.base_url)))
+            .send()
+            .await
+            .context("Failed to fetch strategies")?
+            .json()
+            .await?;
+        Ok(items)
+    }
+
+    pub async fn fetch_strategy(&self, name: &str) -> Result<Strategy> {
+        let item: Strategy = self
+            .authed(
+                self.client
+                    .get(format!("{}/strategies/{}", self.base_url, name)),
+            )
+            .send()
+            .await
+            .context("Failed to fetch strategy")?
+            .json()
+            .await?;
+        Ok(item)
+    }
 }

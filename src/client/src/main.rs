@@ -11,69 +11,128 @@ mod signing;
 mod strategy_store;
 
 use clap::{Parser, Subcommand};
+use std::path::PathBuf;
 
 #[derive(Parser)]
 #[command(
-    name = "proof-at-home",
+    name = "pah",
     about = "Prove mathematical lemmas — verified, archived, and NFT-stamped",
     version
 )]
 struct Cli {
     #[command(subcommand)]
-    command: Commands,
+    resource: Resource,
 }
 
 #[derive(Subcommand)]
-enum Commands {
-    /// Interactive setup wizard (deprecated: register at the web UI instead)
-    #[command(hide = true)]
-    Init,
-    /// Log in with your auth token from the web UI
-    Login,
-    /// Configure CLI settings (API key, server URL, prover)
-    Setup {
-        /// Import strategy files from paths, directories, .tar.gz, or GitHub URLs
-        #[arg(long = "add-strategies")]
-        add_strategies: Vec<String>,
-    },
-    /// Set donation budget (legal agreement required)
-    Donate,
-    /// Prove conjectures or re-seal contributions
-    Prove {
+enum Resource {
+    /// Manage conjectures (list, get, create, seal)
+    Conjecture {
         #[command(subcommand)]
-        action: Option<ProveAction>,
-        /// Use a specific proving strategy command (by name)
-        #[arg(long = "by", global = true)]
-        by: Option<String>,
+        action: ConjectureAction,
     },
-    /// Show configuration and lifetime stats
-    Status,
-    /// Certify and compare proof packages from provers
-    Certify {
+    /// Manage contributions (list, get, run, seal, publish, archive)
+    Contribution {
         #[command(subcommand)]
-        action: commands::certify::CertifyAction,
+        action: ContributionAction,
     },
-    /// Submit conjectures (directory, tar.gz, or git URL)
-    SubmitConjecture {
+    /// View proofs or submit hand-written proofs
+    Proof {
+        #[command(subcommand)]
+        action: ProofAction,
+    },
+    /// Manage certificates (list, create, import, compare, report, seal, publish)
+    Certificate {
+        #[command(subcommand)]
+        action: CertificateAction,
+    },
+    /// Manage proving strategies (list, get, import)
+    Strategy {
+        #[command(subcommand)]
+        action: StrategyAction,
+    },
+    /// View or change CLI settings (get, set)
+    Setting {
+        #[command(subcommand)]
+        action: SettingAction,
+    },
+    /// Authentication (login, status, logout)
+    Auth {
+        #[command(subcommand)]
+        action: AuthAction,
+    },
+}
+
+// ── Conjecture ──
+
+#[derive(Subcommand)]
+enum ConjectureAction {
+    /// List all conjectures
+    List,
+    /// Get details for a specific conjecture
+    Get {
+        /// Conjecture ID
+        id: String,
+    },
+    /// Create conjectures from a directory, .tar.gz, or git URL
+    Create {
         /// Path to directory, .tar.gz file, or git URL
         source: String,
     },
-    /// Publish NFT metadata and archive to IPFS for on-chain minting
+    /// Seal a conjecture batch with NFT metadata
+    Seal {
+        /// Batch ID to seal
+        batch_id: String,
+    },
+}
+
+// ── Contribution ──
+
+#[derive(Subcommand)]
+enum ContributionAction {
+    /// List contributions
+    List {
+        /// Filter by status (e.g. proved, incomplete, unproved)
+        #[arg(long)]
+        status: Option<String>,
+    },
+    /// Get details for a specific contribution
+    Get {
+        /// Contribution ID
+        id: String,
+    },
+    /// Start an AI-assisted proof contribution
+    Run {
+        /// Use a specific proving strategy (by name)
+        #[arg(long = "by")]
+        by: Option<String>,
+    },
+    /// Re-seal an existing contribution (regenerate archive, signature, NFT metadata)
+    Seal {
+        /// Contribution ID to re-seal
+        id: String,
+    },
+    /// Publish a contribution to IPFS and generate mint script
     Publish {
-        /// Type: "contribution" or "certificate"
-        kind: String,
-        /// Contribution or certificate ID
+        /// Contribution ID
+        id: String,
+    },
+    /// Download the proof archive for a contribution
+    Archive {
+        /// Contribution ID
         id: String,
     },
 }
 
+// ── Proof ──
+
 #[derive(Subcommand)]
-enum ProveAction {
-    /// Start an AI-assisted proof contribution (default when no subcommand given)
-    Run {
-        /// Use a specific proving strategy command (by name)
-        #[arg(long = "by")]
-        by: Option<String>,
+enum ProofAction {
+    /// List proofs for a contribution
+    List {
+        /// Contribution ID
+        #[arg(long)]
+        contribution: String,
     },
     /// Submit hand-written proofs for verification and sealing
     Submit {
@@ -85,31 +144,120 @@ enum ProveAction {
         #[arg(long = "dir")]
         dir: Option<String>,
     },
-    /// Re-seal an existing proof contribution (regenerate archive, signature, NFT metadata)
-    Seal {
-        /// Contribution ID to re-seal
-        contribution_id: String,
+}
+
+// ── Certificate ──
+
+#[derive(Subcommand)]
+enum CertificateAction {
+    /// List certificates from the server
+    List,
+    /// Start a new certification session (fetch packages from server)
+    Create,
+    /// Import a local proof archive into the active certification session
+    Import {
+        /// Path to a proof archive (.tar.gz)
+        path: PathBuf,
     },
+    /// AI-compare proofs across packages
+    Compare {
+        /// Use a specific comparison strategy (by name)
+        #[arg(long = "by")]
+        by: Option<String>,
+    },
+    /// Generate or validate a certification report
+    Report {
+        /// Template variant: default, minimal, detailed
+        #[arg(long, default_value = "default")]
+        template: String,
+    },
+    /// Seal certification package with NFT metadata
+    Seal,
+    /// Publish a certificate to IPFS and generate mint script
+    Publish {
+        /// Certificate ID
+        id: String,
+    },
+}
+
+// ── Strategy ──
+
+#[derive(Subcommand)]
+enum StrategyAction {
+    /// List strategies from the server
+    List,
+    /// Get details for a specific strategy
+    Get {
+        /// Strategy name
+        name: String,
+    },
+    /// Import strategy files from paths, directories, .tar.gz, or GitHub URLs
+    Import {
+        /// Paths to import
+        paths: Vec<String>,
+    },
+}
+
+// ── Setting ──
+
+#[derive(Subcommand)]
+enum SettingAction {
+    /// Show settings (all or a specific key)
+    Get {
+        /// Setting key (omit for full status)
+        key: Option<String>,
+    },
+    /// Set a setting value (no args for interactive wizard)
+    Set {
+        /// Setting key (use 'budget' for donation wizard)
+        key: Option<String>,
+        /// New value
+        value: Option<String>,
+    },
+}
+
+// ── Auth ──
+
+#[derive(Subcommand)]
+enum AuthAction {
+    /// Log in with your auth token from the web UI
+    Login,
+    /// Show current auth status
+    Status,
+    /// Clear saved auth token
+    Logout,
 }
 
 #[tokio::main]
 async fn main() {
     let cli = Cli::parse();
 
-    let result = match cli.command {
-        Commands::Init => commands::init::run_init(),
-        Commands::Login => commands::login::run_login().await,
-        Commands::Setup { add_strategies } => commands::setup::run_setup(add_strategies),
-        Commands::Donate => commands::donate::run_donate(),
-        Commands::Prove { action, by } => match action {
-            Some(ProveAction::Run { by: run_by }) => {
-                commands::run::run_prove(run_by.as_deref().or(by.as_deref())).await
+    let result = match cli.resource {
+        Resource::Conjecture { action } => match action {
+            ConjectureAction::List => commands::conjecture::cmd_list().await,
+            ConjectureAction::Get { id } => commands::conjecture::cmd_get(&id).await,
+            ConjectureAction::Create { source } => commands::conjecture::cmd_create(&source).await,
+            ConjectureAction::Seal { batch_id } => commands::conjecture::cmd_seal(&batch_id).await,
+        },
+        Resource::Contribution { action } => match action {
+            ContributionAction::List { status } => {
+                commands::contribution::cmd_list(status.as_deref()).await
             }
-            Some(ProveAction::Submit {
+            ContributionAction::Get { id } => commands::contribution::cmd_get(&id).await,
+            ContributionAction::Run { by } => commands::run::run_prove(by.as_deref()).await,
+            ContributionAction::Seal { id } => commands::run::run_prove_seal(&id).await,
+            ContributionAction::Publish { id } => {
+                commands::publish::run_publish("contribution", &id).await
+            }
+            ContributionAction::Archive { id } => commands::contribution::cmd_archive(&id).await,
+        },
+        Resource::Proof { action } => match action {
+            ProofAction::List { contribution } => commands::proof::cmd_list(&contribution).await,
+            ProofAction::Submit {
                 conjecture_id,
                 proof_file,
                 dir,
-            }) => {
+            } => {
                 commands::run::run_prove_submit(
                     conjecture_id.as_deref(),
                     proof_file.as_deref(),
@@ -117,18 +265,34 @@ async fn main() {
                 )
                 .await
             }
-            Some(ProveAction::Seal { contribution_id }) => {
-                commands::run::run_prove_seal(&contribution_id).await
-            }
-            // Default: `prove` with no subcommand runs the proof contribution
-            None => commands::run::run_prove(by.as_deref()).await,
         },
-        Commands::Status => commands::status::run_status(),
-        Commands::Certify { action } => commands::certify::run_certify(action).await,
-        Commands::SubmitConjecture { source } => {
-            commands::submit_conjecture::run_submit_conjecture(&source).await
-        }
-        Commands::Publish { kind, id } => commands::publish::run_publish(&kind, &id).await,
+        Resource::Certificate { action } => match action {
+            CertificateAction::List => commands::certificate::cmd_list().await,
+            CertificateAction::Create => commands::certificate::cmd_create().await,
+            CertificateAction::Import { path } => commands::certificate::cmd_import(&path).await,
+            CertificateAction::Compare { by } => {
+                commands::certificate::cmd_compare(by.as_deref()).await
+            }
+            CertificateAction::Report { template } => commands::certificate::cmd_report(&template),
+            CertificateAction::Seal => commands::certificate::cmd_seal().await,
+            CertificateAction::Publish { id } => commands::certificate::cmd_publish(&id).await,
+        },
+        Resource::Strategy { action } => match action {
+            StrategyAction::List => commands::strategy::cmd_list().await,
+            StrategyAction::Get { name } => commands::strategy::cmd_get(&name).await,
+            StrategyAction::Import { paths } => commands::strategy::cmd_import(&paths),
+        },
+        Resource::Setting { action } => match action {
+            SettingAction::Get { key } => commands::setting::cmd_get(key.as_deref()),
+            SettingAction::Set { key, value } => {
+                commands::setting::cmd_set(key.as_deref(), value.as_deref())
+            }
+        },
+        Resource::Auth { action } => match action {
+            AuthAction::Login => commands::auth::cmd_login().await,
+            AuthAction::Status => commands::auth::cmd_status(),
+            AuthAction::Logout => commands::auth::cmd_logout(),
+        },
     };
 
     if let Err(e) = result {

@@ -115,7 +115,7 @@ async fn seal_contribution(
         },
         None => {
             eprintln!(
-                "{}: No signing key found. Run `proof-at-home init` to generate one.",
+                "{}: No signing key found. Run `pah setting set` to generate one.",
                 "Warning".yellow()
             );
             (String::new(), String::new())
@@ -158,13 +158,13 @@ async fn seal_contribution(
 
 pub async fn run_prove(strategy_name: Option<&str>) -> Result<()> {
     if !Config::exists() {
-        bail!("No config found. Run `proof-at-home init` first.");
+        bail!("No config found. Run `pah auth login` first.");
     }
 
     let mut config = Config::load()?;
 
     if config.budget.donated_usd <= 0.0 {
-        bail!("No budget set. Run `proof-at-home donate` first.");
+        bail!("No budget set. Run `pah setting set budget` first.");
     }
 
     // Ensure builtin strategies are available
@@ -370,6 +370,7 @@ pub async fn run_prove(strategy_name: Option<&str>) -> Result<()> {
                     cost_usd: result.cost_usd,
                     attempts: result.attempts,
                     error_output: result.error_output,
+                    contribution_id: contribution_id.clone(),
                 },
             )
             .await;
@@ -501,7 +502,7 @@ pub async fn run_prove_submit(
     dir: Option<&str>,
 ) -> Result<()> {
     if !Config::exists() {
-        bail!("No config found. Run `proof-at-home init` first.");
+        bail!("No config found. Run `pah auth login` first.");
     }
 
     let config = Config::load()?;
@@ -739,6 +740,7 @@ pub async fn run_prove_submit(
                     } else {
                         verify_result.output
                     },
+                    contribution_id: contribution_id.clone(),
                 },
             )
             .await;

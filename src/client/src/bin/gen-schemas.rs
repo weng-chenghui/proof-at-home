@@ -3,12 +3,12 @@ use std::fs;
 use std::path::Path;
 
 // Re-use types from the main crate
-use proof_at_home::certifier::types::{CertificationReport, CertificationState, ComparisonResult};
-use proof_at_home::nft::metadata::{
+use pah::certifier::types::{CertificationReport, CertificationState, ComparisonResult};
+use pah::nft::metadata::{
     CertificateInfo, ConjectureSubmitterInfo, ContributionInfo, NftCertificateMetadata,
     NftSessionMetadata, NftSubmitterMetadata,
 };
-use proof_at_home::server_client::api::{Certificate, Conjecture, Contribution, Proof};
+use pah::server_client::api::{Certificate, Conjecture, Contribution, Proof};
 
 fn write_schema<T: schemars::JsonSchema>(dir: &Path, filename: &str) {
     let schema = schema_for!(T);

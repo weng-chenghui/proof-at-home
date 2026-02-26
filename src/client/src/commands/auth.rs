@@ -6,7 +6,7 @@ use crate::config::types::*;
 use crate::config::Config;
 use crate::server_client::api::ServerClient;
 
-pub async fn run_login() -> Result<()> {
+pub async fn cmd_login() -> Result<()> {
     println!("{}", "=== Proof@Home Login ===".bold().cyan());
     println!();
     println!(
@@ -15,7 +15,6 @@ pub async fn run_login() -> Result<()> {
     );
     println!();
 
-    // Determine server URL: env var > existing config > prompt
     let server_url = if let Ok(url) = std::env::var("PAH_SERVER_URL") {
         println!("Server: {} (from PAH_SERVER_URL)", url.green());
         url
@@ -30,7 +29,6 @@ pub async fn run_login() -> Result<()> {
         prompt_server_url()?
     };
 
-    // Prompt for token
     let token: String = Password::new().with_prompt("Auth token").interact()?;
 
     let token = token.trim().to_string();
@@ -38,7 +36,6 @@ pub async fn run_login() -> Result<()> {
         anyhow::bail!("Token cannot be empty");
     }
 
-    // Decode JWT to extract identity
     let parts: Vec<&str> = token.split('.').collect();
     if parts.len() != 3 {
         anyhow::bail!("Invalid token format (expected JWT with 3 parts)");
@@ -70,7 +67,6 @@ pub async fn run_login() -> Result<()> {
         println!("  Email: {}", email);
     }
 
-    // Verify token against server
     print!("  Verifying with server... ");
     let client = ServerClient::new(&server_url, &token);
     match client.health_check().await {
@@ -86,7 +82,6 @@ pub async fn run_login() -> Result<()> {
         }
     }
 
-    // Load or create config
     let mut config = Config::load().unwrap_or_else(|_| Config {
         identity: Identity {
             real_name: String::new(),
@@ -109,11 +104,9 @@ pub async fn run_login() -> Result<()> {
         ipfs: Default::default(),
     });
 
-    // Update auth token and server URL
     config.api.auth_token = token;
     config.api.server_url = server_url;
 
-    // Fill identity from JWT if not already set
     if config.identity.username.is_empty() && !username.is_empty() {
         config.identity.username = username;
     }
@@ -127,11 +120,41 @@ pub async fn run_login() -> Result<()> {
     println!("{} Token saved to config.", "✓".green().bold());
     println!(
         "{}",
-        "Run `proof-at-home setup` to configure API key and other settings.".dimmed()
+        "Run `pah setting set` to configure API key and other settings.".dimmed()
     );
 
     Ok(())
 }
+
+pub fn cmd_status() -> Result<()> {
+    let cfg = Config::load()?;
+
+    println!("{}", "=== Auth Status ===".bold());
+    println!("Username:  {}", cfg.identity.username);
+    println!("Email:     {}", cfg.identity.email);
+    if !cfg.api.auth_token.is_empty() {
+        println!("Token:     {}", "set".green());
+    } else {
+        println!("Token:     {}", "not set".yellow());
+    }
+    println!("Server:    {}", cfg.api.server_url);
+
+    if !cfg.identity.public_key.is_empty() {
+        println!("Public key: {}", cfg.identity.public_key.dimmed());
+    }
+
+    Ok(())
+}
+
+pub fn cmd_logout() -> Result<()> {
+    let mut cfg = Config::load()?;
+    cfg.api.auth_token = String::new();
+    cfg.save()?;
+    println!("{} Auth token cleared.", "✓".green().bold());
+    Ok(())
+}
+
+// ── Helpers ──
 
 fn prompt_server_url() -> Result<String> {
     let url: String = Input::new()
@@ -141,11 +164,8 @@ fn prompt_server_url() -> Result<String> {
     Ok(url)
 }
 
-/// Decode a JWT base64url segment (no padding).
 fn base64_decode_jwt(input: &str) -> Result<String> {
-    // JWT uses base64url encoding (- instead of +, _ instead of /)
     let b64 = input.replace('-', "+").replace('_', "/");
-    // Add padding
     let padded = match b64.len() % 4 {
         2 => format!("{b64}=="),
         3 => format!("{b64}="),
@@ -155,7 +175,6 @@ fn base64_decode_jwt(input: &str) -> Result<String> {
     String::from_utf8(bytes).context("JWT payload is not valid UTF-8")
 }
 
-/// Simple base64 decoder (standard alphabet).
 fn base64_decode_simple(input: &str) -> Result<Vec<u8>> {
     use base64::Engine;
     base64::engine::general_purpose::STANDARD

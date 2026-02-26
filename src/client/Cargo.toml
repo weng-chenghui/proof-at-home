@@ -1,10 +1,11 @@
 [package]
-name = "proof-at-home"
+name = "pah"
 version = "0.1.0"
 edition = "2021"
+default-run = "pah"
 
 [[bin]]
-name = "proof-at-home"
+name = "pah"
 path = "src/main.rs"
 
 [[bin]]
