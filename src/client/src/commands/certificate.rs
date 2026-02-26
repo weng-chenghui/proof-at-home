@@ -83,8 +83,9 @@ fn get_active_certification() -> Result<(PathBuf, CertificationState)> {
 // ── certificate list (NEW: fetch from server) ──
 
 pub async fn cmd_list() -> Result<()> {
-    let cfg = Config::load()?;
-    let client = ServerClient::new(&cfg.api.server_url, &cfg.api.auth_token);
+    let cfg = Config::load_or_default();
+    cfg.require_login()?;
+    let client = ServerClient::new(&cfg.server_url(), &cfg.api.auth_token);
     let certificates = client.fetch_certificates().await?;
 
     if certificates.is_empty() {
@@ -121,7 +122,8 @@ pub async fn cmd_list() -> Result<()> {
 // ── certificate create (was certify start) ──
 
 pub async fn cmd_create() -> Result<()> {
-    let config = Config::load()?;
+    let config = Config::load_or_default();
+    config.require_login()?;
     let certification_id = uuid::Uuid::new_v4().to_string();
     let certification_dir = certifications_dir()?.join(&certification_id);
     let packages_dir = certification_dir.join("packages");
@@ -135,7 +137,7 @@ pub async fn cmd_create() -> Result<()> {
         status: CertificationStatus::Open,
     };
 
-    let server = ServerClient::new(&config.api.server_url, &config.api.auth_token);
+    let server = ServerClient::new(&config.server_url(), &config.api.auth_token);
     let available = match server.fetch_contribution_reviews().await {
         Ok(pkgs) => pkgs,
         Err(e) => {
@@ -295,7 +297,7 @@ pub async fn cmd_import(path: &Path) -> Result<()> {
 // ── certificate compare ──
 
 pub async fn cmd_compare(strategy_name: Option<&str>) -> Result<()> {
-    let config = Config::load()?;
+    let config = Config::load_or_default();
     let (certification_dir, mut state) = get_active_certification()?;
 
     if state.packages.len() < 2 {
@@ -416,7 +418,8 @@ pub fn cmd_report(template_variant: &str) -> Result<()> {
 // ── certificate seal ──
 
 pub async fn cmd_seal() -> Result<()> {
-    let config = Config::load()?;
+    let config = Config::load_or_default();
+    config.require_login()?;
     let (certification_dir, mut state) = get_active_certification()?;
 
     let is_reseal = state.status == CertificationStatus::Sealed;
@@ -502,7 +505,7 @@ pub async fn cmd_seal() -> Result<()> {
     let archive_path = certification_dir.join("certification_package.tar.gz");
     create_certification_archive(&certification_dir, &archive_path)?;
 
-    let server = ServerClient::new(&config.api.server_url, &config.api.auth_token);
+    let server = ServerClient::new(&config.server_url(), &config.api.auth_token);
 
     let server_summary = crate::server_client::api::Certificate {
         certifier_username: report.certifier.username.clone(),
@@ -587,7 +590,7 @@ pub async fn cmd_seal() -> Result<()> {
         ai_comparison_cost_usd: ai_cost,
         certified_contribution_ids,
         git_commit: commit_sha.clone(),
-        git_repository: config.api.server_url.clone(),
+        git_repository: config.server_url(),
         certifier_public_key,
         commit_signature,
     };

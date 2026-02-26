@@ -5,7 +5,7 @@ use crate::config::Config;
 use crate::ipfs;
 
 pub async fn run_publish(kind: &str, id: &str) -> Result<()> {
-    let config = Config::load()?;
+    let config = Config::load_or_default();
 
     let (base_dir, archive_name, nft_name) = match kind {
         "contribution" => {

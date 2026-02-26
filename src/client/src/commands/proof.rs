@@ -5,8 +5,9 @@ use crate::config::Config;
 use crate::server_client::api::ServerClient;
 
 pub async fn cmd_list(contribution_id: &str) -> Result<()> {
-    let cfg = Config::load()?;
-    let client = ServerClient::new(&cfg.api.server_url, &cfg.api.auth_token);
+    let cfg = Config::load_or_default();
+    cfg.require_login()?;
+    let client = ServerClient::new(&cfg.server_url(), &cfg.api.auth_token);
     let proofs = client.fetch_proofs(contribution_id).await?;
 
     if proofs.is_empty() {

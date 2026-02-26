@@ -2,7 +2,6 @@ use anyhow::{Context, Result};
 use colored::Colorize;
 use dialoguer::{Input, Password};
 
-use crate::config::types::*;
 use crate::config::Config;
 use crate::server_client::api::ServerClient;
 
@@ -82,27 +81,7 @@ pub async fn cmd_login() -> Result<()> {
         }
     }
 
-    let mut config = Config::load().unwrap_or_else(|_| Config {
-        identity: Identity {
-            real_name: String::new(),
-            username: String::new(),
-            email: String::new(),
-            affiliation: String::new(),
-            public_key: String::new(),
-        },
-        api: Api {
-            anthropic_api_key: String::new(),
-            server_url: String::new(),
-            model: "claude-sonnet-4-6".to_string(),
-            auth_token: String::new(),
-        },
-        prover: Prover {
-            scratch_dir: "/tmp/proof-at-home".to_string(),
-            envs_dir: default_envs_dir(),
-        },
-        budget: Budget::default(),
-        ipfs: Default::default(),
-    });
+    let mut config = Config::load_or_default();
 
     config.api.auth_token = token;
     config.api.server_url = server_url;
@@ -127,9 +106,14 @@ pub async fn cmd_login() -> Result<()> {
 }
 
 pub fn cmd_status() -> Result<()> {
-    let cfg = Config::load()?;
+    let cfg = Config::load_or_default();
 
     println!("{}", "=== Auth Status ===".bold());
+    if cfg.identity.username.is_empty() {
+        println!("Status:    {}", "not logged in".yellow());
+        println!("\nRun `pah auth login` to authenticate.");
+        return Ok(());
+    }
     println!("Username:  {}", cfg.identity.username);
     println!("Email:     {}", cfg.identity.email);
     if !cfg.api.auth_token.is_empty() {
@@ -137,7 +121,7 @@ pub fn cmd_status() -> Result<()> {
     } else {
         println!("Token:     {}", "not set".yellow());
     }
-    println!("Server:    {}", cfg.api.server_url);
+    println!("Server:    {}", cfg.server_url());
 
     if !cfg.identity.public_key.is_empty() {
         println!("Public key: {}", cfg.identity.public_key.dimmed());
@@ -147,7 +131,7 @@ pub fn cmd_status() -> Result<()> {
 }
 
 pub fn cmd_logout() -> Result<()> {
-    let mut cfg = Config::load()?;
+    let mut cfg = Config::load_or_default();
     cfg.api.auth_token = String::new();
     cfg.save()?;
     println!("{} Auth token cleared.", "✓".green().bold());
@@ -180,12 +164,4 @@ fn base64_decode_simple(input: &str) -> Result<Vec<u8>> {
     base64::engine::general_purpose::STANDARD
         .decode(input)
         .context("base64 decode failed")
-}
-
-fn default_envs_dir() -> String {
-    let home = dirs::home_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
-    home.join(".proof-at-home")
-        .join("envs")
-        .to_string_lossy()
-        .to_string()
 }

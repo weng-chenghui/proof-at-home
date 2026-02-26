@@ -6,8 +6,9 @@ use crate::server_client::api::ServerClient;
 use crate::strategy_store::importer;
 
 pub async fn cmd_list() -> Result<()> {
-    let cfg = Config::load()?;
-    let client = ServerClient::new(&cfg.api.server_url, &cfg.api.auth_token);
+    let cfg = Config::load_or_default();
+    cfg.require_login()?;
+    let client = ServerClient::new(&cfg.server_url(), &cfg.api.auth_token);
     let strategies = client.fetch_strategies().await?;
 
     if strategies.is_empty() {
@@ -38,8 +39,9 @@ pub async fn cmd_list() -> Result<()> {
 }
 
 pub async fn cmd_get(name: &str) -> Result<()> {
-    let cfg = Config::load()?;
-    let client = ServerClient::new(&cfg.api.server_url, &cfg.api.auth_token);
+    let cfg = Config::load_or_default();
+    cfg.require_login()?;
+    let client = ServerClient::new(&cfg.server_url(), &cfg.api.auth_token);
     let s = client.fetch_strategy(name).await?;
 
     println!("{}", "=== Strategy ===".bold());

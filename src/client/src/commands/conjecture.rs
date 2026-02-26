@@ -8,8 +8,9 @@ use crate::server_client::api::{ConjectureCreateResponse, ServerClient};
 use crate::signing;
 
 pub async fn cmd_list() -> Result<()> {
-    let cfg = Config::load()?;
-    let client = ServerClient::new(&cfg.api.server_url, &cfg.api.auth_token);
+    let cfg = Config::load_or_default();
+    cfg.require_login()?;
+    let client = ServerClient::new(&cfg.server_url(), &cfg.api.auth_token);
     let conjectures = client.fetch_conjectures().await?;
 
     if conjectures.is_empty() {
@@ -41,8 +42,9 @@ pub async fn cmd_list() -> Result<()> {
 }
 
 pub async fn cmd_get(id: &str) -> Result<()> {
-    let cfg = Config::load()?;
-    let client = ServerClient::new(&cfg.api.server_url, &cfg.api.auth_token);
+    let cfg = Config::load_or_default();
+    cfg.require_login()?;
+    let client = ServerClient::new(&cfg.server_url(), &cfg.api.auth_token);
     let c = client.fetch_conjecture(id).await?;
 
     println!("{}", "=== Conjecture ===".bold());
@@ -71,8 +73,9 @@ pub async fn cmd_get(id: &str) -> Result<()> {
 }
 
 pub async fn cmd_create(source: &str) -> Result<()> {
-    let cfg = Config::load()?;
-    let client = ServerClient::new(&cfg.api.server_url, &cfg.api.auth_token);
+    let cfg = Config::load_or_default();
+    cfg.require_login()?;
+    let client = ServerClient::new(&cfg.server_url(), &cfg.api.auth_token);
 
     let resp = if is_git_url(source) {
         println!("{} Submitting git URL: {}", "→".blue(), source);
@@ -107,8 +110,9 @@ pub async fn cmd_create(source: &str) -> Result<()> {
 }
 
 pub async fn cmd_seal(batch_id: &str) -> Result<()> {
-    let cfg = Config::load()?;
-    let client = ServerClient::new(&cfg.api.server_url, &cfg.api.auth_token);
+    let cfg = Config::load_or_default();
+    cfg.require_login()?;
+    let client = ServerClient::new(&cfg.server_url(), &cfg.api.auth_token);
 
     let (public_key, commit_signature) = sign_if_possible(&cfg, batch_id);
 
@@ -120,7 +124,7 @@ pub async fn cmd_seal(batch_id: &str) -> Result<()> {
         difficulties: Vec::new(),
         proof_assistants: Vec::new(),
         git_commit: batch_id.to_string(),
-        git_repository: cfg.api.server_url.clone(),
+        git_repository: cfg.server_url(),
         public_key,
         commit_signature,
     };
@@ -166,7 +170,7 @@ async fn seal_submitter_nft(
         difficulties: resp.difficulties.clone(),
         proof_assistants: resp.proof_assistants.clone(),
         git_commit: commit_sha.clone(),
-        git_repository: cfg.api.server_url.clone(),
+        git_repository: cfg.server_url(),
         public_key,
         commit_signature,
     };

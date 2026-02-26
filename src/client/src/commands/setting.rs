@@ -13,7 +13,7 @@ pub fn cmd_get(key: Option<&str>) -> Result<()> {
     match key {
         None => run_status(),
         Some(k) => {
-            let cfg = Config::load()?;
+            let cfg = Config::load_or_default();
             let value = match k {
                 "username" => cfg.identity.username.clone(),
                 "email" => cfg.identity.email.clone(),
@@ -61,7 +61,7 @@ pub fn cmd_set(key: Option<&str>, value: Option<&str>) -> Result<()> {
         (None, None) => run_setup_wizard(),
         (Some("budget"), _) => run_donate(),
         (Some(k), Some(v)) => {
-            let mut cfg = Config::load()?;
+            let mut cfg = Config::load_or_default();
             match k {
                 "username" => cfg.identity.username = v.to_string(),
                 "email" => cfg.identity.email = v.to_string(),
@@ -89,11 +89,7 @@ pub fn cmd_set(key: Option<&str>, value: Option<&str>) -> Result<()> {
 // ── status (merged from status.rs) ──
 
 fn run_status() -> Result<()> {
-    if !Config::exists() {
-        bail!("No config found. Run `pah auth login` first.");
-    }
-
-    let config = Config::load()?;
+    let config = Config::load_or_default();
 
     println!("{}", "=== Proof@Home Status ===".bold().cyan());
     println!();
@@ -118,7 +114,7 @@ fn run_status() -> Result<()> {
         "***".to_string()
     };
     println!("  API Key:     {}", key_display);
-    println!("  Server:      {}", config.api.server_url);
+    println!("  Server:      {}", config.server_url());
     println!("  Model:       {}", config.api.model);
     println!();
 
@@ -402,11 +398,7 @@ By proceeding, you acknowledge and agree to the following:
 "#;
 
 fn run_donate() -> Result<()> {
-    if !Config::exists() {
-        bail!("No config found. Run `pah auth login` first.");
-    }
-
-    let mut config = Config::load()?;
+    let mut config = Config::load_or_default();
 
     println!("{}", LEGAL_TEXT.dimmed());
 

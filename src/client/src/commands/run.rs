@@ -131,7 +131,7 @@ async fn seal_contribution(
         prover: pa_label,
         proof_status,
         git_commit: commit_sha.clone(),
-        git_repository: config.api.server_url.clone(), // server will provide repo URL
+        git_repository: config.server_url(), // server will provide repo URL
         public_key,
         commit_signature,
         proof_mode: proof_mode.to_string(),
@@ -157,11 +157,8 @@ async fn seal_contribution(
 }
 
 pub async fn run_prove(strategy_name: Option<&str>) -> Result<()> {
-    if !Config::exists() {
-        bail!("No config found. Run `pah auth login` first.");
-    }
-
-    let mut config = Config::load()?;
+    let mut config = Config::load_or_default();
+    config.require_login()?;
 
     if config.budget.donated_usd <= 0.0 {
         bail!("No budget set. Run `pah setting set budget` first.");
@@ -190,7 +187,7 @@ pub async fn run_prove(strategy_name: Option<&str>) -> Result<()> {
     println!();
 
     // Health check
-    let server = ServerClient::new(&config.api.server_url, &config.api.auth_token);
+    let server = ServerClient::new(&config.server_url(), &config.api.auth_token);
     print!("Connecting to server... ");
     match server.health_check().await {
         Ok(true) => println!("{}", "OK".green()),
@@ -198,7 +195,7 @@ pub async fn run_prove(strategy_name: Option<&str>) -> Result<()> {
             println!("{}", "FAILED".red());
             bail!(
                 "Cannot reach server at {}. Is it running?",
-                config.api.server_url
+                config.server_url()
             );
         }
     }
@@ -431,7 +428,8 @@ pub async fn run_prove(strategy_name: Option<&str>) -> Result<()> {
 
 /// Re-seal an existing contribution: regenerate archive, signature, and NFT metadata.
 pub async fn run_prove_seal(contribution_id: &str) -> Result<()> {
-    let config = Config::load()?;
+    let config = Config::load_or_default();
+    config.require_login()?;
     let contribution_dir = Config::contributions_dir()?.join(contribution_id);
 
     if !contribution_dir.exists() {
@@ -465,7 +463,7 @@ pub async fn run_prove_seal(contribution_id: &str) -> Result<()> {
     println!("Contribution: {}", contribution_id.dimmed());
     println!();
 
-    let server = ServerClient::new(&config.api.server_url, &config.api.auth_token);
+    let server = ServerClient::new(&config.server_url(), &config.api.auth_token);
 
     let proof_mode = if state.total_cost_usd == 0.0 {
         "manual"
@@ -501,11 +499,8 @@ pub async fn run_prove_submit(
     proof_file: Option<&str>,
     dir: Option<&str>,
 ) -> Result<()> {
-    if !Config::exists() {
-        bail!("No config found. Run `pah auth login` first.");
-    }
-
-    let config = Config::load()?;
+    let config = Config::load_or_default();
+    config.require_login()?;
 
     // Resolve input: single file or directory of proof files
     let mut proof_inputs: Vec<(String, PathBuf)> = Vec::new();
@@ -566,7 +561,7 @@ pub async fn run_prove_submit(
     println!();
 
     // Health check
-    let server = ServerClient::new(&config.api.server_url, &config.api.auth_token);
+    let server = ServerClient::new(&config.server_url(), &config.api.auth_token);
     print!("Connecting to server... ");
     match server.health_check().await {
         Ok(true) => println!("{}", "OK".green()),
@@ -574,7 +569,7 @@ pub async fn run_prove_submit(
             println!("{}", "FAILED".red());
             bail!(
                 "Cannot reach server at {}. Is it running?",
-                config.api.server_url
+                config.server_url()
             );
         }
     }

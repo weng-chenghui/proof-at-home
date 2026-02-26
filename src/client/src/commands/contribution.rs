@@ -5,8 +5,9 @@ use crate::config::Config;
 use crate::server_client::api::ServerClient;
 
 pub async fn cmd_list(status: Option<&str>) -> Result<()> {
-    let cfg = Config::load()?;
-    let client = ServerClient::new(&cfg.api.server_url, &cfg.api.auth_token);
+    let cfg = Config::load_or_default();
+    cfg.require_login()?;
+    let client = ServerClient::new(&cfg.server_url(), &cfg.api.auth_token);
     let contributions = client.fetch_contributions().await?;
 
     let filtered: Vec<_> = if let Some(s) = status {
@@ -51,8 +52,9 @@ pub async fn cmd_list(status: Option<&str>) -> Result<()> {
 }
 
 pub async fn cmd_get(id: &str) -> Result<()> {
-    let cfg = Config::load()?;
-    let client = ServerClient::new(&cfg.api.server_url, &cfg.api.auth_token);
+    let cfg = Config::load_or_default();
+    cfg.require_login()?;
+    let client = ServerClient::new(&cfg.server_url(), &cfg.api.auth_token);
     let c = client.fetch_contribution(id).await?;
 
     println!("{}", "=== Contribution ===".bold());
@@ -69,8 +71,9 @@ pub async fn cmd_get(id: &str) -> Result<()> {
 }
 
 pub async fn cmd_archive(id: &str) -> Result<()> {
-    let cfg = Config::load()?;
-    let client = ServerClient::new(&cfg.api.server_url, &cfg.api.auth_token);
+    let cfg = Config::load_or_default();
+    cfg.require_login()?;
+    let client = ServerClient::new(&cfg.server_url(), &cfg.api.auth_token);
 
     let dest = std::path::PathBuf::from(format!("{}.tar.gz", id));
     print!("Downloading archive... ");
