@@ -35,25 +35,6 @@ function isLoggedIn() {
     return !!localStorage.getItem('pah_jwt_token');
 }
 
-// Show login gate on submit pages. Returns true if gate was shown (not logged in).
-function loginGate(formId) {
-    if (isLoggedIn()) return false;
-    const form = document.getElementById(formId);
-    if (form) form.style.display = 'none';
-    const container = form ? form.parentElement : document.querySelector('.container');
-    const gate = document.createElement('div');
-    gate.className = 'login-gate';
-    gate.innerHTML = `
-        <div class="login-gate-icon">&#128274;</div>
-        <h2>Login Required</h2>
-        <p>Please log in or sign up to submit.</p>
-        <a href="/login.html" class="btn">Log In</a>
-        <a href="/signup.html" class="btn btn-secondary" style="margin-left:0.5rem">Sign Up</a>
-    `;
-    container.appendChild(gate);
-    return true;
-}
-
 // Auto-fill a username field from JWT
 function autoFillUsername(fieldId) {
     const field = document.getElementById(fieldId);
@@ -125,7 +106,6 @@ function initNav() {
             <a href="/certificates.html">Certificates</a>
             <a href="/commands.html">Commands</a>
             <a href="/nft-gallery.html">NFT Gallery</a>
-            <a href="/submit-conjecture.html">Submit Conjecture</a>
         </div>
         ${userSection}
     `;

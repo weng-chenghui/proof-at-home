@@ -97,6 +97,14 @@ fly secrets set \
 
 Set the server URL to your Fly.io deployment URL. Config is saved to `~/.proof-at-home/config.toml`.
 
+**Authentication:** The web UI's login/signup pages serve as a token issuer for CLI authentication. Sign up at `https://<app>.fly.dev/signup.html`, then copy your auth token from the settings page and run:
+
+```bash
+./target/release/proof-at-home login
+```
+
+Paste the token when prompted. All subsequent CLI commands will authenticate with this token.
+
 ### 6. Run a proof contribution
 
 Two paths — pick whichever fits your workflow:
@@ -406,6 +414,8 @@ total_spent = 0.0
 | `GIT_FORGE_PROJECT` | `owner/repo` or GitLab project ID | — |
 | `AUTH_ENABLED` | Enable JWT authentication | `false` |
 | `CORS_ORIGINS` | Allowed CORS origins | `*` |
+
+> **Web UI as token issuer:** When `AUTH_ENABLED=true`, the web UI provides login and signup pages that issue JWT tokens. These tokens are used by the CLI (`proof-at-home login`) to authenticate API requests. All submissions (conjectures, contributions, certificates) go through the CLI or git — the web UI has no submission forms.
 
 ## License
 
