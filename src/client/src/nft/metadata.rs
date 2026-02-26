@@ -18,6 +18,8 @@ pub struct ContributionInfo {
     pub git_repository: String,
     pub public_key: String,
     pub commit_signature: String,
+    /// "manual" or "ai-assisted"
+    pub proof_mode: String,
 }
 
 /// Generate OpenSea-compatible NFT metadata JSON for a proof contribution
@@ -69,6 +71,10 @@ pub fn generate_nft_metadata(info: &ContributionInfo) -> Value {
             {
                 "trait_type": "Commit Signature",
                 "value": info.commit_signature
+            },
+            {
+                "trait_type": "Proof Mode",
+                "value": info.proof_mode
             }
         ]
     })

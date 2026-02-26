@@ -120,21 +120,28 @@ type contribution struct {
 func TestContributions(t *testing.T) {
 	var contributions []contribution
 	getJSON(t, "/contributions", &contributions)
-	if len(contributions) != 1 {
-		t.Fatalf("len(contributions) = %d, want 1", len(contributions))
+	if len(contributions) < 1 {
+		t.Fatalf("len(contributions) = %d, want >= 1", len(contributions))
 	}
-	c := contributions[0]
-	if c.ContributionID != "a1111111-1111-1111-1111-111111111111" {
-		t.Errorf("contribution_id = %q", c.ContributionID)
+	// Find the seed contribution by ID (write tests may add more)
+	var found bool
+	for _, c := range contributions {
+		if c.ContributionID == "a1111111-1111-1111-1111-111111111111" {
+			found = true
+			if c.Username != "alice" {
+				t.Errorf("username = %q, want %q", c.Username, "alice")
+			}
+			if c.ConjecturesProved != 2 {
+				t.Errorf("conjectures_proved = %d, want 2", c.ConjecturesProved)
+			}
+			if c.Prover != "rocq" {
+				t.Errorf("prover = %q, want %q", c.Prover, "rocq")
+			}
+			break
+		}
 	}
-	if c.Username != "alice" {
-		t.Errorf("username = %q, want %q", c.Username, "alice")
-	}
-	if c.ConjecturesProved != 2 {
-		t.Errorf("conjectures_proved = %d, want 2", c.ConjecturesProved)
-	}
-	if c.Prover != "rocq" {
-		t.Errorf("prover = %q, want %q", c.Prover, "rocq")
+	if !found {
+		t.Error("seed contribution a1111111-1111-1111-1111-111111111111 not found")
 	}
 }
 
@@ -163,14 +170,22 @@ func TestCertificates(t *testing.T) {
 		PackagesCertified int    `json:"packages_certified"`
 	}
 	getJSON(t, "/certificates", &certs)
-	if len(certs) != 1 {
-		t.Fatalf("len(certificates) = %d, want 1", len(certs))
+	if len(certs) < 1 {
+		t.Fatalf("len(certificates) = %d, want >= 1", len(certs))
 	}
-	if certs[0].CertificateID != "cert-demo-001" {
-		t.Errorf("certificate_id = %q", certs[0].CertificateID)
+	// Find the seed certificate by ID (write tests may add more)
+	var found bool
+	for _, c := range certs {
+		if c.CertificateID == "cert-demo-001" {
+			found = true
+			if c.CertifierUsername != "certifier-bot" {
+				t.Errorf("certifier_username = %q", c.CertifierUsername)
+			}
+			break
+		}
 	}
-	if certs[0].CertifierUsername != "certifier-bot" {
-		t.Errorf("certifier_username = %q", certs[0].CertifierUsername)
+	if !found {
+		t.Error("seed certificate cert-demo-001 not found")
 	}
 }
 
@@ -180,23 +195,30 @@ func TestCertificatePackages(t *testing.T) {
 	var pkgs []struct {
 		ContributorContributionID string   `json:"contributor_contribution_id"`
 		ContributorUsername       string   `json:"contributor_username"`
-		Prover               string   `json:"prover"`
-		ConjectureIDs        []string `json:"conjecture_ids"`
-		CertifiedBy          []string `json:"certified_by"`
+		Prover                    string   `json:"prover"`
+		ConjectureIDs             []string `json:"conjecture_ids"`
+		CertifiedBy               []string `json:"certified_by"`
 	}
 	getJSON(t, "/certificate-packages", &pkgs)
-	if len(pkgs) != 1 {
-		t.Fatalf("len(packages) = %d, want 1", len(pkgs))
+	if len(pkgs) < 1 {
+		t.Fatalf("len(packages) = %d, want >= 1", len(pkgs))
 	}
-	p := pkgs[0]
-	if p.ContributorUsername != "alice" {
-		t.Errorf("contributor_username = %q, want %q", p.ContributorUsername, "alice")
+	// Find alice's seed package (write tests may add more)
+	var found bool
+	for _, p := range pkgs {
+		if p.ContributorUsername == "alice" {
+			found = true
+			if p.Prover != "rocq" {
+				t.Errorf("prover = %q, want %q", p.Prover, "rocq")
+			}
+			if len(p.CertifiedBy) == 0 {
+				t.Error("certified_by is empty, expected certifier-bot")
+			}
+			break
+		}
 	}
-	if p.Prover != "rocq" {
-		t.Errorf("prover = %q, want %q", p.Prover, "rocq")
-	}
-	if len(p.CertifiedBy) == 0 {
-		t.Error("certified_by is empty, expected certifier-bot")
+	if !found {
+		t.Error("seed package for alice not found")
 	}
 }
 
@@ -448,6 +470,108 @@ func TestArchiveDownload(t *testing.T) {
 		if !strings.Contains(ct, "gzip") {
 			t.Errorf("content-type = %q, want gzip", ct)
 		}
+	}
+}
+
+// ── Manual proof submission flow (prove submit) ──
+
+func TestManualProofContribution(t *testing.T) {
+	contribID := "test-manual-contrib-001"
+
+	// 1. Create draft contribution
+	create := map[string]any{
+		"username":              "manual-prover",
+		"contribution_id":       contribID,
+		"conjectures_attempted": 0,
+		"conjectures_proved":    0,
+	}
+	status, _ := postJSON(t, "/contributions", create)
+	if status != http.StatusCreated {
+		t.Fatalf("POST /contributions: status %d", status)
+	}
+
+	// 2. Submit a proof result with cost_usd = 0 (manual mode)
+	result := map[string]any{
+		"conjecture_id": "prob_001",
+		"username":      "manual-prover",
+		"success":       true,
+		"proof_script":  "Lemma add_comm : forall n m : nat, n + m = m + n.\nProof.\n  intros n m. lia.\nQed.",
+		"cost_usd":      0.0,
+		"attempts":      1,
+	}
+	status, resp := postJSON(t, fmt.Sprintf("/contributions/%s/results", contribID), result)
+	if status != http.StatusCreated {
+		t.Fatalf("POST results: status %d, body %v", status, resp)
+	}
+
+	// 3. Finalize with total_cost_usd = 0
+	finalize := map[string]any{
+		"username":              "manual-prover",
+		"contribution_id":       contribID,
+		"conjectures_attempted": 1,
+		"conjectures_proved":    1,
+		"total_cost_usd":        0.0,
+		"proof_status":          "proved",
+	}
+	status, resp = patchJSON(t, fmt.Sprintf("/contributions/%s", contribID), finalize)
+	if status != http.StatusOK {
+		t.Fatalf("PATCH finalize: status %d, body %v", status, resp)
+	}
+	if _, ok := resp["commit_sha"]; !ok {
+		t.Error("finalize response missing commit_sha")
+	}
+
+	// 4. Seal with NFT metadata containing Proof Mode: manual
+	nft := map[string]any{
+		"name":        "Proof@Home Contribution — manual-prover — 2026-02-26",
+		"description": "Formally verified mathematical proofs for the public domain.",
+		"attributes": []map[string]any{
+			{"trait_type": "Username", "value": "manual-prover"},
+			{"trait_type": "Conjectures Proved", "value": 1},
+			{"trait_type": "Conjectures Attempted", "value": 1},
+			{"trait_type": "Cost Donated (USD)", "value": "0.00"},
+			{"trait_type": "Proof Status", "value": "proved"},
+			{"trait_type": "Proof Mode", "value": "manual"},
+		},
+	}
+	status, resp = postJSON(t, fmt.Sprintf("/contributions/%s/seal", contribID), nft)
+	if status != http.StatusCreated {
+		t.Fatalf("POST seal: status %d, body %v", status, resp)
+	}
+	if _, ok := resp["pr_url"]; !ok {
+		t.Error("seal response missing pr_url")
+	}
+}
+
+func TestManualProofContribution_ZeroCostResult(t *testing.T) {
+	contribID := "test-manual-zerocost-001"
+
+	// Create contribution and submit a result with zero cost
+	create := map[string]any{
+		"username":              "manual-prover-2",
+		"contribution_id":       contribID,
+		"conjectures_attempted": 0,
+		"conjectures_proved":    0,
+	}
+	status, _ := postJSON(t, "/contributions", create)
+	if status != http.StatusCreated {
+		t.Fatalf("POST /contributions: status %d", status)
+	}
+
+	result := map[string]any{
+		"conjecture_id": "prob_001",
+		"username":      "manual-prover-2",
+		"success":       true,
+		"proof_script":  "Proof. lia. Qed.",
+		"cost_usd":      0.0,
+		"attempts":      1,
+	}
+	status, resp := postJSON(t, fmt.Sprintf("/contributions/%s/results", contribID), result)
+	if status != http.StatusCreated {
+		t.Fatalf("POST results: status %d, body %v", status, resp)
+	}
+	if resp["status"] != "accepted" {
+		t.Errorf("status = %q, want %q", resp["status"], "accepted")
 	}
 }
 

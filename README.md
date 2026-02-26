@@ -2,7 +2,7 @@
 
 **Donate unused AI budget to prove mathematical lemmas — verified, archived, and NFT-stamped.**
 
-Proof@Home turns your unused AI API budget into formally verified mathematical proofs. A Rust CLI fetches open conjectures from a git-backed Go server, uses an LLM to generate proof scripts, verifies them with Rocq or Lean, and seals the results into git commits with NFT metadata.
+Proof@Home turns mathematical contributions into formally verified, NFT-stamped public goods. A Rust CLI fetches open conjectures from a git-backed Go server, verifies proofs with Rocq or Lean, and seals the results into git commits with NFT metadata. Two paths: **AI-assisted** (donate API budget, LLM generates proofs) or **manual** (write proofs by hand, submit for verification).
 
 All data flows through **git as the source of truth**. The server writes contributions, certificates, and conjectures to branches, creates pull requests via GitHub/GitLab, and rebuilds a read-only SQLite cache on merge. Every artifact is traceable, forkable, and auditable by design.
 
@@ -20,6 +20,7 @@ But any contribution to mathematics is a contribution. Formalizing open conjectu
 | **Learning math to ask better questions** | Studying enough to write good conjectures, understand proof strategies, and formulate hints | "Just learning, not contributing" |
 | **Porting between provers** | Translating a Rocq proof to Lean 4 or vice versa — requires deep knowledge of both systems | "Just translation, not original work" |
 | **Submitting conjectures** | Formulating well-posed conjectures with preambles, skeletons, and hints for others to prove | "Just asking questions, not answering them" |
+| **Writing proofs by hand** | Crafting formal proofs in Rocq or Lean, submitting them for compiler verification and archival | "Just doing what mathematicians already do" |
 
 None of these produce a novel theorem. All of them are necessary to grow the corpus of formally verified mathematics. The NFT is the credit mechanism for this work:
 
@@ -35,7 +36,7 @@ Three types of NFTs are generated:
 
 | Role | Key attributes |
 |---|---|
-| **Contributor** | Username, Problems Proved/Attempted, Cost Donated (USD), Proof Assistant, Archive SHA-256, Proof Status |
+| **Contributor** | Username, Problems Proved/Attempted, Cost Donated (USD), Proof Assistant, Proof Status, Proof Mode (`manual` or `ai-assisted`) |
 | **Certifier** | Reviewer, Packages Reviewed, Problems Compared, Top Contributor, Recommendation, Archive SHA-256, AI Comparison Cost (USD) |
 | **Submitter** | Username, Batch ID, Conjectures Submitted, Conjecture IDs, Difficulties, Proof Assistants, Git Commit |
 
@@ -47,7 +48,7 @@ NFT metadata is OpenSea-compatible JSON, generated locally and committed to the 
 
 - [Rust](https://rustup.rs/) (1.70+)
 - [Go](https://go.dev/dl/) (1.21+)
-- An LLM API key ([Anthropic](https://console.anthropic.com/) supported first; other providers planned)
+- An LLM API key ([Anthropic](https://console.anthropic.com/) supported first; other providers planned) — **AI-assisted mode only**
 - **Optional:** [Rocq](https://rocq-prover.org/) for Rocq proofs, [Lean 4](https://leanprover.github.io/) for Lean proofs
 
 ### 1. Build
@@ -56,69 +57,87 @@ NFT metadata is OpenSea-compatible JSON, generated locally and committed to the 
 # Build the CLI
 cargo build --release
 
-# Build the Go server
-go build -o pah-server ./src/server/...
+# Build the PocketBase server (production, with admin UI)
+go build -o pah-pocketbase ./cmd/pocketbase
+
+# Or build the standalone Go server (lightweight, no admin UI)
+go build -o pah-server ./src/server
 ```
 
-The CLI binary is at `target/release/proof-at-home`.
-
-### 2. Set up the local dev environment
+### 2. Deploy to Fly.io (production)
 
 ```bash
-# Initialize a local git data repo with example data
-./scripts/dev-setup.sh
-
-# Start the server (LocalForge auto-merges branches, no GitHub required)
-./scripts/dev-server.sh
+fly launch
+fly volumes create pb_data --region nrt --size 1
+fly deploy
 ```
 
-This creates a bare git repo at `.dev/data-repo.git` populated with sample conjectures and contributions.
-
-Verify:
+### 3. Create a GitHub data repo
 
 ```bash
-curl http://localhost:8080/health
-# {"status":"ok"}
-
-curl http://localhost:8080/conjectures
-# [{"id":"prob_001","title":"Natural number addition is commutative", ...}]
+./scripts/setup-github.sh https://<app>.fly.dev
 ```
 
-### 3. Configure the CLI
+### 4. Set secrets
+
+```bash
+fly secrets set \
+  GIT_DATA_REPO_URL=https://github.com/<org>/proof-at-home-data.git \
+  GIT_FORGE_TOKEN=ghp_... \
+  GIT_FORGE_TYPE=github \
+  GIT_FORGE_PROJECT=<org>/proof-at-home-data \
+  WEBHOOK_SECRET=<secret>
+```
+
+### 5. Configure the CLI
 
 ```bash
 ./target/release/proof-at-home init
 ```
 
-Asks for your name, username, API key, and server URL. Config is saved to `~/.proof-at-home/config.toml`.
+Set the server URL to your Fly.io deployment URL. Config is saved to `~/.proof-at-home/config.toml`.
 
-### 4. Set your donation budget
+### 6. Run a proof contribution
+
+Two paths — pick whichever fits your workflow:
+
+**6a. AI-assisted** (LLM generates proofs, compiler verifies):
 
 ```bash
-./target/release/proof-at-home donate
+./target/release/proof-at-home donate   # Set your API budget
+./target/release/proof-at-home prove    # Start proving
+./target/release/proof-at-home status   # Check stats
 ```
 
-Read and accept the legal agreement, then pick an amount ($1–$10 or custom). This caps the API cost per contribution run.
-
-### 5. Run a proof contribution
+**6b. Manual** (you write proofs, compiler verifies):
 
 ```bash
-./target/release/proof-at-home prove
+# Single proof
+./target/release/proof-at-home prove submit prob_001 ./my_proof.v
+
+# Batch — directory of .v/.lean files named by conjecture ID
+./target/release/proof-at-home prove submit --dir ./my-proofs/
+
+./target/release/proof-at-home status   # Check stats
 ```
 
-This will:
+No API key or budget needed for manual mode.
 
-1. Fetch available conjectures from the server
-2. For each conjecture, call the LLM to generate a proof (up to 5 retries with error feedback)
-3. Verify each proof with `rocq c` or `lean`
-4. Submit results to the server (written to a git branch)
-5. Stop when your budget is exhausted
-6. Seal the contribution — archive, SHA-256 hash, Ed25519 signature, NFT metadata, and a pull request on the data repository
-
-### 6. Check your stats
+### Local Development
 
 ```bash
-./target/release/proof-at-home status
+# Set up local dev environment with example data
+make dev-setup
+
+# Run standalone server (port 8080)
+make dev-run
+
+# Or run PocketBase server (port 8090, includes admin UI at /_/)
+make run-pocketbase
+
+# Verify
+curl http://localhost:8080/health       # standalone
+curl http://localhost:8090/health       # PocketBase
 ```
 
 ## Certifying Proofs
@@ -179,32 +198,37 @@ Three template variants are available via `--template`:
 ## How It Works
 
 ```
-┌──────────────┐                          ┌──────────────┐
-│  CLI client   │  REST API               │  Go server    │
-│  (Rust)       │ ──────────────────────▶ │  (chi router) │
-│               │ ◀────────────────────── │               │
-└──────┬───────┘                          └──────┬───────┘
-       │                                         │
-       │  For each conjecture:                   │ Writes to git branches,
-       ▼                                         │ creates PRs via forge
-┌──────────────┐  prompt   ┌──────────┐          ▼
-│ Anthropic API │ ───────▶ │  Claude   │  ┌─────────────────┐
-│               │ ◀─────── │          │  │  Git data repo   │
-└──────┬───────┘  proof    └──────────┘  │  (source of truth)│
-       │                                  │  ├── conjectures/ │
-       ▼                                  │  ├── contributions/│
-┌──────────────┐                          │  └── certificates/ │
-│  rocq c/lean │  verify                  └────────┬────────┘
-└──────┬───────┘                                   │
-       │                                  webhook (push to main)
-       ▼                                           │
-┌──────────────┐                          ┌────────▼────────┐
-│  Seal:       │                          │  SQLite cache    │
-│  tar.gz +    │                          │  (read-only,     │
-│  SHA-256 +   │                          │   rebuilt on merge)│
-│  Ed25519 +   │                          └─────────────────┘
-│  NFT metadata│
-└──────────────┘
+                                                  ┌──────────────┐
+┌──────────────┐  REST API                        │  Go server    │
+│  CLI client   │ ──────────────────────────────▶ │  (chi router) │
+│  (Rust)       │ ◀──────────────────────────────│               │
+└──┬─────────┬─┘                                  └──────┬───────┘
+   │         │                                           │
+   │ AI path │ Manual path                               │ Writes to git branches,
+   │         │                                           │ creates PRs via forge
+   │         │  ┌────────────┐                           ▼
+   │         └─▶│ Hand-written│              ┌─────────────────┐
+   │            │ proof files │              │  Git data repo   │
+   │            └──────┬─────┘              │  (source of truth)│
+   ▼                   │                     │  ├── conjectures/ │
+┌──────────────┐       │                     │  ├── contributions/│
+│ Anthropic API │       │                     │  └── certificates/ │
+│  ──▶ Claude   │       │                     └────────┬────────┘
+└──────┬───────┘       │                              │
+       │               │                     webhook (push to main)
+       ▼               ▼                              │
+    ┌──────────────────────┐                 ┌────────▼────────┐
+    │  rocq c / lean        │  verify         │  SQLite cache    │
+    └──────────┬───────────┘                 │  (read-only,     │
+               │                              │   rebuilt on merge)│
+               ▼                              └─────────────────┘
+    ┌──────────────┐
+    │  Seal:       │
+    │  tar.gz +    │
+    │  SHA-256 +   │
+    │  Ed25519 +   │
+    │  NFT metadata│
+    └──────────────┘
 ```
 
 ### Data flow
@@ -362,10 +386,12 @@ lean_path = "lean"
 lake_path = "lake"
 
 [budget]
-donated_usd = 5.0
+donated_usd = 5.0       # AI-assisted mode only
 run_spent = 0.0
 total_spent = 0.0
 ```
+
+> **Note:** `[api].anthropic_api_key` and `[budget]` are only needed for AI-assisted mode. Manual proof submission (`prove submit`) requires only `[identity]`, `[api].server_url`, and `[prover]`.
 
 ### Server environment variables
 

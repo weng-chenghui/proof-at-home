@@ -13,6 +13,7 @@ use crate::config::Config;
 use crate::nft::metadata::{generate_nft_metadata, ContributionInfo};
 use crate::prover::claude;
 use crate::prover::env_manager::{EnvManager, ResolvedEnv};
+use crate::prover::verifier;
 use crate::server_client::api::{
     Conjecture, ContributionResult, ContributionSummary, Dependencies, ServerClient,
 };
@@ -60,6 +61,7 @@ async fn seal_contribution(
     provers_used: &[String],
     _prover_versions: &[String],
     server: &ServerClient,
+    proof_mode: &str,
 ) -> Result<(PathBuf, String, PathBuf)> {
     // Archive proofs (for local convenience + IPFS publish, no longer authoritative)
     print!("Archiving proofs... ");
@@ -134,6 +136,7 @@ async fn seal_contribution(
         git_repository: config.api.server_url.clone(), // server will provide repo URL
         public_key,
         commit_signature,
+        proof_mode: proof_mode.to_string(),
     });
 
     let nft_path = contribution_dir.join("nft_metadata.json");
@@ -177,6 +180,7 @@ pub async fn run_prove(command_name: Option<&str>) -> Result<()> {
     let audit_logger = claude::AuditLogger::new(&contribution_dir);
 
     println!("{}", "=== Proof@Home Contribution ===".bold().cyan());
+    println!("Mode:         {}", "AI-assisted".cyan());
     println!("Contribution: {}", contribution_id.dimmed());
     println!(
         "Budget:       {}",
@@ -399,6 +403,7 @@ pub async fn run_prove(command_name: Option<&str>) -> Result<()> {
         &provers_used,
         &prover_versions,
         &server,
+        "ai-assisted",
     )
     .await?;
 
@@ -463,6 +468,11 @@ pub async fn run_prove_seal(contribution_id: &str) -> Result<()> {
 
     let server = ServerClient::new(&config.api.server_url, &config.api.auth_token);
 
+    let proof_mode = if state.total_cost_usd == 0.0 {
+        "manual"
+    } else {
+        "ai-assisted"
+    };
     let (archive_path, commit_sha, nft_path) = seal_contribution(
         &config,
         contribution_id,
@@ -473,11 +483,308 @@ pub async fn run_prove_seal(contribution_id: &str) -> Result<()> {
         &state.provers_used,
         &state.prover_versions,
         &server,
+        proof_mode,
     )
     .await?;
 
     println!();
     println!("{}", "=== Re-seal Complete ===".bold().cyan());
+    println!("Archive:    {}", archive_path.display());
+    println!("Git Commit: {}", commit_sha.dimmed());
+    println!("NFT meta:   {}", nft_path.display());
+
+    Ok(())
+}
+
+/// Submit hand-written proofs for verification and sealing.
+pub async fn run_prove_submit(
+    conjecture_id: Option<&str>,
+    proof_file: Option<&str>,
+    dir: Option<&str>,
+) -> Result<()> {
+    if !Config::exists() {
+        bail!("No config found. Run `proof-at-home init` first.");
+    }
+
+    let config = Config::load()?;
+
+    // Resolve input: single file or directory of proof files
+    let mut proof_inputs: Vec<(String, PathBuf)> = Vec::new();
+
+    match (conjecture_id, proof_file, dir) {
+        (Some(id), Some(file), None) => {
+            let path = PathBuf::from(file);
+            if !path.exists() {
+                bail!("Proof file not found: {}", path.display());
+            }
+            proof_inputs.push((id.to_string(), path));
+        }
+        (None, None, Some(dir_path)) => {
+            let dir = PathBuf::from(dir_path);
+            if !dir.is_dir() {
+                bail!("Not a directory: {}", dir.display());
+            }
+            for entry in std::fs::read_dir(&dir)? {
+                let entry = entry?;
+                let path = entry.path();
+                let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+                if ext == "v" || ext == "lean" {
+                    let stem = path
+                        .file_stem()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or("")
+                        .to_string();
+                    if stem.is_empty() {
+                        continue;
+                    }
+                    proof_inputs.push((stem, path));
+                }
+            }
+            if proof_inputs.is_empty() {
+                bail!("No .v or .lean files found in {}", dir_path);
+            }
+            proof_inputs.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        _ => {
+            bail!(
+                "Usage: prove submit <conjecture-id> <proof-file>\n       prove submit --dir <directory>"
+            );
+        }
+    }
+
+    let contribution_id = Uuid::new_v4().to_string();
+    let contribution_dir = Config::contributions_dir()?.join(&contribution_id);
+    std::fs::create_dir_all(&contribution_dir)?;
+    std::fs::create_dir_all(&config.prover.scratch_dir)?;
+
+    println!("{}", "=== Proof@Home Contribution ===".bold().cyan());
+    println!("Mode:         {}", "Manual".cyan());
+    println!("Contribution: {}", contribution_id.dimmed());
+    println!(
+        "Proof files:  {}",
+        format!("{}", proof_inputs.len()).green()
+    );
+    println!();
+
+    // Health check
+    let server = ServerClient::new(&config.api.server_url, &config.api.auth_token);
+    print!("Connecting to server... ");
+    match server.health_check().await {
+        Ok(true) => println!("{}", "OK".green()),
+        _ => {
+            println!("{}", "FAILED".red());
+            bail!(
+                "Cannot reach server at {}. Is it running?",
+                config.api.server_url
+            );
+        }
+    }
+
+    // Register draft contribution
+    let _ = server
+        .create_contribution(&contribution_id, &config.identity.username, "")
+        .await;
+
+    // Fetch conjecture metadata and set up environments
+    println!("{}", "Setting up proof environments...".bold());
+    let env_manager = EnvManager::new(&config.prover.envs_dir);
+    let mut env_cache: HashMap<String, ResolvedEnv> = HashMap::new();
+    let mut conjectures_map: HashMap<String, Conjecture> = HashMap::new();
+
+    for (cid, _) in &proof_inputs {
+        if conjectures_map.contains_key(cid) {
+            continue;
+        }
+        let conjecture = server
+            .fetch_conjecture(cid)
+            .await
+            .with_context(|| format!("Failed to fetch conjecture '{}'", cid))?;
+        conjectures_map.insert(cid.clone(), conjecture);
+    }
+
+    // Set up unique environments
+    let mut dep_groups: HashMap<String, &Conjecture> = HashMap::new();
+    for conjecture in conjectures_map.values() {
+        let key = dep_group_key(conjecture);
+        dep_groups.entry(key).or_insert(conjecture);
+    }
+
+    for (key, representative) in &dep_groups {
+        if representative.dependencies.is_none() {
+            eprintln!(
+                "  {} Skipping env '{}' (no dependencies declared)",
+                "!".yellow(),
+                key
+            );
+            continue;
+        }
+
+        let spinner = ProgressBar::new_spinner();
+        spinner.set_style(
+            ProgressStyle::default_spinner()
+                .template("{spinner:.cyan} {msg}")
+                .unwrap(),
+        );
+        spinner.set_message(format!("Preparing env: {}", key));
+        spinner.enable_steady_tick(std::time::Duration::from_millis(100));
+
+        match env_manager.ensure_env(representative) {
+            Ok(env) => {
+                spinner.finish_with_message(format!("{} Env ready: {}", "✓".green(), key));
+                env_cache.insert(key.clone(), env);
+            }
+            Err(e) => {
+                spinner.finish_with_message(format!(
+                    "{} Env setup failed for {}: {}",
+                    "✗".red(),
+                    key,
+                    e
+                ));
+            }
+        }
+    }
+
+    println!();
+
+    // Verify and submit each proof
+    let mut conjectures_proved = 0u32;
+    let mut conjectures_attempted = 0u32;
+    let mut provers_used: Vec<String> = Vec::new();
+    let mut prover_versions: Vec<String> = Vec::new();
+
+    for (cid, proof_path) in &proof_inputs {
+        let conjecture = match conjectures_map.get(cid) {
+            Some(c) => c,
+            None => {
+                eprintln!("  {} Skipping {} (conjecture not found)", "!".yellow(), cid);
+                continue;
+            }
+        };
+
+        let key = dep_group_key(conjecture);
+        let resolved_env = match env_cache.get(&key) {
+            Some(env) => env,
+            None => {
+                eprintln!(
+                    "  {} Skipping {} (environment not available)",
+                    "!".yellow(),
+                    cid
+                );
+                continue;
+            }
+        };
+
+        conjectures_attempted += 1;
+
+        let spinner = ProgressBar::new_spinner();
+        spinner.set_style(
+            ProgressStyle::default_spinner()
+                .template("{spinner:.cyan} {msg}")
+                .unwrap(),
+        );
+        spinner.set_message(format!("Verifying: {} [{}]", conjecture.title, cid));
+        spinner.enable_steady_tick(std::time::Duration::from_millis(100));
+
+        // Copy proof file to scratch and verify
+        let is_lean = conjecture.prover == "lean4";
+        let ext = if is_lean { "lean" } else { "v" };
+        let scratch_file =
+            PathBuf::from(&config.prover.scratch_dir).join(format!("{}.{}", cid, ext));
+        std::fs::copy(proof_path, &scratch_file)
+            .with_context(|| format!("Failed to copy proof file {}", proof_path.display()))?;
+
+        let verify_result = verifier::verify_with_env(resolved_env, &scratch_file, is_lean)?;
+        let proof_script = std::fs::read_to_string(proof_path)
+            .with_context(|| format!("Failed to read proof file {}", proof_path.display()))?;
+
+        spinner.finish_and_clear();
+
+        if verify_result.success {
+            conjectures_proved += 1;
+            println!("  {} {} ({})", "✓".green().bold(), conjecture.title, cid);
+        } else {
+            println!("  {} {} ({})", "✗".red(), conjecture.title, cid);
+            let truncated = if verify_result.output.len() > 500 {
+                format!("{}...", &verify_result.output[..500])
+            } else {
+                verify_result.output.clone()
+            };
+            eprintln!("    Error: {}", truncated.dimmed());
+        }
+
+        if !provers_used.contains(&conjecture.prover) {
+            provers_used.push(conjecture.prover.clone());
+        }
+
+        let version = match &conjecture.dependencies {
+            Some(Dependencies::Rocq(deps)) => deps.rocq_version.clone(),
+            Some(Dependencies::Lean(deps)) => deps.lean_toolchain.clone(),
+            None => String::new(),
+        };
+        if !version.is_empty() && !prover_versions.contains(&version) {
+            prover_versions.push(version);
+        }
+
+        // Submit result to server
+        let _ = server
+            .submit_contribution_result(
+                &contribution_id,
+                &ContributionResult {
+                    conjecture_id: cid.clone(),
+                    username: config.identity.username.clone(),
+                    success: verify_result.success,
+                    proof_script,
+                    cost_usd: 0.0,
+                    attempts: 1,
+                    error_output: if verify_result.success {
+                        String::new()
+                    } else {
+                        verify_result.output
+                    },
+                },
+            )
+            .await;
+    }
+
+    // Save contribution state
+    let state = ContributionState {
+        contribution_id: contribution_id.clone(),
+        conjectures_proved,
+        conjectures_attempted,
+        total_cost_usd: 0.0,
+        provers_used: provers_used.clone(),
+        prover_versions: prover_versions.clone(),
+    };
+    let state_path = contribution_dir.join("contribution_state.json");
+    std::fs::write(&state_path, serde_json::to_string_pretty(&state)?)?;
+
+    // Seal
+    println!();
+    let (archive_path, commit_sha, nft_path) = seal_contribution(
+        &config,
+        &contribution_id,
+        &contribution_dir,
+        conjectures_proved,
+        conjectures_attempted,
+        0.0,
+        &provers_used,
+        &prover_versions,
+        &server,
+        "manual",
+    )
+    .await?;
+
+    // Print summary
+    println!();
+    println!("{}", "=== Contribution Summary ===".bold().cyan());
+    println!("Mode:                  {}", "Manual".cyan());
+    println!("Conjectures attempted: {}", conjectures_attempted);
+    println!(
+        "Conjectures proved:    {}",
+        format!("{}", conjectures_proved).green()
+    );
+    println!("Cost:                  $0.00");
+    println!();
     println!("Archive:    {}", archive_path.display());
     println!("Git Commit: {}", commit_sha.dimmed());
     println!("NFT meta:   {}", nft_path.display());

@@ -15,7 +15,7 @@ use clap::{Parser, Subcommand};
 #[derive(Parser)]
 #[command(
     name = "proof-at-home",
-    about = "Donate unused Claude budget to prove mathematical lemmas",
+    about = "Prove mathematical lemmas — verified, archived, and NFT-stamped",
     version
 )]
 struct Cli {
@@ -69,11 +69,21 @@ enum Commands {
 
 #[derive(Subcommand)]
 enum ProveAction {
-    /// Start a proof contribution (default when no subcommand given)
+    /// Start an AI-assisted proof contribution (default when no subcommand given)
     Run {
         /// Use a specific proving strategy command (by name)
         #[arg(long = "by")]
         by: Option<String>,
+    },
+    /// Submit hand-written proofs for verification and sealing
+    Submit {
+        /// Conjecture ID (single-file mode)
+        conjecture_id: Option<String>,
+        /// Path to proof file (single-file mode)
+        proof_file: Option<String>,
+        /// Directory of proof files named <conjecture-id>.v or .lean (batch mode)
+        #[arg(long = "dir")]
+        dir: Option<String>,
     },
     /// Re-seal an existing proof contribution (regenerate archive, signature, NFT metadata)
     Seal {
@@ -94,6 +104,18 @@ async fn main() {
         Commands::Prove { action, by } => match action {
             Some(ProveAction::Run { by: run_by }) => {
                 commands::run::run_prove(run_by.as_deref().or(by.as_deref())).await
+            }
+            Some(ProveAction::Submit {
+                conjecture_id,
+                proof_file,
+                dir,
+            }) => {
+                commands::run::run_prove_submit(
+                    conjecture_id.as_deref(),
+                    proof_file.as_deref(),
+                    dir.as_deref(),
+                )
+                .await
             }
             Some(ProveAction::Seal { contribution_id }) => {
                 commands::run::run_prove_seal(&contribution_id).await
