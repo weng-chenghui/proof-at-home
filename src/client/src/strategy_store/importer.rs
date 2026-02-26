@@ -2,12 +2,12 @@ use anyhow::{Context, Result};
 use colored::Colorize;
 use std::path::Path;
 
-use crate::commands_store::frontmatter::parse_command_file;
-use crate::commands_store::loader::commands_dir;
+use crate::strategy_store::frontmatter::parse_command_file;
+use crate::strategy_store::loader::strategies_dir;
 
 /// Import command files from various sources into ~/.proof-at-home/commands/.
 pub fn import_commands(sources: &[String]) -> Result<()> {
-    let dest_dir = commands_dir()?;
+    let dest_dir = strategies_dir()?;
     std::fs::create_dir_all(&dest_dir)?;
 
     for source in sources {

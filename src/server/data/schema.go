@@ -27,7 +27,7 @@ type ConjectureSummary struct {
 	Status     string `json:"status"`
 }
 
-type ContributionResult struct {
+type Proof struct {
 	ContributionID string  `json:"contribution_id,omitempty"`
 	ConjectureID   string  `json:"conjecture_id"`
 	Username       string  `json:"username"`
@@ -38,7 +38,7 @@ type ContributionResult struct {
 	ErrorOutput    string  `json:"error_output"`
 }
 
-type ContributionSummary struct {
+type Contribution struct {
 	Username             string      `json:"username"`
 	ContributionID       string      `json:"contribution_id"`
 	ConjecturesAttempted int         `json:"conjectures_attempted"`
@@ -55,7 +55,7 @@ type ContributionSummary struct {
 
 // ── Command types ──
 
-type Command struct {
+type Strategy struct {
 	Name        string `json:"name"`
 	Kind        string `json:"kind"`
 	Prover      string `json:"prover"`
@@ -66,7 +66,7 @@ type Command struct {
 
 // ── Certificate types ──
 
-type CertificatePackageInfo struct {
+type ContributionReview struct {
 	ContributorContributionID string   `json:"contributor_contribution_id"`
 	ContributorUsername       string   `json:"contributor_username"`
 	Prover                    string   `json:"prover"` // proof assistant software, not the human
@@ -77,18 +77,18 @@ type CertificatePackageInfo struct {
 	CertifiedBy               []string `json:"certified_by,omitempty"`
 }
 
-type CertificateSummary struct {
-	CertifierUsername   string                  `json:"certifier_username"`
-	CertificateID       string                  `json:"certificate_id"`
-	PackagesCertified   int                     `json:"packages_certified"`
-	ConjecturesCompared int                     `json:"conjectures_compared"`
-	PackageRankings     []PackageRankingSummary `json:"package_rankings"`
-	Recommendation      string                  `json:"recommendation"`
-	ArchiveSHA256       string                  `json:"archive_sha256"`
-	NFTMetadata         interface{}             `json:"nft_metadata"`
+type Certificate struct {
+	CertifierUsername   string                `json:"certifier_username"`
+	CertificateID       string                `json:"certificate_id"`
+	PackagesCertified   int                   `json:"packages_certified"`
+	ConjecturesCompared int                   `json:"conjectures_compared"`
+	PackageRankings     []ContributionRanking `json:"package_rankings"`
+	Recommendation      string                `json:"recommendation"`
+	ArchiveSHA256       string                `json:"archive_sha256"`
+	NFTMetadata         interface{}           `json:"nft_metadata"`
 }
 
-type PackageRankingSummary struct {
+type ContributionRanking struct {
 	ContributorContributionID string  `json:"contributor_contribution_id"`
 	Rank                      int     `json:"rank"`
 	OverallScore              float64 `json:"overall_score"`

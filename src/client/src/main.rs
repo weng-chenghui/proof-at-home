@@ -2,13 +2,13 @@ mod archive;
 mod budget;
 mod certifier;
 mod commands;
-mod commands_store;
 mod config;
 mod ipfs;
 mod nft;
 mod prover;
 mod server_client;
 mod signing;
+mod strategy_store;
 
 use clap::{Parser, Subcommand};
 

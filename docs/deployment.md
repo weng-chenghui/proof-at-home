@@ -248,8 +248,8 @@ Both deployment options serve identical endpoints:
 | `POST` | `/conjectures/packages` | Submit conjectures (tar.gz or JSON) |
 | `POST` | `/contributions` | Submit a proof result |
 | `POST` | `/contributions/batch` | Submit a contribution summary |
-| `GET` | `/certificate-packages` | List certificate packages |
-| `GET` | `/certificate-packages/{contributionID}/archive` | Download proof archive |
+| `GET` | `/contribution-reviews` | List certificate packages |
+| `GET` | `/contribution-reviews/{contributionID}/archive` | Download proof archive |
 | `POST` | `/certificates` | Submit a certificate |
 
 When `AUTH_ENABLED=true` (custom server) or using PocketBase auth, POST endpoints require authentication. GET endpoints are always public.

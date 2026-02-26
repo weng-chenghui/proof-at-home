@@ -38,7 +38,7 @@ func (h *ContributionHandler) Get(w http.ResponseWriter, r *http.Request) {
 func (h *ContributionHandler) Create(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	var summary data.ContributionSummary
+	var summary data.Contribution
 	if err := json.NewDecoder(r.Body).Decode(&summary); err != nil {
 		http.Error(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
 		return
@@ -60,7 +60,7 @@ func (h *ContributionHandler) Update(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	id := r.PathValue("id")
 
-	var summary data.ContributionSummary
+	var summary data.Contribution
 	if err := json.NewDecoder(r.Body).Decode(&summary); err != nil {
 		http.Error(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
 		return
@@ -79,19 +79,19 @@ func (h *ContributionHandler) Update(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// SubmitResult adds a proof result to a contribution. POST /contributions/{id}/results
-func (h *ContributionHandler) SubmitResult(w http.ResponseWriter, r *http.Request) {
+// SubmitProof adds a proof result to a contribution. POST /contributions/{id}/proofs
+func (h *ContributionHandler) SubmitProof(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	id := r.PathValue("id")
 
-	var result data.ContributionResult
+	var result data.Proof
 	if err := json.NewDecoder(r.Body).Decode(&result); err != nil {
 		http.Error(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
 		return
 	}
 
 	result.ContributionID = id
-	if err := h.GitStore.AddContributionResult(result); err != nil {
+	if err := h.GitStore.AddProof(result); err != nil {
 		http.Error(w, `{"error":"failed to add result: `+err.Error()+`"}`, http.StatusInternalServerError)
 		return
 	}
@@ -100,13 +100,13 @@ func (h *ContributionHandler) SubmitResult(w http.ResponseWriter, r *http.Reques
 	json.NewEncoder(w).Encode(map[string]string{"status": "accepted"})
 }
 
-// ListResults returns results for a contribution. GET /contributions/{id}/results
-func (h *ContributionHandler) ListResults(w http.ResponseWriter, r *http.Request) {
+// ListProofs returns results for a contribution. GET /contributions/{id}/proofs
+func (h *ContributionHandler) ListProofs(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	id := r.PathValue("id")
-	results := h.Store.ListContributionResults(id)
+	results := h.Store.ListProofs(id)
 	if results == nil {
-		results = []data.ContributionResult{}
+		results = []data.Proof{}
 	}
 	json.NewEncoder(w).Encode(results)
 }

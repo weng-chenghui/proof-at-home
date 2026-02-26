@@ -8,9 +8,7 @@ use proof_at_home::nft::metadata::{
     CertificateInfo, ConjectureSubmitterInfo, ContributionInfo, NftCertificateMetadata,
     NftSessionMetadata, NftSubmitterMetadata,
 };
-use proof_at_home::server_client::api::{
-    CertificateSummary, Conjecture, ContributionResult, ContributionSummary,
-};
+use proof_at_home::server_client::api::{Certificate, Conjecture, Contribution, Proof};
 
 fn write_schema<T: schemars::JsonSchema>(dir: &Path, filename: &str) {
     let schema = schema_for!(T);
@@ -31,12 +29,12 @@ fn main() {
     write_schema::<NftSessionMetadata>(out_dir, "nft-session-output.schema.json");
     write_schema::<NftCertificateMetadata>(out_dir, "nft-certificate-output.schema.json");
     write_schema::<Conjecture>(out_dir, "conjecture.schema.json");
-    write_schema::<ContributionSummary>(out_dir, "contribution-summary.schema.json");
+    write_schema::<Contribution>(out_dir, "contribution-summary.schema.json");
     write_schema::<CertificationState>(out_dir, "certification-state.schema.json");
     write_schema::<ComparisonResult>(out_dir, "ai-comparison.schema.json");
-    write_schema::<CertificateSummary>(out_dir, "certificate-summary.schema.json");
+    write_schema::<Certificate>(out_dir, "certificate-summary.schema.json");
     write_schema::<CertificationReport>(out_dir, "certification-report.schema.json");
-    write_schema::<ContributionResult>(out_dir, "contribution-result.schema.json");
+    write_schema::<Proof>(out_dir, "contribution-result.schema.json");
     write_schema::<ConjectureSubmitterInfo>(out_dir, "submitter-nft-metadata.schema.json");
     write_schema::<NftSubmitterMetadata>(out_dir, "nft-submitter-output.schema.json");
 

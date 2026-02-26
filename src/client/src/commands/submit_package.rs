@@ -4,7 +4,7 @@ use std::path::Path;
 
 use crate::config::Config;
 use crate::nft::metadata::{generate_submitter_nft_metadata, ConjectureSubmitterInfo};
-use crate::server_client::api::{PackageSubmitResponse, ServerClient};
+use crate::server_client::api::{ConjectureCreateResponse, ServerClient};
 use crate::signing;
 
 pub async fn run_submit_package(source: &str) -> Result<()> {
@@ -14,7 +14,7 @@ pub async fn run_submit_package(source: &str) -> Result<()> {
     // Detect source type
     let resp = if is_git_url(source) {
         println!("{} Submitting git URL: {}", "→".blue(), source);
-        client.submit_package_git_url(source).await?
+        client.create_conjecture_git_url(source).await?
     } else {
         let path = Path::new(source);
         if !path.exists() {
@@ -24,12 +24,12 @@ pub async fn run_submit_package(source: &str) -> Result<()> {
         if path.is_dir() {
             println!("{} Packaging directory: {}", "→".blue(), source);
             let tar_bytes = tar_directory(path)?;
-            client.submit_package_tar(tar_bytes).await?
+            client.create_conjecture_tar(tar_bytes).await?
         } else if source.ends_with(".tar.gz") || source.ends_with(".tgz") {
             println!("{} Submitting archive: {}", "→".blue(), source);
             let tar_bytes =
                 std::fs::read(path).with_context(|| format!("Failed to read {}", source))?;
-            client.submit_package_tar(tar_bytes).await?
+            client.create_conjecture_tar(tar_bytes).await?
         } else {
             anyhow::bail!(
                 "Unsupported source: {}. Expected a directory, .tar.gz file, or git URL.",
@@ -49,7 +49,7 @@ pub async fn run_submit_package(source: &str) -> Result<()> {
 async fn seal_submitter_nft(
     cfg: &Config,
     client: &ServerClient,
-    resp: &PackageSubmitResponse,
+    resp: &ConjectureCreateResponse,
 ) -> Result<()> {
     let commit_sha = &resp.commit_sha;
 
@@ -95,7 +95,7 @@ async fn seal_submitter_nft(
 
     print!("Sealing conjecture submission (creating PR)... ");
     match client
-        .seal_conjecture_package(&resp.batch_id, &nft_metadata)
+        .seal_conjecture_batch(&resp.batch_id, &nft_metadata)
         .await
     {
         Ok(seal_resp) => {
@@ -150,7 +150,7 @@ fn tar_directory(dir: &Path) -> Result<Vec<u8>> {
     Ok(bytes)
 }
 
-fn print_result(resp: &PackageSubmitResponse) {
+fn print_result(resp: &ConjectureCreateResponse) {
     println!("{} {} conjecture(s) added", "✓".green(), resp.count);
     if !resp.added_conjecture_ids.is_empty() {
         println!("  IDs: {}", resp.added_conjecture_ids.join(", "));

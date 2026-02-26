@@ -7,12 +7,12 @@ import "github.com/proof-at-home/server/src/server/data"
 type Store interface {
 	ListConjectures() []data.ConjectureSummary
 	GetConjecture(id string) (data.Conjecture, bool)
-	ListContributions() []data.ContributionSummary
-	GetContribution(id string) (data.ContributionSummary, bool)
-	ListContributionResults(contributionID string) []data.ContributionResult
-	ListCertificatePackages() []data.CertificatePackageInfo
-	ListCertificates() []data.CertificateSummary
-	ListCommands() []data.Command
-	GetCommand(name string) (data.Command, bool)
+	ListContributions() []data.Contribution
+	GetContribution(id string) (data.Contribution, bool)
+	ListProofs(contributionID string) []data.Proof
+	ListContributionReviews() []data.ContributionReview
+	ListCertificates() []data.Certificate
+	ListStrategies() []data.Strategy
+	GetStrategy(name string) (data.Strategy, bool)
 	RebuildFromDir(repoPath string) error
 }

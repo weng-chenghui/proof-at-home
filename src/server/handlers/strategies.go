@@ -9,23 +9,23 @@ import (
 	"github.com/proof-at-home/server/src/server/store"
 )
 
-type CommandHandler struct {
+type StrategyHandler struct {
 	Store store.Store
 }
 
-func (h *CommandHandler) List(w http.ResponseWriter, r *http.Request) {
+func (h *StrategyHandler) List(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	commands := h.Store.ListCommands()
+	commands := h.Store.ListStrategies()
 	if commands == nil {
-		commands = []data.Command{}
+		commands = []data.Strategy{}
 	}
 	json.NewEncoder(w).Encode(commands)
 }
 
-func (h *CommandHandler) Get(w http.ResponseWriter, r *http.Request) {
+func (h *StrategyHandler) Get(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	name := chi.URLParam(r, "name")
-	cmd, ok := h.Store.GetCommand(name)
+	cmd, ok := h.Store.GetStrategy(name)
 	if !ok {
 		http.Error(w, `{"error":"not found"}`, http.StatusNotFound)
 		return

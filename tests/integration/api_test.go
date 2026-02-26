@@ -150,7 +150,7 @@ func TestContributions_Results(t *testing.T) {
 		ConjectureID string `json:"conjecture_id"`
 		Success      bool   `json:"success"`
 	}
-	getJSON(t, "/contributions/a1111111-1111-1111-1111-111111111111/results", &results)
+	getJSON(t, "/contributions/a1111111-1111-1111-1111-111111111111/proofs", &results)
 	if len(results) != 2 {
 		t.Fatalf("len(results) = %d, want 2", len(results))
 	}
@@ -199,7 +199,7 @@ func TestCertificatePackages(t *testing.T) {
 		ConjectureIDs             []string `json:"conjecture_ids"`
 		CertifiedBy               []string `json:"certified_by"`
 	}
-	getJSON(t, "/certificate-packages", &pkgs)
+	getJSON(t, "/contribution-reviews", &pkgs)
 	if len(pkgs) < 1 {
 		t.Fatalf("len(packages) = %d, want >= 1", len(pkgs))
 	}
@@ -225,7 +225,7 @@ func TestCertificatePackages(t *testing.T) {
 // ── Certificate Packages: verify contributor_* JSON keys (not prover_*) ──
 
 func TestCertificatePackages_ContributorKeys(t *testing.T) {
-	body := get(t, "/certificate-packages")
+	body := get(t, "/contribution-reviews")
 	// The response should contain "contributor_contribution_id" and "contributor_username"
 	if !strings.Contains(string(body), "contributor_contribution_id") {
 		t.Error("response missing contributor_contribution_id key")
@@ -301,7 +301,7 @@ func TestCreateContribution(t *testing.T) {
 	}
 }
 
-func TestSubmitResult(t *testing.T) {
+func TestSubmitProof(t *testing.T) {
 	// First create a contribution
 	body := map[string]any{
 		"username":              "test-user-result",
@@ -325,9 +325,9 @@ func TestSubmitResult(t *testing.T) {
 		"cost_usd":      0.01,
 		"attempts":      1,
 	}
-	status, resp := postJSON(t, "/contributions/test-contrib-result-001/results", result)
+	status, resp := postJSON(t, "/contributions/test-contrib-result-001/proofs", result)
 	if status != http.StatusCreated {
-		t.Fatalf("POST /contributions/{id}/results: status %d, body %v", status, resp)
+		t.Fatalf("POST /contributions/{id}/proofs: status %d, body %v", status, resp)
 	}
 	if resp["status"] != "accepted" {
 		t.Errorf("status = %q, want %q", resp["status"], "accepted")
@@ -456,7 +456,7 @@ func TestWebhook_IgnoresNonMain(t *testing.T) {
 func TestArchiveDownload(t *testing.T) {
 	// The archive endpoint requires proofs to exist in git.
 	// For the seed data (alice's contribution), check if it has proofs.
-	resp, err := http.Get(fmt.Sprintf("%s/certificate-packages/a1111111-1111-1111-1111-111111111111/archive", baseURL()))
+	resp, err := http.Get(fmt.Sprintf("%s/contributions/a1111111-1111-1111-1111-111111111111/archive", baseURL()))
 	if err != nil {
 		t.Fatalf("GET: %v", err)
 	}
@@ -499,7 +499,7 @@ func TestManualProofContribution(t *testing.T) {
 		"cost_usd":      0.0,
 		"attempts":      1,
 	}
-	status, resp := postJSON(t, fmt.Sprintf("/contributions/%s/results", contribID), result)
+	status, resp := postJSON(t, fmt.Sprintf("/contributions/%s/proofs", contribID), result)
 	if status != http.StatusCreated {
 		t.Fatalf("POST results: status %d, body %v", status, resp)
 	}
@@ -566,7 +566,7 @@ func TestManualProofContribution_ZeroCostResult(t *testing.T) {
 		"cost_usd":      0.0,
 		"attempts":      1,
 	}
-	status, resp := postJSON(t, fmt.Sprintf("/contributions/%s/results", contribID), result)
+	status, resp := postJSON(t, fmt.Sprintf("/contributions/%s/proofs", contribID), result)
 	if status != http.StatusCreated {
 		t.Fatalf("POST results: status %d, body %v", status, resp)
 	}
@@ -584,7 +584,7 @@ func TestCommands_List(t *testing.T) {
 		Prover      string `json:"prover"`
 		Description string `json:"description"`
 	}
-	getJSON(t, "/commands", &commands)
+	getJSON(t, "/strategies", &commands)
 	if got := len(commands); got != 4 {
 		t.Errorf("len(commands) = %d, want 4", got)
 	}
@@ -598,7 +598,7 @@ func TestCommands_GetByName(t *testing.T) {
 		Description string `json:"description"`
 		Body        string `json:"body"`
 	}
-	getJSON(t, "/commands/prove-coq-lemma", &cmd)
+	getJSON(t, "/strategies/prove-coq-lemma", &cmd)
 	if cmd.Name != "prove-coq-lemma" {
 		t.Errorf("name = %q, want %q", cmd.Name, "prove-coq-lemma")
 	}

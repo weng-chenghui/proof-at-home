@@ -3,10 +3,10 @@ use colored::Colorize;
 use dialoguer::{Input, Password, Select};
 use std::process::Command;
 
-use crate::commands_store::importer;
 use crate::config::types::*;
 use crate::config::Config;
 use crate::signing;
+use crate::strategy_store::importer;
 
 pub fn run_setup(add_commands: Vec<String>) -> Result<()> {
     // If --add-commands is provided, import and return early

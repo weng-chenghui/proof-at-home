@@ -6,11 +6,11 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use crate::commands_store::loader::{self, CommandVars, LoadedCommand};
 use crate::config::Config;
 use crate::prover::env_manager::ResolvedEnv;
 use crate::prover::verifier;
 use crate::server_client::api::Conjecture;
+use crate::strategy_store::loader::{self, CommandVars, LoadedCommand};
 
 pub struct AuditLogger {
     path: PathBuf,

@@ -141,7 +141,7 @@ async fn cmd_start() -> Result<()> {
 
     // Try to fetch available packages from server
     let server = ServerClient::new(&config.api.server_url, &config.api.auth_token);
-    let available = match server.fetch_certificate_packages().await {
+    let available = match server.fetch_contribution_reviews().await {
         Ok(pkgs) => pkgs,
         Err(e) => {
             eprintln!(
@@ -575,7 +575,7 @@ async fn cmd_seal() -> Result<()> {
     // 5. Submit certificate to server → get commit SHA
     let server = ServerClient::new(&config.api.server_url, &config.api.auth_token);
 
-    let server_summary = crate::server_client::api::CertificateSummary {
+    let server_summary = crate::server_client::api::Certificate {
         certifier_username: report.certifier.username.clone(),
         certificate_id: state.certification_id.clone(),
         packages_certified: state.packages.len() as u32,
@@ -594,7 +594,7 @@ async fn cmd_seal() -> Result<()> {
                     .map(|pr| pr.avg_scores.overall as f64)
                     .unwrap_or(0.0);
 
-                crate::server_client::api::PackageRankingSummary {
+                crate::server_client::api::ContributionRanking {
                     contributor_contribution_id: r.contributor_contribution_id.clone(),
                     rank: r.rank,
                     overall_score,

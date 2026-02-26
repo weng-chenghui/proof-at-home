@@ -18,11 +18,11 @@ import (
 	"github.com/proof-at-home/server/src/server/store/gitstore"
 )
 
-type PackageHandler struct {
+type ConjectureWriteHandler struct {
 	GitStore *gitstore.GitStore
 }
 
-type packageSubmitResponse struct {
+type conjectureCreateResponse struct {
 	Status             string   `json:"status"`
 	AddedConjectureIDs []string `json:"added_conjecture_ids"`
 	Count              int      `json:"count"`
@@ -33,7 +33,7 @@ type packageSubmitResponse struct {
 	ProofAssistants    []string `json:"proof_assistants"`
 }
 
-type packageSubmitResult struct {
+type conjectureSubmitResult struct {
 	IDs             []string
 	BatchID         string
 	CommitSHA       string
@@ -42,12 +42,12 @@ type packageSubmitResult struct {
 	ProofAssistants []string
 }
 
-func (h *PackageHandler) Submit(w http.ResponseWriter, r *http.Request) {
+func (h *ConjectureWriteHandler) Submit(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	ct := r.Header.Get("Content-Type")
 
-	var result *packageSubmitResult
+	var result *conjectureSubmitResult
 	var err error
 
 	switch {
@@ -65,7 +65,7 @@ func (h *PackageHandler) Submit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := packageSubmitResponse{
+	resp := conjectureCreateResponse{
 		Status:             "accepted",
 		AddedConjectureIDs: result.IDs,
 		Count:              len(result.IDs),
@@ -88,7 +88,7 @@ func (h *PackageHandler) Submit(w http.ResponseWriter, r *http.Request) {
 }
 
 // SealConjecturePackage receives NFT metadata and seals the conjecture branch.
-func (h *PackageHandler) SealConjecturePackage(w http.ResponseWriter, r *http.Request) {
+func (h *ConjectureWriteHandler) SealConjecturePackage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	batchID := chi.URLParam(r, "batchId")
@@ -115,7 +115,7 @@ func (h *PackageHandler) SealConjecturePackage(w http.ResponseWriter, r *http.Re
 	})
 }
 
-func (h *PackageHandler) handleTarGz(r *http.Request) (*packageSubmitResult, error) {
+func (h *ConjectureWriteHandler) handleTarGz(r *http.Request) (*conjectureSubmitResult, error) {
 	tmpDir, err := os.MkdirTemp("", "pkg-tar-*")
 	if err != nil {
 		return nil, fmt.Errorf("creating temp dir: %w", err)
@@ -140,7 +140,7 @@ func (h *PackageHandler) handleTarGz(r *http.Request) (*packageSubmitResult, err
 	return buildSubmitResult(conjectures, batchID, submitResult), nil
 }
 
-func (h *PackageHandler) handleGitURL(r *http.Request) (*packageSubmitResult, error) {
+func (h *ConjectureWriteHandler) handleGitURL(r *http.Request) (*conjectureSubmitResult, error) {
 	var body struct {
 		GitURL string `json:"git_url"`
 	}
@@ -176,7 +176,7 @@ func (h *PackageHandler) handleGitURL(r *http.Request) (*packageSubmitResult, er
 	return buildSubmitResult(conjectures, batchID, submitResult), nil
 }
 
-func buildSubmitResult(conjectures []data.Conjecture, batchID string, sr *gitstore.ConjectureSubmitResult) *packageSubmitResult {
+func buildSubmitResult(conjectures []data.Conjecture, batchID string, sr *gitstore.ConjectureSubmitResult) *conjectureSubmitResult {
 	ids := make([]string, len(conjectures))
 	diffSet := map[string]bool{}
 	proverSet := map[string]bool{}
@@ -196,7 +196,7 @@ func buildSubmitResult(conjectures []data.Conjecture, batchID string, sr *gitsto
 	for p := range proverSet {
 		provers = append(provers, p)
 	}
-	return &packageSubmitResult{
+	return &conjectureSubmitResult{
 		IDs:             ids,
 		BatchID:         batchID,
 		CommitSHA:       sr.CommitSHA,

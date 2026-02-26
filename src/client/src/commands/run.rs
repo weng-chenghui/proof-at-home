@@ -8,16 +8,14 @@ use uuid::Uuid;
 
 use crate::archive::pack;
 use crate::budget::BudgetTracker;
-use crate::commands_store::loader;
 use crate::config::Config;
 use crate::nft::metadata::{generate_nft_metadata, ContributionInfo};
 use crate::prover::claude;
 use crate::prover::env_manager::{EnvManager, ResolvedEnv};
 use crate::prover::verifier;
-use crate::server_client::api::{
-    Conjecture, ContributionResult, ContributionSummary, Dependencies, ServerClient,
-};
+use crate::server_client::api::{Conjecture, Contribution, Dependencies, Proof, ServerClient};
 use crate::signing;
+use crate::strategy_store::loader;
 
 /// Saved contribution state for re-sealing.
 #[derive(Debug, Serialize, Deserialize)]
@@ -84,7 +82,7 @@ async fn seal_contribution(
     let finalize_resp = server
         .update_contribution(
             contribution_id,
-            &ContributionSummary {
+            &Contribution {
                 username: config.identity.username.clone(),
                 contribution_id: contribution_id.to_string(),
                 conjectures_attempted,
@@ -362,9 +360,9 @@ pub async fn run_prove(command_name: Option<&str>) -> Result<()> {
 
         // Submit individual result
         let _ = server
-            .submit_contribution_result(
+            .submit_proof(
                 &contribution_id,
-                &ContributionResult {
+                &Proof {
                     conjecture_id: conjecture.id.clone(),
                     username: config.identity.username.clone(),
                     success: result.success,
@@ -727,9 +725,9 @@ pub async fn run_prove_submit(
 
         // Submit result to server
         let _ = server
-            .submit_contribution_result(
+            .submit_proof(
                 &contribution_id,
-                &ContributionResult {
+                &Proof {
                     conjecture_id: cid.clone(),
                     username: config.identity.username.clone(),
                     success: verify_result.success,

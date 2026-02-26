@@ -2,9 +2,9 @@ use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use crate::commands_store::frontmatter::{parse_command_file, CommandMeta};
 use crate::config::Config;
 use crate::server_client::api::Conjecture;
+use crate::strategy_store::frontmatter::{parse_command_file, CommandMeta};
 
 const BUILTIN_LEAN: &str = include_str!("builtins/prove-lean-lemma.md");
 const BUILTIN_ROCQ: &str = include_str!("builtins/prove-coq-lemma.md");
@@ -26,14 +26,14 @@ pub struct LoadedCommand {
 }
 
 /// Directory where user commands are stored.
-pub fn commands_dir() -> Result<PathBuf> {
+pub fn strategies_dir() -> Result<PathBuf> {
     let dir = Config::config_dir()?.join("commands");
     Ok(dir)
 }
 
 /// Ensure builtins exist on disk (written on first use).
 pub fn ensure_builtins() -> Result<()> {
-    let dir = commands_dir()?;
+    let dir = strategies_dir()?;
     std::fs::create_dir_all(&dir)?;
 
     for content in ALL_BUILTINS {
@@ -61,7 +61,7 @@ pub fn load_all_commands() -> Result<Vec<LoadedCommand>> {
     }
 
     // Load user commands (override builtins)
-    let dir = commands_dir()?;
+    let dir = strategies_dir()?;
     if dir.exists() {
         if let Ok(entries) = std::fs::read_dir(&dir) {
             for entry in entries.flatten() {

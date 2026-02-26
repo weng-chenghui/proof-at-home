@@ -141,10 +141,10 @@ func (s *SQLiteStore) AddConjectures(conjectures []data.Conjecture) []string {
 	return added
 }
 
-func (s *SQLiteStore) AddContributionResult(r data.ContributionResult) {
+func (s *SQLiteStore) AddProof(r data.Proof) {
 	tx, err := s.db.Begin()
 	if err != nil {
-		slog.Error("AddContributionResult begin tx failed", "error", err)
+		slog.Error("AddProof begin tx failed", "error", err)
 		return
 	}
 	defer tx.Rollback()
@@ -160,24 +160,24 @@ func (s *SQLiteStore) AddContributionResult(r data.ContributionResult) {
 		r.ContributionID, r.ConjectureID, r.Username, successInt, r.ProofScript, r.CostUSD, r.Attempts, r.ErrorOutput,
 	)
 	if err != nil {
-		slog.Error("AddContributionResult insert failed", "error", err)
+		slog.Error("AddProof insert failed", "error", err)
 		return
 	}
 
 	if r.Success {
 		_, err = tx.Exec(`UPDATE conjectures SET status = 'proved' WHERE id = ?`, r.ConjectureID)
 		if err != nil {
-			slog.Error("AddContributionResult update status failed", "error", err)
+			slog.Error("AddProof update status failed", "error", err)
 			return
 		}
 	}
 
 	if err := tx.Commit(); err != nil {
-		slog.Error("AddContributionResult commit failed", "error", err)
+		slog.Error("AddProof commit failed", "error", err)
 	}
 }
 
-func (s *SQLiteStore) AddContribution(cs data.ContributionSummary) {
+func (s *SQLiteStore) AddContribution(cs data.Contribution) {
 	conjectureIDsJSON, _ := json.Marshal(cs.ConjectureIDs)
 	certifiedByJSON, _ := json.Marshal(cs.CertifiedBy)
 	var nftJSON *string
@@ -211,8 +211,8 @@ func (s *SQLiteStore) AddContribution(cs data.ContributionSummary) {
 	}
 }
 
-func (s *SQLiteStore) GetContribution(id string) (data.ContributionSummary, bool) {
-	var cs data.ContributionSummary
+func (s *SQLiteStore) GetContribution(id string) (data.Contribution, bool) {
+	var cs data.Contribution
 	var nftJSON, conjectureIDsStr, certifiedByStr sql.NullString
 	err := s.db.QueryRow(
 		`SELECT contribution_id, username, conjectures_attempted, conjectures_proved,
@@ -224,11 +224,11 @@ func (s *SQLiteStore) GetContribution(id string) (data.ContributionSummary, bool
 		&cs.ArchivePath, &cs.ProofStatus, &certifiedByStr)
 
 	if err == sql.ErrNoRows {
-		return data.ContributionSummary{}, false
+		return data.Contribution{}, false
 	}
 	if err != nil {
 		slog.Error("GetContribution query failed", "error", err, "id", id)
-		return data.ContributionSummary{}, false
+		return data.Contribution{}, false
 	}
 	if nftJSON.Valid {
 		json.Unmarshal([]byte(nftJSON.String), &cs.NFTMetadata)
@@ -242,28 +242,28 @@ func (s *SQLiteStore) GetContribution(id string) (data.ContributionSummary, bool
 	return cs, true
 }
 
-func (s *SQLiteStore) UpdateContribution(id string, cs data.ContributionSummary) {
+func (s *SQLiteStore) UpdateContribution(id string, cs data.Contribution) {
 	// Use UPSERT — set contribution_id to the path id, merge fields
 	cs.ContributionID = id
 	s.AddContribution(cs)
 }
 
-func (s *SQLiteStore) ListContributionResults(contributionID string) []data.ContributionResult {
+func (s *SQLiteStore) ListProofs(contributionID string) []data.Proof {
 	rows, err := s.db.Query(
 		`SELECT contribution_id, conjecture_id, username, success, proof_script, cost_usd, attempts, error_output
 		 FROM contribution_results WHERE contribution_id = ? ORDER BY id`, contributionID)
 	if err != nil {
-		slog.Error("ListContributionResults query failed", "error", err)
+		slog.Error("ListProofs query failed", "error", err)
 		return nil
 	}
 	defer rows.Close()
 
-	var results []data.ContributionResult
+	var results []data.Proof
 	for rows.Next() {
-		var r data.ContributionResult
+		var r data.Proof
 		var success int
 		if err := rows.Scan(&r.ContributionID, &r.ConjectureID, &r.Username, &success, &r.ProofScript, &r.CostUSD, &r.Attempts, &r.ErrorOutput); err != nil {
-			slog.Error("ListContributionResults scan failed", "error", err)
+			slog.Error("ListProofs scan failed", "error", err)
 			continue
 		}
 		r.Success = success != 0
@@ -272,23 +272,23 @@ func (s *SQLiteStore) ListContributionResults(contributionID string) []data.Cont
 	return results
 }
 
-func (s *SQLiteStore) ListCertificatePackages() []data.CertificatePackageInfo {
+func (s *SQLiteStore) ListContributionReviews() []data.ContributionReview {
 	rows, err := s.db.Query(
 		`SELECT contribution_id, username, prover, conjecture_ids, archive_sha256, proof_status, certified_by
 		 FROM contributions ORDER BY created_at`)
 	if err != nil {
-		slog.Error("ListCertificatePackages query failed", "error", err)
+		slog.Error("ListContributionReviews query failed", "error", err)
 		return nil
 	}
 	defer rows.Close()
 
-	var packages []data.CertificatePackageInfo
+	var packages []data.ContributionReview
 	for rows.Next() {
 		var contributionID, username, prover, archiveSHA256, proofStatus string
 		var conjectureIDsStr, certifiedByStr string
 
 		if err := rows.Scan(&contributionID, &username, &prover, &conjectureIDsStr, &archiveSHA256, &proofStatus, &certifiedByStr); err != nil {
-			slog.Error("ListCertificatePackages scan failed", "error", err)
+			slog.Error("ListContributionReviews scan failed", "error", err)
 			continue
 		}
 
@@ -316,12 +316,12 @@ func (s *SQLiteStore) ListCertificatePackages() []data.CertificatePackageInfo {
 			prover = "rocq"
 		}
 
-		packages = append(packages, data.CertificatePackageInfo{
+		packages = append(packages, data.ContributionReview{
 			ContributorContributionID: contributionID,
 			ContributorUsername:       username,
 			Prover:                    prover,
 			ConjectureIDs:             conjectureIDs,
-			ArchiveURL:                fmt.Sprintf("/certificate-packages/%s/archive", contributionID),
+			ArchiveURL:                fmt.Sprintf("/contributions/%s/archive", contributionID),
 			ArchiveSHA256:             archiveSHA256,
 			ProofStatus:               proofStatus,
 			CertifiedBy:               certifiedBy,
@@ -339,7 +339,7 @@ func (s *SQLiteStore) GetArchivePath(contributionID string) (string, bool) {
 	return path, true
 }
 
-func (s *SQLiteStore) AddCertificate(r data.CertificateSummary) {
+func (s *SQLiteStore) AddCertificate(r data.Certificate) {
 	tx, err := s.db.Begin()
 	if err != nil {
 		slog.Error("AddCertificate begin tx failed", "error", err)
@@ -404,7 +404,7 @@ func (s *SQLiteStore) AddCertificate(r data.CertificateSummary) {
 }
 
 // ListContributions returns all contribution summaries.
-func (s *SQLiteStore) ListContributions() []data.ContributionSummary {
+func (s *SQLiteStore) ListContributions() []data.Contribution {
 	rows, err := s.db.Query(
 		`SELECT contribution_id, username, conjectures_attempted, conjectures_proved,
 		 total_cost_usd, archive_sha256, nft_metadata, prover, conjecture_ids,
@@ -416,9 +416,9 @@ func (s *SQLiteStore) ListContributions() []data.ContributionSummary {
 	}
 	defer rows.Close()
 
-	var results []data.ContributionSummary
+	var results []data.Contribution
 	for rows.Next() {
-		var cs data.ContributionSummary
+		var cs data.Contribution
 		var nftJSON, conjectureIDsStr, certifiedByStr sql.NullString
 		if err := rows.Scan(&cs.ContributionID, &cs.Username, &cs.ConjecturesAttempted, &cs.ConjecturesProved,
 			&cs.TotalCostUSD, &cs.ArchiveSHA256, &nftJSON, &cs.Prover, &conjectureIDsStr,
@@ -441,7 +441,7 @@ func (s *SQLiteStore) ListContributions() []data.ContributionSummary {
 }
 
 // ListCertificates returns all certificate summaries.
-func (s *SQLiteStore) ListCertificates() []data.CertificateSummary {
+func (s *SQLiteStore) ListCertificates() []data.Certificate {
 	rows, err := s.db.Query(
 		`SELECT certificate_id, certifier_username, packages_certified, conjectures_compared,
 		 package_rankings, recommendation, archive_sha256, nft_metadata
@@ -452,9 +452,9 @@ func (s *SQLiteStore) ListCertificates() []data.CertificateSummary {
 	}
 	defer rows.Close()
 
-	var results []data.CertificateSummary
+	var results []data.Certificate
 	for rows.Next() {
-		var cs data.CertificateSummary
+		var cs data.Certificate
 		var rankingsJSON, nftJSON sql.NullString
 		if err := rows.Scan(&cs.CertificateID, &cs.CertifierUsername, &cs.PackagesCertified, &cs.ConjecturesCompared,
 			&rankingsJSON, &cs.Recommendation, &cs.ArchiveSHA256, &nftJSON); err != nil {
@@ -472,20 +472,20 @@ func (s *SQLiteStore) ListCertificates() []data.CertificateSummary {
 	return results
 }
 
-// ListCommands returns all commands ordered by priority (descending), then name.
-func (s *SQLiteStore) ListCommands() []data.Command {
+// ListStrategies returns all commands ordered by priority (descending), then name.
+func (s *SQLiteStore) ListStrategies() []data.Strategy {
 	rows, err := s.db.Query(`SELECT name, kind, prover, description, priority, body FROM commands ORDER BY priority DESC, name`)
 	if err != nil {
-		slog.Error("ListCommands query failed", "error", err)
+		slog.Error("ListStrategies query failed", "error", err)
 		return nil
 	}
 	defer rows.Close()
 
-	var commands []data.Command
+	var commands []data.Strategy
 	for rows.Next() {
-		var c data.Command
+		var c data.Strategy
 		if err := rows.Scan(&c.Name, &c.Kind, &c.Prover, &c.Description, &c.Priority, &c.Body); err != nil {
-			slog.Error("ListCommands scan failed", "error", err)
+			slog.Error("ListStrategies scan failed", "error", err)
 			continue
 		}
 		commands = append(commands, c)
@@ -493,38 +493,38 @@ func (s *SQLiteStore) ListCommands() []data.Command {
 	return commands
 }
 
-// GetCommand returns a command by name.
-func (s *SQLiteStore) GetCommand(name string) (data.Command, bool) {
-	var c data.Command
+// GetStrategy returns a command by name.
+func (s *SQLiteStore) GetStrategy(name string) (data.Strategy, bool) {
+	var c data.Strategy
 	err := s.db.QueryRow(
 		`SELECT name, kind, prover, description, priority, body FROM commands WHERE name = ?`, name,
 	).Scan(&c.Name, &c.Kind, &c.Prover, &c.Description, &c.Priority, &c.Body)
 
 	if err == sql.ErrNoRows {
-		return data.Command{}, false
+		return data.Strategy{}, false
 	}
 	if err != nil {
-		slog.Error("GetCommand query failed", "error", err, "name", name)
-		return data.Command{}, false
+		slog.Error("GetStrategy query failed", "error", err, "name", name)
+		return data.Strategy{}, false
 	}
 	return c, true
 }
 
 // parseCommandFile parses a .md command file with TOML frontmatter (between +++ delimiters).
-func parseCommandFile(raw []byte) (data.Command, error) {
+func parseCommandFile(raw []byte) (data.Strategy, error) {
 	content := string(raw)
 	if !strings.HasPrefix(content, "+++\n") {
-		return data.Command{}, fmt.Errorf("missing +++ frontmatter delimiter")
+		return data.Strategy{}, fmt.Errorf("missing +++ frontmatter delimiter")
 	}
 	rest := content[4:] // skip opening +++\n
 	endIdx := strings.Index(rest, "\n+++\n")
 	if endIdx < 0 {
-		return data.Command{}, fmt.Errorf("missing closing +++ frontmatter delimiter")
+		return data.Strategy{}, fmt.Errorf("missing closing +++ frontmatter delimiter")
 	}
 	frontmatter := rest[:endIdx]
 	body := strings.TrimLeft(rest[endIdx+4:], "\n") // skip \n+++\n
 
-	var cmd data.Command
+	var cmd data.Strategy
 	cmd.Body = body
 
 	// Parse simple TOML key = "value" pairs
@@ -632,7 +632,7 @@ func (s *SQLiteStore) RebuildFromDir(repoPath string) error {
 			// Read summary.json
 			summaryPath := filepath.Join(contribDir, "summary.json")
 			if raw, err := os.ReadFile(summaryPath); err == nil {
-				var cs data.ContributionSummary
+				var cs data.Contribution
 				if err := json.Unmarshal(raw, &cs); err == nil {
 					conjectureIDsJSON, _ := json.Marshal(cs.ConjectureIDs)
 					certifiedByJSON, _ := json.Marshal(cs.CertifiedBy)
@@ -658,7 +658,7 @@ func (s *SQLiteStore) RebuildFromDir(repoPath string) error {
 			}
 
 			// Read results/*.json
-			resultsDir := filepath.Join(contribDir, "results")
+			resultsDir := filepath.Join(contribDir, "proofs")
 			if resultEntries, err := os.ReadDir(resultsDir); err == nil {
 				for _, re := range resultEntries {
 					if re.IsDir() || filepath.Ext(re.Name()) != ".json" {
@@ -668,7 +668,7 @@ func (s *SQLiteStore) RebuildFromDir(repoPath string) error {
 					if err != nil {
 						continue
 					}
-					var r data.ContributionResult
+					var r data.Proof
 					if err := json.Unmarshal(raw, &r); err != nil {
 						continue
 					}
@@ -709,7 +709,7 @@ func (s *SQLiteStore) RebuildFromDir(repoPath string) error {
 			if err != nil {
 				continue
 			}
-			var cs data.CertificateSummary
+			var cs data.Certificate
 			if err := json.Unmarshal(raw, &cs); err != nil {
 				continue
 			}
@@ -757,7 +757,7 @@ func (s *SQLiteStore) RebuildFromDir(repoPath string) error {
 	}
 
 	// Walk commands/*.md
-	commandsDir := filepath.Join(repoPath, "commands")
+	commandsDir := filepath.Join(repoPath, "strategies")
 	if entries, err := os.ReadDir(commandsDir); err == nil {
 		for _, entry := range entries {
 			if entry.IsDir() || filepath.Ext(entry.Name()) != ".md" {
@@ -844,7 +844,7 @@ func (s *SQLiteStore) LoadSeedContributions(dir string) error {
 			return fmt.Errorf("reading %s: %w", path, err)
 		}
 
-		var cs data.ContributionSummary
+		var cs data.Contribution
 		if err := json.Unmarshal(raw, &cs); err != nil {
 			return fmt.Errorf("parsing %s: %w", path, err)
 		}

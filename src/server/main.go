@@ -87,8 +87,8 @@ func main() {
 	conjectureHandler := &handlers.ConjectureHandler{Store: lite}
 	contributionHandler := &handlers.ContributionHandler{Store: lite, GitStore: gs}
 	certificateHandler := &handlers.CertificateHandler{Store: lite, GitStore: gs}
-	packageHandler := &handlers.PackageHandler{GitStore: gs}
-	commandHandler := &handlers.CommandHandler{Store: lite}
+	conjectureWriteHandler := &handlers.ConjectureWriteHandler{GitStore: gs}
+	strategyHandler := &handlers.StrategyHandler{Store: lite}
 	webhookHandler := &handlers.WebhookHandler{
 		GitStore:  gs,
 		RebuildFn: lite.RebuildFromDir,
@@ -115,12 +115,12 @@ func main() {
 	r.Get("/conjectures/{id}", conjectureHandler.Get)
 	r.Get("/contributions", contributionHandler.List)
 	r.Get("/contributions/{id}", contributionHandler.Get)
-	r.Get("/contributions/{id}/results", contributionHandler.ListResults)
+	r.Get("/contributions/{id}/proofs", contributionHandler.ListProofs)
 	r.Get("/certificates", certificateHandler.ListCertificates)
-	r.Get("/commands", commandHandler.List)
-	r.Get("/commands/{name}", commandHandler.Get)
-	r.Get("/certificate-packages", certificateHandler.List)
-	r.Get("/certificate-packages/{contributionID}/archive", certificateHandler.DownloadArchive)
+	r.Get("/strategies", strategyHandler.List)
+	r.Get("/strategies/{name}", strategyHandler.Get)
+	r.Get("/contribution-reviews", certificateHandler.List)
+	r.Get("/contributions/{contributionID}/archive", certificateHandler.DownloadArchive)
 
 	// Webhook endpoint (signature-verified internally)
 	r.Post("/webhooks/git", webhookHandler.Handle)
@@ -135,11 +135,11 @@ func main() {
 			slog.Info("JWT authentication enabled", "issuer", cfg.AuthIssuer)
 		}
 
-		r.Post("/conjecture-packages", packageHandler.Submit)
-		r.Post("/conjecture-packages/{batchId}/seal", packageHandler.SealConjecturePackage)
+		r.Post("/conjectures", conjectureWriteHandler.Submit)
+		r.Post("/conjectures/batches/{batchId}/seal", conjectureWriteHandler.SealConjecturePackage)
 		r.Post("/contributions", contributionHandler.Create)
 		r.Patch("/contributions/{id}", contributionHandler.Update)
-		r.Post("/contributions/{id}/results", contributionHandler.SubmitResult)
+		r.Post("/contributions/{id}/proofs", contributionHandler.SubmitProof)
 		r.Post("/contributions/{id}/seal", contributionHandler.Seal)
 		r.Post("/certificates", certificateHandler.SubmitCertificate)
 		r.Post("/certificates/{id}/seal", certificateHandler.SealCertificate)

@@ -24,7 +24,7 @@ type CertificateHandler struct {
 
 func (h *CertificateHandler) List(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	packages := h.Store.ListCertificatePackages()
+	packages := h.Store.ListContributionReviews()
 	json.NewEncoder(w).Encode(packages)
 }
 
@@ -35,7 +35,7 @@ func (h *CertificateHandler) ListCertificates(w http.ResponseWriter, r *http.Req
 }
 
 // DownloadArchive generates a tar.gz on-the-fly from the git clone's proofs directory.
-// GET /certificate-packages/{contributionID}/archive
+// GET /contributions/{contributionID}/archive
 func (h *CertificateHandler) DownloadArchive(w http.ResponseWriter, r *http.Request) {
 	contributionID := chi.URLParam(r, "contributionID")
 
@@ -91,7 +91,7 @@ func (h *CertificateHandler) DownloadArchive(w http.ResponseWriter, r *http.Requ
 func (h *CertificateHandler) SubmitCertificate(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	var certificate data.CertificateSummary
+	var certificate data.Certificate
 	if err := json.NewDecoder(r.Body).Decode(&certificate); err != nil {
 		http.Error(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
 		return

@@ -52,7 +52,7 @@ pub struct Conjecture {
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
-pub struct ContributionResult {
+pub struct Proof {
     pub conjecture_id: String,
     pub username: String,
     pub success: bool,
@@ -63,7 +63,7 @@ pub struct ContributionResult {
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
-pub struct ContributionSummary {
+pub struct Contribution {
     pub username: String,
     pub contribution_id: String,
     pub conjectures_attempted: u32,
@@ -171,14 +171,10 @@ impl ServerClient {
         Ok(())
     }
 
-    pub async fn submit_contribution_result(
-        &self,
-        contribution_id: &str,
-        result: &ContributionResult,
-    ) -> Result<()> {
+    pub async fn submit_proof(&self, contribution_id: &str, result: &Proof) -> Result<()> {
         let resp = self
             .authed(self.client.post(format!(
-                "{}/contributions/{}/results",
+                "{}/contributions/{}/proofs",
                 self.base_url, contribution_id
             )))
             .json(result)
@@ -197,7 +193,7 @@ impl ServerClient {
     pub async fn update_contribution(
         &self,
         contribution_id: &str,
-        summary: &ContributionSummary,
+        summary: &Contribution,
     ) -> Result<FinalizeResponse> {
         let resp = self
             .authed(self.client.patch(format!(
@@ -242,10 +238,10 @@ impl ServerClient {
     // ── Certificate endpoints ──
 
     /// Fetch available proof packages for certification
-    pub async fn fetch_certificate_packages(&self) -> Result<Vec<CertificatePackageInfo>> {
-        let packages: Vec<CertificatePackageInfo> = self
+    pub async fn fetch_contribution_reviews(&self) -> Result<Vec<ContributionReview>> {
+        let packages: Vec<ContributionReview> = self
             .client
-            .get(format!("{}/certificate-packages", self.base_url))
+            .get(format!("{}/contribution-reviews", self.base_url))
             .send()
             .await
             .context("Failed to fetch certificate packages")?
@@ -259,7 +255,7 @@ impl ServerClient {
         let resp = self
             .client
             .get(format!(
-                "{}/certificate-packages/{}/archive",
+                "{}/contributions/{}/archive",
                 self.base_url, session_id
             ))
             .send()
@@ -278,10 +274,7 @@ impl ServerClient {
     }
 
     /// Submit a certificate summary to the server. Returns commit SHA.
-    pub async fn submit_certificate(
-        &self,
-        summary: &CertificateSummary,
-    ) -> Result<FinalizeResponse> {
+    pub async fn submit_certificate(&self, summary: &Certificate) -> Result<FinalizeResponse> {
         let resp = self
             .authed(self.client.post(format!("{}/certificates", self.base_url)))
             .json(summary)
@@ -323,7 +316,7 @@ impl ServerClient {
 // ── Package submission endpoints ──
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct PackageSubmitResponse {
+pub struct ConjectureCreateResponse {
     #[allow(dead_code)]
     pub status: String,
     pub added_conjecture_ids: Vec<String>,
@@ -340,12 +333,12 @@ pub struct PackageSubmitResponse {
 
 impl ServerClient {
     /// Submit a tar.gz archive of conjecture JSON files
-    pub async fn submit_package_tar(&self, tar_bytes: Vec<u8>) -> Result<PackageSubmitResponse> {
+    pub async fn create_conjecture_tar(
+        &self,
+        tar_bytes: Vec<u8>,
+    ) -> Result<ConjectureCreateResponse> {
         let resp = self
-            .authed(
-                self.client
-                    .post(format!("{}/conjecture-packages", self.base_url)),
-            )
+            .authed(self.client.post(format!("{}/conjectures", self.base_url)))
             .header("Content-Type", "application/gzip")
             .body(tar_bytes)
             .send()
@@ -355,17 +348,17 @@ impl ServerClient {
             let body = resp.text().await.unwrap_or_default();
             anyhow::bail!("Server returned error: {}", body);
         }
-        let result: PackageSubmitResponse = resp.json().await?;
+        let result: ConjectureCreateResponse = resp.json().await?;
         Ok(result)
     }
 
     /// Submit a git URL for the server to clone
-    pub async fn submit_package_git_url(&self, git_url: &str) -> Result<PackageSubmitResponse> {
+    pub async fn create_conjecture_git_url(
+        &self,
+        git_url: &str,
+    ) -> Result<ConjectureCreateResponse> {
         let resp = self
-            .authed(
-                self.client
-                    .post(format!("{}/conjecture-packages", self.base_url)),
-            )
+            .authed(self.client.post(format!("{}/conjectures", self.base_url)))
             .json(&serde_json::json!({ "git_url": git_url }))
             .send()
             .await
@@ -374,19 +367,19 @@ impl ServerClient {
             let body = resp.text().await.unwrap_or_default();
             anyhow::bail!("Server returned error: {}", body);
         }
-        let result: PackageSubmitResponse = resp.json().await?;
+        let result: ConjectureCreateResponse = resp.json().await?;
         Ok(result)
     }
 
     /// Seal a conjecture package with NFT metadata. Returns the PR URL.
-    pub async fn seal_conjecture_package(
+    pub async fn seal_conjecture_batch(
         &self,
         batch_id: &str,
         nft_metadata: &serde_json::Value,
     ) -> Result<SealResponse> {
         let resp = self
             .authed(self.client.post(format!(
-                "{}/conjecture-packages/{}/seal",
+                "{}/conjectures/batches/{}/seal",
                 self.base_url, batch_id
             )))
             .json(nft_metadata)
@@ -405,7 +398,7 @@ impl ServerClient {
 // ── Certificate-related API types ──
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct CertificatePackageInfo {
+pub struct ContributionReview {
     pub contributor_contribution_id: String,
     pub contributor_username: String,
     /// The proof assistant software (e.g. "rocq", "lean4") — not the human.
@@ -420,19 +413,19 @@ pub struct CertificatePackageInfo {
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
-pub struct CertificateSummary {
+pub struct Certificate {
     pub certifier_username: String,
     pub certificate_id: String,
     pub packages_certified: u32,
     pub conjectures_compared: u32,
-    pub package_rankings: Vec<PackageRankingSummary>,
+    pub package_rankings: Vec<ContributionRanking>,
     pub recommendation: String,
     pub archive_sha256: String,
     pub nft_metadata: serde_json::Value,
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
-pub struct PackageRankingSummary {
+pub struct ContributionRanking {
     pub contributor_contribution_id: String,
     pub rank: u32,
     pub overall_score: f64,

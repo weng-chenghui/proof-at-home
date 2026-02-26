@@ -173,7 +173,7 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 	})
 
 	// GET /commands — list commands
-	se.Router.GET("/commands", func(e *core.RequestEvent) error {
+	se.Router.GET("/strategies", func(e *core.RequestEvent) error {
 		records, err := app.FindAllRecords("commands")
 		if err != nil {
 			return e.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
@@ -203,7 +203,7 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 	})
 
 	// GET /commands/{name} — get specific command
-	se.Router.GET("/commands/{name}", func(e *core.RequestEvent) error {
+	se.Router.GET("/strategies/{name}", func(e *core.RequestEvent) error {
 		name := e.Request.PathValue("name")
 		record, err := app.FindFirstRecordByFilter("commands", "name = {:name}", map[string]any{
 			"name": name,
@@ -330,8 +330,8 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 		return e.JSON(http.StatusOK, result)
 	})
 
-	// GET /contributions/{id}/results — list results for a contribution
-	se.Router.GET("/contributions/{id}/results", func(e *core.RequestEvent) error {
+	// GET /contributions/{id}/proofs — list results for a contribution
+	se.Router.GET("/contributions/{id}/proofs", func(e *core.RequestEvent) error {
 		id := e.Request.PathValue("id")
 		records, err := app.FindAllRecords("contribution_results")
 		if err != nil {
@@ -401,8 +401,8 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 		return e.JSON(http.StatusOK, entries)
 	})
 
-	// GET /certificate-packages — list certificate packages
-	se.Router.GET("/certificate-packages", func(e *core.RequestEvent) error {
+	// GET /contribution-reviews — list certificate packages
+	se.Router.GET("/contribution-reviews", func(e *core.RequestEvent) error {
 		records, err := app.FindAllRecords("contributions")
 		if err != nil {
 			return e.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
@@ -455,7 +455,7 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 				ContributorUsername:       r.GetString("username"),
 				Prover:                    prover,
 				ConjectureIDs:             conjectureIDs,
-				ArchiveURL:                "/certificate-packages/" + contributionID + "/archive",
+				ArchiveURL:                "/contributions/" + contributionID + "/archive",
 				ArchiveSHA256:             r.GetString("archive_sha256"),
 				ProofStatus:               r.GetString("proof_status"),
 				CertifiedBy:               certifiedBy,
@@ -464,8 +464,8 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 		return e.JSON(http.StatusOK, packages)
 	})
 
-	// GET /certificate-packages/{contributionID}/archive — stream tar.gz from git proofs dir
-	se.Router.GET("/certificate-packages/{contributionID}/archive", func(e *core.RequestEvent) error {
+	// GET /contributions/{contributionID}/archive — stream tar.gz from git proofs dir
+	se.Router.GET("/contributions/{contributionID}/archive", func(e *core.RequestEvent) error {
 		contributionID := e.Request.PathValue("contributionID")
 
 		proofsDir := filepath.Join(gs.RepoPath(), "contributions", contributionID, "proofs")
@@ -519,7 +519,7 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 
 	// POST /contributions — create contribution via GitStore
 	se.Router.POST("/contributions", func(e *core.RequestEvent) error {
-		var summary data.ContributionSummary
+		var summary data.Contribution
 		if err := json.NewDecoder(e.Request.Body).Decode(&summary); err != nil {
 			return e.JSON(http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
 		}
@@ -533,7 +533,7 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 
 	// POST /contributions/batch — submit contribution summary via GitStore
 	se.Router.POST("/contributions/batch", func(e *core.RequestEvent) error {
-		var summary data.ContributionSummary
+		var summary data.Contribution
 		if err := json.NewDecoder(e.Request.Body).Decode(&summary); err != nil {
 			return e.JSON(http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
 		}
@@ -545,17 +545,17 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 		return e.JSON(http.StatusCreated, map[string]string{"status": "accepted"})
 	})
 
-	// POST /contributions/{id}/results — submit result via GitStore
-	se.Router.POST("/contributions/{id}/results", func(e *core.RequestEvent) error {
+	// POST /contributions/{id}/proofs — submit result via GitStore
+	se.Router.POST("/contributions/{id}/proofs", func(e *core.RequestEvent) error {
 		id := e.Request.PathValue("id")
 
-		var result data.ContributionResult
+		var result data.Proof
 		if err := json.NewDecoder(e.Request.Body).Decode(&result); err != nil {
 			return e.JSON(http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
 		}
 
 		result.ContributionID = id
-		if err := gs.AddContributionResult(result); err != nil {
+		if err := gs.AddProof(result); err != nil {
 			return e.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to add result: " + err.Error()})
 		}
 
@@ -566,7 +566,7 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 	se.Router.PATCH("/contributions/{id}", func(e *core.RequestEvent) error {
 		id := e.Request.PathValue("id")
 
-		var summary data.ContributionSummary
+		var summary data.Contribution
 		if err := json.NewDecoder(e.Request.Body).Decode(&summary); err != nil {
 			return e.JSON(http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
 		}
@@ -605,7 +605,7 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 
 	// POST /certificates — submit certificate via GitStore
 	se.Router.POST("/certificates", func(e *core.RequestEvent) error {
-		var certificate data.CertificateSummary
+		var certificate data.Certificate
 		if err := json.NewDecoder(e.Request.Body).Decode(&certificate); err != nil {
 			return e.JSON(http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
 		}
@@ -641,11 +641,11 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 		})
 	})
 
-	// POST /conjecture-packages — submit conjecture package (tar.gz or git URL)
-	se.Router.POST("/conjecture-packages", func(e *core.RequestEvent) error {
+	// POST /conjectures — submit conjecture package (tar.gz or git URL)
+	se.Router.POST("/conjectures", func(e *core.RequestEvent) error {
 		ct := e.Request.Header.Get("Content-Type")
 
-		type packageSubmitResponse struct {
+		type conjectureCreateResponse struct {
 			Status             string   `json:"status"`
 			AddedConjectureIDs []string `json:"added_conjecture_ids"`
 			Count              int      `json:"count"`
@@ -743,7 +743,7 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 			provers = []string{}
 		}
 
-		return e.JSON(http.StatusOK, packageSubmitResponse{
+		return e.JSON(http.StatusOK, conjectureCreateResponse{
 			Status:             "accepted",
 			AddedConjectureIDs: ids,
 			Count:              len(ids),
@@ -755,8 +755,8 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 		})
 	})
 
-	// POST /conjecture-packages/{batchId}/seal — seal conjecture package
-	se.Router.POST("/conjecture-packages/{batchId}/seal", func(e *core.RequestEvent) error {
+	// POST /conjectures/batches/{batchId}/seal — seal conjecture package
+	se.Router.POST("/conjectures/batches/{batchId}/seal", func(e *core.RequestEvent) error {
 		batchID := e.Request.PathValue("batchId")
 		if batchID == "" {
 			return e.JSON(http.StatusBadRequest, map[string]string{"error": "batchId is required"})
@@ -912,7 +912,7 @@ func rebuildFromGit(app core.App) error {
 			// Read summary.json
 			summaryPath := filepath.Join(contribDir, "summary.json")
 			if raw, err := os.ReadFile(summaryPath); err == nil && contribCollection != nil {
-				var cs data.ContributionSummary
+				var cs data.Contribution
 				if err := json.Unmarshal(raw, &cs); err == nil {
 					record := core.NewRecord(contribCollection)
 					record.Set("contribution_id", cs.ContributionID)
@@ -933,7 +933,7 @@ func rebuildFromGit(app core.App) error {
 			}
 
 			// Read results/*.json
-			resultsDir := filepath.Join(contribDir, "results")
+			resultsDir := filepath.Join(contribDir, "proofs")
 			if resultEntries, err := os.ReadDir(resultsDir); err == nil && resultCollection != nil {
 				for _, re := range resultEntries {
 					if re.IsDir() || filepath.Ext(re.Name()) != ".json" {
@@ -943,7 +943,7 @@ func rebuildFromGit(app core.App) error {
 					if err != nil {
 						continue
 					}
-					var r data.ContributionResult
+					var r data.Proof
 					if err := json.Unmarshal(raw, &r); err != nil {
 						continue
 					}
@@ -993,7 +993,7 @@ func rebuildFromGit(app core.App) error {
 				if err != nil {
 					continue
 				}
-				var cs data.CertificateSummary
+				var cs data.Certificate
 				if err := json.Unmarshal(raw, &cs); err != nil {
 					continue
 				}
@@ -1040,7 +1040,7 @@ func rebuildFromGit(app core.App) error {
 	}
 
 	// Walk commands/*.md
-	commandsDir := filepath.Join(repoPath, "commands")
+	commandsDir := filepath.Join(repoPath, "strategies")
 	if entries, err := os.ReadDir(commandsDir); err == nil {
 		cmdCollection, _ := app.FindCollectionByNameOrId("commands")
 		if cmdCollection != nil {
@@ -1233,20 +1233,20 @@ func loadConjecturesFromDir(dir string) ([]data.Conjecture, error) {
 }
 
 // parseCommandMD parses a .md command file with TOML frontmatter (between +++ delimiters).
-func parseCommandMD(raw []byte, filename string) (data.Command, error) {
+func parseCommandMD(raw []byte, filename string) (data.Strategy, error) {
 	content := string(raw)
 	if !strings.HasPrefix(content, "+++\n") {
-		return data.Command{}, fmt.Errorf("missing +++ frontmatter delimiter")
+		return data.Strategy{}, fmt.Errorf("missing +++ frontmatter delimiter")
 	}
 	rest := content[4:]
 	endIdx := strings.Index(rest, "\n+++\n")
 	if endIdx < 0 {
-		return data.Command{}, fmt.Errorf("missing closing +++ frontmatter delimiter")
+		return data.Strategy{}, fmt.Errorf("missing closing +++ frontmatter delimiter")
 	}
 	frontmatter := rest[:endIdx]
 	body := strings.TrimLeft(rest[endIdx+4:], "\n")
 
-	var cmd data.Command
+	var cmd data.Strategy
 	cmd.Body = body
 
 	for _, line := range strings.Split(frontmatter, "\n") {

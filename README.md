@@ -264,18 +264,18 @@ Three template variants are available via `--template`:
 | `GET` | `/conjectures/{id}` | Full conjecture details |
 | `GET` | `/contributions` | List contributions |
 | `GET` | `/contributions/{id}` | Get contribution details |
-| `GET` | `/contributions/{id}/results` | List results for a contribution |
+| `GET` | `/contributions/{id}/proofs` | List results for a contribution |
 | `POST` | `/contributions` | Create a new contribution |
-| `POST` | `/contributions/{id}/results` | Submit a proof result |
+| `POST` | `/contributions/{id}/proofs` | Submit a proof result |
 | `PATCH` | `/contributions/{id}` | Finalize a contribution |
 | `POST` | `/contributions/{id}/seal` | Seal contribution (archive + NFT + PR) |
 | `GET` | `/certificates` | List certificates |
-| `GET` | `/certificate-packages` | List proof packages available for certification |
-| `GET` | `/certificate-packages/{id}/archive` | Download a prover's archive |
+| `GET` | `/contribution-reviews` | List proof packages available for certification |
+| `GET` | `/contribution-reviews/{id}/archive` | Download a prover's archive |
 | `POST` | `/certificates` | Submit a certificate |
 | `POST` | `/certificates/{id}/seal` | Seal certificate (archive + NFT + PR) |
-| `POST` | `/conjecture-packages` | Submit conjecture package (tar.gz or git URL) |
-| `POST` | `/conjecture-packages/{batchId}/seal` | Seal conjecture package (submitter NFT + PR) |
+| `POST` | `/conjectures (POST)` | Submit conjecture package (tar.gz or git URL) |
+| `POST` | `/conjectures (POST)/{batchId}/seal` | Seal conjecture package (submitter NFT + PR) |
 | `POST` | `/webhooks/git` | Git webhook (signature-verified) |
 
 ## Sample Conjectures

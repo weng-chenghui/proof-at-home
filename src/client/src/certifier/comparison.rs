@@ -8,8 +8,8 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use crate::certifier::types::*;
-use crate::commands_store::loader::{self, CertifyCommandVars};
 use crate::config::Config;
+use crate::strategy_store::loader::{self, CertifyCommandVars};
 
 /// Build the comparison prompt for a single conjecture.
 /// Loads from command files if available, falls back to inline prompt.

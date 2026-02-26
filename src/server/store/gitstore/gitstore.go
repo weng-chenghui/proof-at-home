@@ -63,7 +63,7 @@ func (gs *GitStore) Forge() ForgeClient {
 // ── Contribution operations ──
 
 // AddContribution creates a branch and commits the initial summary.json.
-func (gs *GitStore) AddContribution(cs data.ContributionSummary) error {
+func (gs *GitStore) AddContribution(cs data.Contribution) error {
 	gs.mu.Lock()
 	defer gs.mu.Unlock()
 
@@ -85,8 +85,8 @@ func (gs *GitStore) AddContribution(cs data.ContributionSummary) error {
 	return nil
 }
 
-// AddContributionResult commits a result and proof file to the contribution branch.
-func (gs *GitStore) AddContributionResult(r data.ContributionResult) error {
+// AddProof commits a result and proof file to the contribution branch.
+func (gs *GitStore) AddProof(r data.Proof) error {
 	gs.mu.Lock()
 	defer gs.mu.Unlock()
 
@@ -99,7 +99,7 @@ func (gs *GitStore) AddContributionResult(r data.ContributionResult) error {
 	dir := filepath.Join("contributions", r.ContributionID)
 
 	// Write result JSON
-	resultPath := filepath.Join(dir, "results", r.ConjectureID+".json")
+	resultPath := filepath.Join(dir, "proofs", r.ConjectureID+".json")
 	if err := gs.writeJSON(resultPath, r); err != nil {
 		return err
 	}
@@ -126,7 +126,7 @@ func (gs *GitStore) AddContributionResult(r data.ContributionResult) error {
 }
 
 // FinalizeContribution updates summary.json with cost/status and returns the commit SHA.
-func (gs *GitStore) FinalizeContribution(id string, cs data.ContributionSummary) (string, error) {
+func (gs *GitStore) FinalizeContribution(id string, cs data.Contribution) (string, error) {
 	gs.mu.Lock()
 	defer gs.mu.Unlock()
 
@@ -188,7 +188,7 @@ func (gs *GitStore) SealContribution(id string, nftMetadata any) (string, error)
 // ── Certificate operations ──
 
 // AddCertificate creates a branch and commits the certificate summary.
-func (gs *GitStore) AddCertificate(cs data.CertificateSummary) (string, error) {
+func (gs *GitStore) AddCertificate(cs data.Certificate) (string, error) {
 	gs.mu.Lock()
 	defer gs.mu.Unlock()
 
