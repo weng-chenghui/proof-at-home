@@ -32,9 +32,9 @@ enum Commands {
     Login,
     /// Configure CLI settings (API key, server URL, prover)
     Setup {
-        /// Import command files from paths, directories, .tar.gz, or GitHub URLs
-        #[arg(long = "add-commands")]
-        add_commands: Vec<String>,
+        /// Import strategy files from paths, directories, .tar.gz, or GitHub URLs
+        #[arg(long = "add-strategies")]
+        add_strategies: Vec<String>,
     },
     /// Set donation budget (legal agreement required)
     Donate,
@@ -53,8 +53,8 @@ enum Commands {
         #[command(subcommand)]
         action: commands::certify::CertifyAction,
     },
-    /// Submit a conjecture package (directory, tar.gz, or git URL)
-    SubmitPackage {
+    /// Submit conjectures (directory, tar.gz, or git URL)
+    SubmitConjecture {
         /// Path to directory, .tar.gz file, or git URL
         source: String,
     },
@@ -99,7 +99,7 @@ async fn main() {
     let result = match cli.command {
         Commands::Init => commands::init::run_init(),
         Commands::Login => commands::login::run_login().await,
-        Commands::Setup { add_commands } => commands::setup::run_setup(add_commands),
+        Commands::Setup { add_strategies } => commands::setup::run_setup(add_strategies),
         Commands::Donate => commands::donate::run_donate(),
         Commands::Prove { action, by } => match action {
             Some(ProveAction::Run { by: run_by }) => {
@@ -125,8 +125,8 @@ async fn main() {
         },
         Commands::Status => commands::status::run_status(),
         Commands::Certify { action } => commands::certify::run_certify(action).await,
-        Commands::SubmitPackage { source } => {
-            commands::submit_package::run_submit_package(&source).await
+        Commands::SubmitConjecture { source } => {
+            commands::submit_conjecture::run_submit_conjecture(&source).await
         }
         Commands::Publish { kind, id } => commands::publish::run_publish(&kind, &id).await,
     };

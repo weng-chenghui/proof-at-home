@@ -10,7 +10,7 @@ use crate::config::Config;
 use crate::prover::env_manager::ResolvedEnv;
 use crate::prover::verifier;
 use crate::server_client::api::Conjecture;
-use crate::strategy_store::loader::{self, CommandVars, LoadedCommand};
+use crate::strategy_store::loader::{self, LoadedStrategy, StrategyVars};
 
 pub struct AuditLogger {
     path: PathBuf,
@@ -119,31 +119,31 @@ struct ApiUsage {
 }
 
 /// Build the prompt for proving a lemma.
-/// If `command_name` is provided, loads that specific command file.
+/// If `strategy_name` is provided, loads that specific strategy file.
 /// Otherwise auto-selects based on the conjecture's prover type.
-/// Falls back to an inline prompt if command file loading fails.
+/// Falls back to an inline prompt if strategy file loading fails.
 fn build_proof_prompt(
     conjecture: &Conjecture,
-    command_name: Option<&str>,
+    strategy_name: Option<&str>,
     config: &Config,
 ) -> String {
-    let command_result = if let Some(name) = command_name {
-        loader::load_command(name)
+    let strategy_result = if let Some(name) = strategy_name {
+        loader::load_strategy(name)
     } else {
-        loader::auto_select_command(&conjecture.prover)
+        loader::auto_select_strategy(&conjecture.prover)
     };
 
-    if let Ok(command) = command_result {
-        return build_prompt_from_command(&command, conjecture, config);
+    if let Ok(strategy) = strategy_result {
+        return build_prompt_from_strategy(&strategy, conjecture, config);
     }
 
     // Fallback: inline prompt
     build_inline_prompt(conjecture)
 }
 
-/// Build prompt from a loaded command file with variable substitution.
-fn build_prompt_from_command(
-    command: &LoadedCommand,
+/// Build prompt from a loaded strategy file with variable substitution.
+fn build_prompt_from_strategy(
+    strategy: &LoadedStrategy,
     conjecture: &Conjecture,
     config: &Config,
 ) -> String {
@@ -152,7 +152,7 @@ fn build_prompt_from_command(
     let scratch = &config.prover.scratch_dir;
     let lemma_file = format!("{}/{}.{}", scratch, conjecture.id, extension);
 
-    let vars = CommandVars {
+    let vars = StrategyVars {
         lean_path: std::env::var("LEAN_PATH").unwrap_or_else(|_| "lean".into()),
         lake_path: std::env::var("LAKE_PATH").unwrap_or_else(|_| "lake".into()),
         rocq: std::env::var("ROCQ").unwrap_or_else(|_| "rocq c".into()),
@@ -161,7 +161,7 @@ fn build_prompt_from_command(
         lemma_file,
     };
 
-    loader::render_command(command, conjecture, &vars)
+    loader::render_strategy(strategy, conjecture, &vars)
 }
 
 /// Fallback inline prompt (original implementation).
@@ -341,13 +341,13 @@ fn extract_code(response: &str) -> String {
 /// Main entry point: attempt to prove a conjecture with retries.
 /// If `resolved_env` is provided, uses the virtual project environment.
 /// Otherwise falls back to writing to scratch_dir (legacy mode).
-/// `command_name` selects a specific proving strategy; None auto-selects.
+/// `strategy_name` selects a specific proving strategy; None auto-selects.
 pub async fn prove_conjecture(
     config: &Config,
     conjecture: &Conjecture,
     resolved_env: Option<&ResolvedEnv>,
     audit_logger: &AuditLogger,
-    command_name: Option<&str>,
+    strategy_name: Option<&str>,
 ) -> Result<ProofAttemptResult> {
     let scratch_dir = Path::new(&config.prover.scratch_dir);
     std::fs::create_dir_all(scratch_dir)?;
@@ -370,12 +370,12 @@ pub async fn prove_conjecture(
 
     for attempt in 1..=max_attempts {
         let prompt = if attempt == 1 {
-            build_proof_prompt(conjecture, command_name, config)
+            build_proof_prompt(conjecture, strategy_name, config)
         } else {
             format!(
                 "{}\n\n## Previous attempt failed (attempt {}/{}).\nError output:\n```\n{}\n```\n\n\
                  Fix the proof and output the complete corrected script:",
-                build_proof_prompt(conjecture, command_name, config),
+                build_proof_prompt(conjecture, strategy_name, config),
                 attempt,
                 max_attempts,
                 last_error,

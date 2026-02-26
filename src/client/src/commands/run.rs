@@ -156,7 +156,7 @@ async fn seal_contribution(
     Ok((archive_path, commit_sha, nft_path))
 }
 
-pub async fn run_prove(command_name: Option<&str>) -> Result<()> {
+pub async fn run_prove(strategy_name: Option<&str>) -> Result<()> {
     if !Config::exists() {
         bail!("No config found. Run `proof-at-home init` first.");
     }
@@ -167,7 +167,7 @@ pub async fn run_prove(command_name: Option<&str>) -> Result<()> {
         bail!("No budget set. Run `proof-at-home donate` first.");
     }
 
-    // Ensure builtin commands are available
+    // Ensure builtin strategies are available
     let _ = loader::ensure_builtins();
 
     let contribution_id = Uuid::new_v4().to_string();
@@ -184,7 +184,7 @@ pub async fn run_prove(command_name: Option<&str>) -> Result<()> {
         "Budget:       {}",
         format!("${:.2}", config.budget.donated_usd).green()
     );
-    if let Some(name) = command_name {
+    if let Some(name) = strategy_name {
         println!("Strategy:     {}", name.cyan());
     }
     println!();
@@ -319,7 +319,7 @@ pub async fn run_prove(command_name: Option<&str>) -> Result<()> {
             conjecture,
             resolved_env,
             &audit_logger,
-            command_name,
+            strategy_name,
         )
         .await?;
         tracker.add_cost(result.cost_usd);

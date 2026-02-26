@@ -38,8 +38,8 @@ func init() {
 			return err
 		}
 
-		// ── contribution_results ──
-		results := core.NewBaseCollection("contribution_results")
+		// ── proofs ──
+		results := core.NewBaseCollection("proofs")
 		results.Fields.Add(
 			&core.TextField{Name: "conjecture_id", Required: true, Max: 200},
 			&core.TextField{Name: "username", Required: true, Max: 200},
@@ -50,8 +50,8 @@ func init() {
 			&core.TextField{Name: "error_output"},
 		)
 		results.Indexes = types.JSONArray[string]{
-			"CREATE INDEX idx_contribution_results_conjecture_id ON contribution_results (conjecture_id)",
-			"CREATE INDEX idx_contribution_results_username ON contribution_results (username)",
+			"CREATE INDEX idx_proofs_conjecture_id ON proofs (conjecture_id)",
+			"CREATE INDEX idx_proofs_username ON proofs (username)",
 		}
 		results.ViewRule = types.Pointer("")
 		results.ListRule = types.Pointer("")
@@ -114,9 +114,9 @@ func init() {
 			return err
 		}
 
-		// ── commands ──
-		commands := core.NewBaseCollection("commands")
-		commands.Fields.Add(
+		// ── strategies ──
+		strategies := core.NewBaseCollection("strategies")
+		strategies.Fields.Add(
 			&core.TextField{Name: "name", Required: true, Max: 200},
 			&core.TextField{Name: "kind", Max: 100},
 			&core.TextField{Name: "prover", Max: 100},
@@ -124,12 +124,12 @@ func init() {
 			&core.NumberField{Name: "priority", OnlyInt: true},
 			&core.TextField{Name: "body"},
 		)
-		commands.Indexes = types.JSONArray[string]{
-			"CREATE UNIQUE INDEX idx_commands_name ON commands (name)",
+		strategies.Indexes = types.JSONArray[string]{
+			"CREATE UNIQUE INDEX idx_strategies_name ON strategies (name)",
 		}
-		commands.ViewRule = types.Pointer("")
-		commands.ListRule = types.Pointer("")
-		if err := app.Save(commands); err != nil {
+		strategies.ViewRule = types.Pointer("")
+		strategies.ListRule = types.Pointer("")
+		if err := app.Save(strategies); err != nil {
 			return err
 		}
 
@@ -150,7 +150,7 @@ func init() {
 		return nil
 	}, func(app core.App) error {
 		// Rollback: delete collections in reverse dependency order
-		for _, name := range []string{"commands", "certificates", "contributions", "contribution_results", "conjectures"} {
+		for _, name := range []string{"strategies", "certificates", "contributions", "proofs", "conjectures"} {
 			c, _ := app.FindCollectionByNameOrId(name)
 			if c != nil {
 				app.Delete(c)

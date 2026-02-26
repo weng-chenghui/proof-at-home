@@ -6,4 +6,4 @@ pub mod publish;
 pub mod run;
 pub mod setup;
 pub mod status;
-pub mod submit_package;
+pub mod submit_conjecture;

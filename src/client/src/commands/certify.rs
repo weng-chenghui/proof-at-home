@@ -352,7 +352,7 @@ fn cmd_list() -> Result<()> {
 
 // ── certify ai-compare ──
 
-async fn cmd_ai_compare(command_name: Option<&str>) -> Result<()> {
+async fn cmd_ai_compare(strategy_name: Option<&str>) -> Result<()> {
     let config = Config::load()?;
     let (certification_dir, mut state) = get_active_certification()?;
 
@@ -361,7 +361,7 @@ async fn cmd_ai_compare(command_name: Option<&str>) -> Result<()> {
     }
 
     let result =
-        comparison::run_comparison(&config, &state, &certification_dir, command_name).await?;
+        comparison::run_comparison(&config, &state, &certification_dir, strategy_name).await?;
 
     // Write ai_comparison.json
     let comp_path = certification_dir.join("ai_comparison.json");

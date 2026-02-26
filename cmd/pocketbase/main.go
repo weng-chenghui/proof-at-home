@@ -172,14 +172,14 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 		return e.JSON(http.StatusOK, conjecture)
 	})
 
-	// GET /commands — list commands
+	// GET /strategies — list strategies
 	se.Router.GET("/strategies", func(e *core.RequestEvent) error {
-		records, err := app.FindAllRecords("commands")
+		records, err := app.FindAllRecords("strategies")
 		if err != nil {
 			return e.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		}
 
-		type commandEntry struct {
+		type strategyEntry struct {
 			Name        string `json:"name"`
 			Kind        string `json:"kind"`
 			Prover      string `json:"prover"`
@@ -188,9 +188,9 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 			Body        string `json:"body"`
 		}
 
-		entries := make([]commandEntry, 0, len(records))
+		entries := make([]strategyEntry, 0, len(records))
 		for _, r := range records {
-			entries = append(entries, commandEntry{
+			entries = append(entries, strategyEntry{
 				Name:        r.GetString("name"),
 				Kind:        r.GetString("kind"),
 				Prover:      r.GetString("prover"),
@@ -202,10 +202,10 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 		return e.JSON(http.StatusOK, entries)
 	})
 
-	// GET /commands/{name} — get specific command
+	// GET /strategies/{name} — get specific strategy
 	se.Router.GET("/strategies/{name}", func(e *core.RequestEvent) error {
 		name := e.Request.PathValue("name")
-		record, err := app.FindFirstRecordByFilter("commands", "name = {:name}", map[string]any{
+		record, err := app.FindFirstRecordByFilter("strategies", "name = {:name}", map[string]any{
 			"name": name,
 		})
 		if err != nil {
@@ -330,15 +330,15 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 		return e.JSON(http.StatusOK, result)
 	})
 
-	// GET /contributions/{id}/proofs — list results for a contribution
+	// GET /contributions/{id}/proofs — list proofs for a contribution
 	se.Router.GET("/contributions/{id}/proofs", func(e *core.RequestEvent) error {
 		id := e.Request.PathValue("id")
-		records, err := app.FindAllRecords("contribution_results")
+		records, err := app.FindAllRecords("proofs")
 		if err != nil {
 			return e.JSON(http.StatusOK, []any{})
 		}
 
-		type resultEntry struct {
+		type proofEntry struct {
 			ContributionID string  `json:"contribution_id"`
 			ConjectureID   string  `json:"conjecture_id"`
 			Username       string  `json:"username"`
@@ -349,12 +349,12 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 			ErrorOutput    string  `json:"error_output"`
 		}
 
-		var results []resultEntry
+		var proofs []proofEntry
 		for _, r := range records {
 			if r.GetString("contribution_id") != id {
 				continue
 			}
-			results = append(results, resultEntry{
+			proofs = append(proofs, proofEntry{
 				ContributionID: r.GetString("contribution_id"),
 				ConjectureID:   r.GetString("conjecture_id"),
 				Username:       r.GetString("username"),
@@ -365,10 +365,10 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 				ErrorOutput:    r.GetString("error_output"),
 			})
 		}
-		if results == nil {
-			results = []resultEntry{}
+		if proofs == nil {
+			proofs = []proofEntry{}
 		}
-		return e.JSON(http.StatusOK, results)
+		return e.JSON(http.StatusOK, proofs)
 	})
 
 	// GET /certificates — list certificates
@@ -545,18 +545,18 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 		return e.JSON(http.StatusCreated, map[string]string{"status": "accepted"})
 	})
 
-	// POST /contributions/{id}/proofs — submit result via GitStore
+	// POST /contributions/{id}/proofs — submit proof via GitStore
 	se.Router.POST("/contributions/{id}/proofs", func(e *core.RequestEvent) error {
 		id := e.Request.PathValue("id")
 
-		var result data.Proof
-		if err := json.NewDecoder(e.Request.Body).Decode(&result); err != nil {
+		var proof data.Proof
+		if err := json.NewDecoder(e.Request.Body).Decode(&proof); err != nil {
 			return e.JSON(http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
 		}
 
-		result.ContributionID = id
-		if err := gs.AddProof(result); err != nil {
-			return e.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to add result: " + err.Error()})
+		proof.ContributionID = id
+		if err := gs.AddProof(proof); err != nil {
+			return e.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to add proof: " + err.Error()})
 		}
 
 		return e.JSON(http.StatusCreated, map[string]string{"status": "accepted"})
@@ -838,7 +838,7 @@ func rebuildFromGit(app core.App) error {
 	repoPath := gs.RepoPath()
 
 	// Clear existing records
-	for _, collName := range []string{"contribution_results", "certificates", "contributions", "conjectures", "commands"} {
+	for _, collName := range []string{"proofs", "certificates", "contributions", "conjectures", "strategies"} {
 		records, err := app.FindAllRecords(collName)
 		if err != nil {
 			continue
@@ -896,11 +896,11 @@ func rebuildFromGit(app core.App) error {
 		}
 	}
 
-	// Walk contributions/*/summary.json + results/*.json
+	// Walk contributions/*/summary.json + proofs/*.json
 	contributionsDir := filepath.Join(repoPath, "contributions")
 	if entries, err := os.ReadDir(contributionsDir); err == nil {
 		contribCollection, _ := app.FindCollectionByNameOrId("contributions")
-		resultCollection, _ := app.FindCollectionByNameOrId("contribution_results")
+		resultCollection, _ := app.FindCollectionByNameOrId("proofs")
 
 		for _, entry := range entries {
 			if !entry.IsDir() {
@@ -932,7 +932,7 @@ func rebuildFromGit(app core.App) error {
 				}
 			}
 
-			// Read results/*.json
+			// Read proofs/*.json
 			resultsDir := filepath.Join(contribDir, "proofs")
 			if resultEntries, err := os.ReadDir(resultsDir); err == nil && resultCollection != nil {
 				for _, re := range resultEntries {
@@ -961,7 +961,7 @@ func rebuildFromGit(app core.App) error {
 					record.Set("attempts", r.Attempts)
 					record.Set("error_output", r.ErrorOutput)
 					if err := app.Save(record); err != nil {
-						slog.Error("Rebuild: failed to save result", "error", err)
+						slog.Error("Rebuild: failed to save proof", "error", err)
 					}
 
 					// Update conjecture status if proved
@@ -1039,35 +1039,35 @@ func rebuildFromGit(app core.App) error {
 		}
 	}
 
-	// Walk commands/*.md
-	commandsDir := filepath.Join(repoPath, "strategies")
-	if entries, err := os.ReadDir(commandsDir); err == nil {
-		cmdCollection, _ := app.FindCollectionByNameOrId("commands")
-		if cmdCollection != nil {
+	// Walk strategies/*.md
+	strategiesDir := filepath.Join(repoPath, "strategies")
+	if entries, err := os.ReadDir(strategiesDir); err == nil {
+		strategyCollection, _ := app.FindCollectionByNameOrId("strategies")
+		if strategyCollection != nil {
 			for _, entry := range entries {
 				if entry.IsDir() || filepath.Ext(entry.Name()) != ".md" {
 					continue
 				}
-				raw, err := os.ReadFile(filepath.Join(commandsDir, entry.Name()))
+				raw, err := os.ReadFile(filepath.Join(strategiesDir, entry.Name()))
 				if err != nil {
-					slog.Error("Rebuild: failed to read command", "file", entry.Name(), "error", err)
+					slog.Error("Rebuild: failed to read strategy", "file", entry.Name(), "error", err)
 					continue
 				}
-				cmd, err := parseCommandMD(raw, entry.Name())
+				strat, err := parseStrategyMD(raw, entry.Name())
 				if err != nil {
-					slog.Error("Rebuild: failed to parse command", "file", entry.Name(), "error", err)
+					slog.Error("Rebuild: failed to parse strategy", "file", entry.Name(), "error", err)
 					continue
 				}
 
-				record := core.NewRecord(cmdCollection)
-				record.Set("name", cmd.Name)
-				record.Set("kind", cmd.Kind)
-				record.Set("prover", cmd.Prover)
-				record.Set("description", cmd.Description)
-				record.Set("priority", cmd.Priority)
-				record.Set("body", cmd.Body)
+				record := core.NewRecord(strategyCollection)
+				record.Set("name", strat.Name)
+				record.Set("kind", strat.Kind)
+				record.Set("prover", strat.Prover)
+				record.Set("description", strat.Description)
+				record.Set("priority", strat.Priority)
+				record.Set("body", strat.Body)
 				if err := app.Save(record); err != nil {
-					slog.Error("Rebuild: failed to save command", "name", cmd.Name, "error", err)
+					slog.Error("Rebuild: failed to save strategy", "name", strat.Name, "error", err)
 				}
 			}
 		}
@@ -1232,8 +1232,8 @@ func loadConjecturesFromDir(dir string) ([]data.Conjecture, error) {
 	return conjectures, nil
 }
 
-// parseCommandMD parses a .md command file with TOML frontmatter (between +++ delimiters).
-func parseCommandMD(raw []byte, filename string) (data.Strategy, error) {
+// parseStrategyMD parses a .md strategy file with TOML frontmatter (between +++ delimiters).
+func parseStrategyMD(raw []byte, filename string) (data.Strategy, error) {
 	content := string(raw)
 	if !strings.HasPrefix(content, "+++\n") {
 		return data.Strategy{}, fmt.Errorf("missing +++ frontmatter delimiter")

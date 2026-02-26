@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Command Detail — proof-at-home</title>
+    <title>Strategy Detail — proof-at-home</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -12,7 +12,7 @@
 <body>
     <nav id="navbar"></nav>
     <div class="container">
-        <p><a href="/commands.html">&larr; Back to Commands</a></p>
+        <p><a href="/strategies.html">&larr; Back to Strategies</a></p>
         <div id="msg" class="msg" style="display:none"></div>
         <div id="content"></div>
     </div>
@@ -21,11 +21,11 @@
         async function load() {
             const name = new URLSearchParams(window.location.search).get('name');
             if (!name) {
-                showMsg('msg', 'No command name specified.', true);
+                showMsg('msg', 'No strategy name specified.', true);
                 return;
             }
             try {
-                const c = await api('GET', '/commands/' + encodeURIComponent(name));
+                const c = await api('GET', '/strategies/' + encodeURIComponent(name));
                 document.title = c.name + ' — proof-at-home';
                 document.getElementById('content').innerHTML = `
                     <h1>${escapeHtml(c.name)}</h1>
@@ -40,7 +40,7 @@
                     <pre><code>${escapeHtml(c.body)}</code></pre>
                 `;
             } catch (e) {
-                showMsg('msg', 'Failed to load command: ' + (e.error || e.message || 'not found'), true);
+                showMsg('msg', 'Failed to load strategy: ' + (e.error || e.message || 'not found'), true);
             }
         }
         document.addEventListener('DOMContentLoaded', load);

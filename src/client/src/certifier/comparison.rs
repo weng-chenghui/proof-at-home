@@ -9,7 +9,7 @@ use std::process::Command;
 
 use crate::certifier::types::*;
 use crate::config::Config;
-use crate::strategy_store::loader::{self, CertifyCommandVars};
+use crate::strategy_store::loader::{self, CertifyStrategyVars};
 
 /// Build the comparison prompt for a single conjecture.
 /// Loads from command files if available, falls back to inline prompt.
@@ -17,25 +17,25 @@ pub fn build_comparison_prompt(
     conjecture_title: &str,
     prover: &str,
     proofs: &[(String, String, String)], // (contributor_contribution_id, contributor_username, proof_script)
-    command_name: Option<&str>,
+    strategy_name: Option<&str>,
 ) -> String {
     let proofs_block = build_proofs_block(proofs);
 
     // Try loading from command file
-    let command_result = if let Some(name) = command_name {
-        loader::load_command(name)
+    let strategy_result = if let Some(name) = strategy_name {
+        loader::load_strategy(name)
     } else {
         loader::auto_select_by_kind("certify-compare")
     };
 
-    if let Ok(command) = command_result {
-        let vars = CertifyCommandVars {
+    if let Ok(command) = strategy_result {
+        let vars = CertifyStrategyVars {
             prover: prover.to_string(),
             conjecture_title: conjecture_title.to_string(),
             proofs: proofs_block.clone(),
             package_rankings: String::new(),
         };
-        return loader::render_certify_command(&command, &vars);
+        return loader::render_certify_strategy(&command, &vars);
     }
 
     // Fallback: inline prompt
@@ -85,25 +85,25 @@ Return valid JSON and nothing else (no markdown fences):\n\
 /// Loads from command files if available, falls back to inline prompt.
 pub fn build_rollup_prompt(
     package_rankings: &[PackageRanking],
-    command_name: Option<&str>,
+    strategy_name: Option<&str>,
 ) -> String {
     let rankings_block = build_rankings_block(package_rankings);
 
     // Try loading from command file
-    let command_result = if let Some(name) = command_name {
-        loader::load_command(name)
+    let strategy_result = if let Some(name) = strategy_name {
+        loader::load_strategy(name)
     } else {
         loader::auto_select_by_kind("certify-rollup")
     };
 
-    if let Ok(command) = command_result {
-        let vars = CertifyCommandVars {
+    if let Ok(command) = strategy_result {
+        let vars = CertifyStrategyVars {
             prover: String::new(),
             conjecture_title: String::new(),
             proofs: String::new(),
             package_rankings: rankings_block.clone(),
         };
-        return loader::render_certify_command(&command, &vars);
+        return loader::render_certify_strategy(&command, &vars);
     }
 
     // Fallback: inline prompt
@@ -389,12 +389,12 @@ fn extract_json(response: &str) -> &str {
 }
 
 /// Run the full AI comparison pipeline.
-/// `command_name` selects a specific comparison command; None auto-selects.
+/// `strategy_name` selects a specific comparison strategy; None auto-selects.
 pub async fn run_comparison(
     config: &Config,
     state: &CertificationState,
     certification_dir: &Path,
-    command_name: Option<&str>,
+    strategy_name: Option<&str>,
 ) -> Result<ComparisonResult> {
     let audit = CertificationAuditLogger::new(certification_dir);
     let packages_dir = certification_dir.join("packages");
@@ -470,7 +470,7 @@ pub async fn run_comparison(
             .cloned()
             .unwrap_or_else(|| (*conjecture_id).clone());
 
-        let prompt = build_comparison_prompt(&title, &prover, proofs, command_name);
+        let prompt = build_comparison_prompt(&title, &prover, proofs, strategy_name);
         println!(
             "  Comparing conjecture: {} ({} provers)",
             title,
@@ -555,7 +555,7 @@ pub async fn run_comparison(
 
     // Ask AI for narrative summaries
     if !package_rankings.is_empty() {
-        let rollup_prompt = build_rollup_prompt(&package_rankings, command_name);
+        let rollup_prompt = build_rollup_prompt(&package_rankings, strategy_name);
         let (rollup_response, rollup_cost) = call_claude(config, &rollup_prompt).await?;
         total_cost += rollup_cost;
 

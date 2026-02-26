@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Commands — proof-at-home</title>
+    <title>Strategies — proof-at-home</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -12,7 +12,7 @@
 <body>
     <nav id="navbar"></nav>
     <div class="container">
-        <h1>Commands</h1>
+        <h1>Strategies</h1>
 
         <div class="filter-bar">
             <select id="filterKind">
@@ -38,21 +38,21 @@
     </div>
     <script src="/shared.js"></script>
     <script>
-        let allCommands = [];
+        let allStrategies = [];
 
         async function load() {
             try {
-                allCommands = await api('GET', '/commands');
+                allStrategies = await api('GET', '/strategies');
                 populateFilters();
                 render();
             } catch (e) {
-                showMsg('msg', 'Failed to load commands: ' + (e.error || e.message || 'unknown error'), true);
+                showMsg('msg', 'Failed to load strategies: ' + (e.error || e.message || 'unknown error'), true);
             }
         }
 
         function populateFilters() {
             const kindSel = document.getElementById('filterKind');
-            const kinds = [...new Set(allCommands.map(c => c.kind).filter(Boolean))].sort();
+            const kinds = [...new Set(allStrategies.map(c => c.kind).filter(Boolean))].sort();
             kinds.forEach(k => {
                 const opt = document.createElement('option');
                 opt.value = k;
@@ -61,7 +61,7 @@
             });
 
             const proverSel = document.getElementById('filterProver');
-            const provers = [...new Set(allCommands.map(c => c.prover).filter(Boolean))].sort();
+            const provers = [...new Set(allStrategies.map(c => c.prover).filter(Boolean))].sort();
             provers.forEach(p => {
                 const opt = document.createElement('option');
                 opt.value = p;
@@ -73,14 +73,14 @@
         function render() {
             const kind = document.getElementById('filterKind').value;
             const prover = document.getElementById('filterProver').value;
-            const filtered = allCommands.filter(c =>
+            const filtered = allStrategies.filter(c =>
                 (!kind || c.kind === kind) &&
                 (!prover || c.prover === prover)
             );
             const tbody = document.getElementById('tbody');
             tbody.innerHTML = filtered.map(c => `
                 <tr>
-                    <td><a href="/command.html?name=${encodeURIComponent(c.name)}">${escapeHtml(c.name)}</a></td>
+                    <td><a href="/strategy.html?name=${encodeURIComponent(c.name)}">${escapeHtml(c.name)}</a></td>
                     <td>${escapeHtml(c.kind)}</td>
                     <td>${escapeHtml(c.prover)}</td>
                     <td>${escapeHtml(c.description)}</td>

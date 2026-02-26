@@ -155,7 +155,7 @@ func (s *SQLiteStore) AddProof(r data.Proof) {
 	}
 
 	_, err = tx.Exec(
-		`INSERT INTO contribution_results (contribution_id, conjecture_id, username, success, proof_script, cost_usd, attempts, error_output)
+		`INSERT INTO proofs (contribution_id, conjecture_id, username, success, proof_script, cost_usd, attempts, error_output)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		r.ContributionID, r.ConjectureID, r.Username, successInt, r.ProofScript, r.CostUSD, r.Attempts, r.ErrorOutput,
 	)
@@ -251,7 +251,7 @@ func (s *SQLiteStore) UpdateContribution(id string, cs data.Contribution) {
 func (s *SQLiteStore) ListProofs(contributionID string) []data.Proof {
 	rows, err := s.db.Query(
 		`SELECT contribution_id, conjecture_id, username, success, proof_script, cost_usd, attempts, error_output
-		 FROM contribution_results WHERE contribution_id = ? ORDER BY id`, contributionID)
+		 FROM proofs WHERE contribution_id = ? ORDER BY id`, contributionID)
 	if err != nil {
 		slog.Error("ListProofs query failed", "error", err)
 		return nil
@@ -300,7 +300,7 @@ func (s *SQLiteStore) ListContributionReviews() []data.ContributionReview {
 		if len(conjectureIDs) == 0 {
 			// Fallback: scan results for this user
 			resultRows, err := s.db.Query(
-				`SELECT DISTINCT conjecture_id FROM contribution_results WHERE username = ? AND success = 1`, username)
+				`SELECT DISTINCT conjecture_id FROM proofs WHERE username = ? AND success = 1`, username)
 			if err == nil {
 				for resultRows.Next() {
 					var pid string
@@ -472,32 +472,32 @@ func (s *SQLiteStore) ListCertificates() []data.Certificate {
 	return results
 }
 
-// ListStrategies returns all commands ordered by priority (descending), then name.
+// ListStrategies returns all strategies ordered by priority (descending), then name.
 func (s *SQLiteStore) ListStrategies() []data.Strategy {
-	rows, err := s.db.Query(`SELECT name, kind, prover, description, priority, body FROM commands ORDER BY priority DESC, name`)
+	rows, err := s.db.Query(`SELECT name, kind, prover, description, priority, body FROM strategies ORDER BY priority DESC, name`)
 	if err != nil {
 		slog.Error("ListStrategies query failed", "error", err)
 		return nil
 	}
 	defer rows.Close()
 
-	var commands []data.Strategy
+	var strategies []data.Strategy
 	for rows.Next() {
 		var c data.Strategy
 		if err := rows.Scan(&c.Name, &c.Kind, &c.Prover, &c.Description, &c.Priority, &c.Body); err != nil {
 			slog.Error("ListStrategies scan failed", "error", err)
 			continue
 		}
-		commands = append(commands, c)
+		strategies = append(strategies, c)
 	}
-	return commands
+	return strategies
 }
 
-// GetStrategy returns a command by name.
+// GetStrategy returns a strategy by name.
 func (s *SQLiteStore) GetStrategy(name string) (data.Strategy, bool) {
 	var c data.Strategy
 	err := s.db.QueryRow(
-		`SELECT name, kind, prover, description, priority, body FROM commands WHERE name = ?`, name,
+		`SELECT name, kind, prover, description, priority, body FROM strategies WHERE name = ?`, name,
 	).Scan(&c.Name, &c.Kind, &c.Prover, &c.Description, &c.Priority, &c.Body)
 
 	if err == sql.ErrNoRows {
@@ -570,7 +570,7 @@ func (s *SQLiteStore) RebuildFromDir(repoPath string) error {
 	defer tx.Rollback()
 
 	// Clear all tables
-	tables := []string{"contribution_results", "certificates", "contributions", "conjectures", "commands"}
+	tables := []string{"proofs", "certificates", "contributions", "conjectures", "strategies"}
 	for _, table := range tables {
 		if _, err := tx.Exec("DELETE FROM " + table); err != nil {
 			return fmt.Errorf("clearing %s: %w", table, err)
@@ -680,7 +680,7 @@ func (s *SQLiteStore) RebuildFromDir(repoPath string) error {
 						successInt = 1
 					}
 					_, err = tx.Exec(
-						`INSERT INTO contribution_results (contribution_id, conjecture_id, username, success, proof_script, cost_usd, attempts, error_output)
+						`INSERT INTO proofs (contribution_id, conjecture_id, username, success, proof_script, cost_usd, attempts, error_output)
 						 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 						r.ContributionID, r.ConjectureID, r.Username, successInt, r.ProofScript, r.CostUSD, r.Attempts, r.ErrorOutput,
 					)
@@ -756,7 +756,7 @@ func (s *SQLiteStore) RebuildFromDir(repoPath string) error {
 		}
 	}
 
-	// Walk commands/*.md
+	// Walk strategies/*.md
 	commandsDir := filepath.Join(repoPath, "strategies")
 	if entries, err := os.ReadDir(commandsDir); err == nil {
 		for _, entry := range entries {
@@ -777,7 +777,7 @@ func (s *SQLiteStore) RebuildFromDir(repoPath string) error {
 				cmd.Name = strings.TrimSuffix(entry.Name(), ".md")
 			}
 			_, err = tx.Exec(
-				`INSERT INTO commands (name, kind, prover, description, priority, body)
+				`INSERT INTO strategies (name, kind, prover, description, priority, body)
 				 VALUES (?, ?, ?, ?, ?, ?)
 				 ON CONFLICT (name) DO NOTHING`,
 				cmd.Name, cmd.Kind, cmd.Prover, cmd.Description, cmd.Priority, cmd.Body,

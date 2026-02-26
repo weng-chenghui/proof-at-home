@@ -7,7 +7,7 @@ use crate::nft::metadata::{generate_submitter_nft_metadata, ConjectureSubmitterI
 use crate::server_client::api::{ConjectureCreateResponse, ServerClient};
 use crate::signing;
 
-pub async fn run_submit_package(source: &str) -> Result<()> {
+pub async fn run_submit_conjecture(source: &str) -> Result<()> {
     let cfg = Config::load()?;
     let client = ServerClient::new(&cfg.api.server_url, &cfg.api.auth_token);
 

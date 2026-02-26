@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use crate::config::Config;
 use crate::server_client::api::Conjecture;
-use crate::strategy_store::frontmatter::{parse_command_file, CommandMeta};
+use crate::strategy_store::frontmatter::{parse_strategy_file, StrategyMeta};
 
 const BUILTIN_LEAN: &str = include_str!("builtins/prove-lean-lemma.md");
 const BUILTIN_ROCQ: &str = include_str!("builtins/prove-coq-lemma.md");
@@ -18,16 +18,16 @@ const ALL_BUILTINS: &[&str] = &[
     BUILTIN_CERTIFY_ROLLUP,
 ];
 
-/// A loaded command ready for rendering.
+/// A loaded strategy ready for rendering.
 #[derive(Debug, Clone)]
-pub struct LoadedCommand {
-    pub meta: CommandMeta,
+pub struct LoadedStrategy {
+    pub meta: StrategyMeta,
     pub body: String,
 }
 
-/// Directory where user commands are stored.
+/// Directory where user strategies are stored.
 pub fn strategies_dir() -> Result<PathBuf> {
-    let dir = Config::config_dir()?.join("commands");
+    let dir = Config::config_dir()?.join("strategies");
     Ok(dir)
 }
 
@@ -37,7 +37,7 @@ pub fn ensure_builtins() -> Result<()> {
     std::fs::create_dir_all(&dir)?;
 
     for content in ALL_BUILTINS {
-        if let Ok((meta, _)) = parse_command_file(content) {
+        if let Ok((meta, _)) = parse_strategy_file(content) {
             let path = dir.join(format!("{}.md", meta.name));
             if !path.exists() {
                 std::fs::write(&path, content)?;
@@ -48,19 +48,19 @@ pub fn ensure_builtins() -> Result<()> {
     Ok(())
 }
 
-/// Load all commands from disk and builtins.
-/// Commands on disk override builtins with the same name.
-pub fn load_all_commands() -> Result<Vec<LoadedCommand>> {
-    let mut commands: HashMap<String, LoadedCommand> = HashMap::new();
+/// Load all strategies from disk and builtins.
+/// Strategies on disk override builtins with the same name.
+pub fn load_all_strategies() -> Result<Vec<LoadedStrategy>> {
+    let mut strategies: HashMap<String, LoadedStrategy> = HashMap::new();
 
     // Load builtins first
     for content in ALL_BUILTINS {
-        if let Ok((meta, body)) = parse_command_file(content) {
-            commands.insert(meta.name.clone(), LoadedCommand { meta, body });
+        if let Ok((meta, body)) = parse_strategy_file(content) {
+            strategies.insert(meta.name.clone(), LoadedStrategy { meta, body });
         }
     }
 
-    // Load user commands (override builtins)
+    // Load user strategies (override builtins)
     let dir = strategies_dir()?;
     if dir.exists() {
         if let Ok(entries) = std::fs::read_dir(&dir) {
@@ -68,9 +68,9 @@ pub fn load_all_commands() -> Result<Vec<LoadedCommand>> {
                 let path = entry.path();
                 if path.extension().and_then(|e| e.to_str()) == Some("md") {
                     if let Ok(content) = std::fs::read_to_string(&path) {
-                        match parse_command_file(&content) {
+                        match parse_strategy_file(&content) {
                             Ok((meta, body)) => {
-                                commands.insert(meta.name.clone(), LoadedCommand { meta, body });
+                                strategies.insert(meta.name.clone(), LoadedStrategy { meta, body });
                             }
                             Err(e) => {
                                 eprintln!("Warning: Skipping {}: {}", path.display(), e);
@@ -82,7 +82,7 @@ pub fn load_all_commands() -> Result<Vec<LoadedCommand>> {
         }
     }
 
-    let mut result: Vec<LoadedCommand> = commands.into_values().collect();
+    let mut result: Vec<LoadedStrategy> = strategies.into_values().collect();
     result.sort_by(|a, b| {
         a.meta
             .priority
@@ -92,18 +92,18 @@ pub fn load_all_commands() -> Result<Vec<LoadedCommand>> {
     Ok(result)
 }
 
-/// Load a specific command by name.
-pub fn load_command(name: &str) -> Result<LoadedCommand> {
-    let commands = load_all_commands()?;
-    commands
+/// Load a specific strategy by name.
+pub fn load_strategy(name: &str) -> Result<LoadedStrategy> {
+    let strategies = load_all_strategies()?;
+    strategies
         .into_iter()
         .find(|c| c.meta.name == name)
-        .with_context(|| format!("Command '{}' not found", name))
+        .with_context(|| format!("Strategy '{}' not found", name))
 }
 
-/// Auto-select the best prove command for a given prover type.
-/// Picks the command with the lowest priority value for the matching prover.
-pub fn auto_select_command(prover: &str) -> Result<LoadedCommand> {
+/// Auto-select the best prove strategy for a given prover type.
+/// Picks the strategy with the lowest priority value for the matching prover.
+pub fn auto_select_strategy(prover: &str) -> Result<LoadedStrategy> {
     let lowered = prover.to_lowercase();
     let normalized = match lowered.as_str() {
         "lean" | "lean4" => "lean",
@@ -111,31 +111,31 @@ pub fn auto_select_command(prover: &str) -> Result<LoadedCommand> {
         _ => &lowered,
     };
 
-    let commands = load_all_commands()?;
-    commands
+    let strategies = load_all_strategies()?;
+    strategies
         .into_iter()
         .find(|c| c.meta.kind == "prove" && c.meta.prover == normalized)
-        .with_context(|| format!("No prove command found for prover '{}'", prover))
+        .with_context(|| format!("No prove strategy found for prover '{}'", prover))
 }
 
-/// Auto-select the best command for a given kind (e.g. "certify-compare", "certify-rollup").
-pub fn auto_select_by_kind(kind: &str) -> Result<LoadedCommand> {
-    let commands = load_all_commands()?;
-    commands
+/// Auto-select the best strategy for a given kind (e.g. "certify-compare", "certify-rollup").
+pub fn auto_select_by_kind(kind: &str) -> Result<LoadedStrategy> {
+    let strategies = load_all_strategies()?;
+    strategies
         .into_iter()
         .find(|c| c.meta.kind == kind)
-        .with_context(|| format!("No command found for kind '{}'", kind))
+        .with_context(|| format!("No strategy found for kind '{}'", kind))
 }
 
-/// Render a prove command body by substituting variables.
-pub fn render_command(
-    command: &LoadedCommand,
+/// Render a prove strategy body by substituting variables.
+pub fn render_strategy(
+    strategy: &LoadedStrategy,
     conjecture: &Conjecture,
-    vars: &CommandVars,
+    vars: &StrategyVars,
 ) -> String {
     let arguments = build_arguments_block(conjecture);
 
-    command
+    strategy
         .body
         .replace("$ARGUMENTS", &arguments)
         .replace("$LEAN_PATH", &vars.lean_path)
@@ -146,9 +146,9 @@ pub fn render_command(
         .replace("$LEMMA_FILE", &vars.lemma_file)
 }
 
-/// Render a certify command body by substituting variables.
-pub fn render_certify_command(command: &LoadedCommand, vars: &CertifyCommandVars) -> String {
-    command
+/// Render a certify strategy body by substituting variables.
+pub fn render_certify_strategy(strategy: &LoadedStrategy, vars: &CertifyStrategyVars) -> String {
+    strategy
         .body
         .replace("$PROVER", &vars.prover)
         .replace("$CONJECTURE_TITLE", &vars.conjecture_title)
@@ -156,8 +156,8 @@ pub fn render_certify_command(command: &LoadedCommand, vars: &CertifyCommandVars
         .replace("$PACKAGE_RANKINGS", &vars.package_rankings)
 }
 
-/// Variables available for substitution in prove command templates.
-pub struct CommandVars {
+/// Variables available for substitution in prove strategy templates.
+pub struct StrategyVars {
     pub lean_path: String,
     pub lake_path: String,
     pub rocq: String,
@@ -166,8 +166,8 @@ pub struct CommandVars {
     pub lemma_file: String,
 }
 
-/// Variables available for substitution in certify command templates.
-pub struct CertifyCommandVars {
+/// Variables available for substitution in certify strategy templates.
+pub struct CertifyStrategyVars {
     pub prover: String,
     pub conjecture_title: String,
     pub proofs: String,
@@ -220,9 +220,9 @@ mod tests {
 
     #[test]
     fn test_load_builtins() {
-        let commands = load_all_commands().unwrap();
-        assert!(commands.len() >= 4);
-        let names: Vec<&str> = commands.iter().map(|c| c.meta.name.as_str()).collect();
+        let strategies = load_all_strategies().unwrap();
+        assert!(strategies.len() >= 4);
+        let names: Vec<&str> = strategies.iter().map(|c| c.meta.name.as_str()).collect();
         assert!(names.contains(&"prove-lean-lemma"));
         assert!(names.contains(&"prove-coq-lemma"));
         assert!(names.contains(&"certify-compare"));
@@ -231,14 +231,14 @@ mod tests {
 
     #[test]
     fn test_auto_select_lean() {
-        let cmd = auto_select_command("lean").unwrap();
+        let cmd = auto_select_strategy("lean").unwrap();
         assert_eq!(cmd.meta.prover, "lean");
         assert_eq!(cmd.meta.kind, "prove");
     }
 
     #[test]
     fn test_auto_select_rocq() {
-        let cmd = auto_select_command("rocq").unwrap();
+        let cmd = auto_select_strategy("rocq").unwrap();
         assert_eq!(cmd.meta.prover, "rocq");
         assert_eq!(cmd.meta.kind, "prove");
     }

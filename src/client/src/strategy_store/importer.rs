@@ -2,11 +2,11 @@ use anyhow::{Context, Result};
 use colored::Colorize;
 use std::path::Path;
 
-use crate::strategy_store::frontmatter::parse_command_file;
+use crate::strategy_store::frontmatter::parse_strategy_file;
 use crate::strategy_store::loader::strategies_dir;
 
-/// Import command files from various sources into ~/.proof-at-home/commands/.
-pub fn import_commands(sources: &[String]) -> Result<()> {
+/// Import strategy files from various sources into ~/.proof-at-home/strategies/.
+pub fn import_strategies(sources: &[String]) -> Result<()> {
     let dest_dir = strategies_dir()?;
     std::fs::create_dir_all(&dest_dir)?;
 
@@ -36,8 +36,8 @@ fn import_file(path: &Path, dest_dir: &Path) -> Result<()> {
         .with_context(|| format!("Failed to read {}", path.display()))?;
 
     // Validate frontmatter
-    let (meta, _) = parse_command_file(&content)
-        .with_context(|| format!("Invalid command file: {}", path.display()))?;
+    let (meta, _) = parse_strategy_file(&content)
+        .with_context(|| format!("Invalid strategy file: {}", path.display()))?;
 
     let dest = dest_dir.join(format!("{}.md", meta.name));
     std::fs::write(&dest, &content)?;
@@ -72,11 +72,11 @@ fn import_directory(dir: &Path, dest_dir: &Path) -> Result<()> {
         }
     }
 
-    println!("  Imported {} command(s) from {}", count, dir.display());
+    println!("  Imported {} strategy(ies) from {}", count, dir.display());
     Ok(())
 }
 
-/// Import commands from a .tar.gz archive.
+/// Import strategies from a .tar.gz archive.
 fn import_tar_gz(path: &str, dest_dir: &Path) -> Result<()> {
     let file = std::fs::File::open(path).with_context(|| format!("Failed to open {}", path))?;
     let decoder = flate2::read::GzDecoder::new(file);
@@ -91,7 +91,7 @@ fn import_tar_gz(path: &str, dest_dir: &Path) -> Result<()> {
             let mut content = String::new();
             std::io::Read::read_to_string(&mut entry, &mut content)?;
 
-            match parse_command_file(&content) {
+            match parse_strategy_file(&content) {
                 Ok((meta, _)) => {
                     let dest = dest_dir.join(format!("{}.md", meta.name));
                     std::fs::write(&dest, &content)?;
@@ -110,11 +110,11 @@ fn import_tar_gz(path: &str, dest_dir: &Path) -> Result<()> {
         }
     }
 
-    println!("  Imported {} command(s) from {}", count, path);
+    println!("  Imported {} strategy(ies) from {}", count, path);
     Ok(())
 }
 
-/// Import commands from a GitHub URL.
+/// Import strategies from a GitHub URL.
 /// Supports: https://github.com/user/repo or github:user/repo
 /// Clones to a temp dir, imports all .md files, cleans up.
 fn import_github(source: &str, dest_dir: &Path) -> Result<()> {

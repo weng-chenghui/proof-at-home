@@ -8,12 +8,12 @@ use crate::config::Config;
 use crate::signing;
 use crate::strategy_store::importer;
 
-pub fn run_setup(add_commands: Vec<String>) -> Result<()> {
-    // If --add-commands is provided, import and return early
-    if !add_commands.is_empty() {
-        println!("{}", "=== Import Command Files ===".bold().cyan());
-        importer::import_commands(&add_commands)?;
-        println!("\n{} Commands imported successfully.", "✓".green().bold());
+pub fn run_setup(add_strategies: Vec<String>) -> Result<()> {
+    // If --add-strategies is provided, import and return early
+    if !add_strategies.is_empty() {
+        println!("{}", "=== Import Strategy Files ===".bold().cyan());
+        importer::import_strategies(&add_strategies)?;
+        println!("\n{} Strategies imported successfully.", "✓".green().bold());
         return Ok(());
     }
 

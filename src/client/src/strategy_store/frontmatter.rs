@@ -1,14 +1,14 @@
 use anyhow::{Context, Result};
 use serde::Deserialize;
 
-/// Metadata parsed from TOML frontmatter in a command `.md` file.
+/// Metadata parsed from TOML frontmatter in a strategy `.md` file.
 #[derive(Debug, Clone, Deserialize)]
-pub struct CommandMeta {
+pub struct StrategyMeta {
     pub name: String,
-    /// Command kind: "prove", "certify-compare", "certify-rollup"
+    /// Strategy kind: "prove", "certify-compare", "certify-rollup"
     #[serde(default = "default_kind")]
     pub kind: String,
-    /// Prover type (for prove commands): "lean", "rocq", etc.
+    /// Prover type (for prove strategies): "lean", "rocq", etc.
     #[serde(default)]
     pub prover: String,
     #[serde(default)]
@@ -21,25 +21,25 @@ fn default_kind() -> String {
     "prove".to_string()
 }
 
-/// Parse a command file's TOML frontmatter (delimited by `+++`) and body.
+/// Parse a strategy file's TOML frontmatter (delimited by `+++`) and body.
 /// Returns `(meta, body)` where body is the markdown content after the closing `+++`.
-pub fn parse_command_file(content: &str) -> Result<(CommandMeta, String)> {
+pub fn parse_strategy_file(content: &str) -> Result<(StrategyMeta, String)> {
     let trimmed = content.trim_start();
 
     if !trimmed.starts_with("+++") {
-        anyhow::bail!("Command file missing TOML frontmatter (expected +++ delimiter)");
+        anyhow::bail!("Strategy file missing TOML frontmatter (expected +++ delimiter)");
     }
 
     let after_open = &trimmed[3..];
     let close_pos = after_open
         .find("+++")
-        .context("Command file missing closing +++ delimiter")?;
+        .context("Strategy file missing closing +++ delimiter")?;
 
     let frontmatter = &after_open[..close_pos];
     let body = after_open[close_pos + 3..].trim_start_matches('\n');
 
-    let meta: CommandMeta =
-        toml::from_str(frontmatter).context("Failed to parse command frontmatter as TOML")?;
+    let meta: StrategyMeta =
+        toml::from_str(frontmatter).context("Failed to parse strategy frontmatter as TOML")?;
 
     Ok((meta, body.to_string()))
 }
@@ -61,7 +61,7 @@ priority = 0
 
 Some body content here with $ARGUMENTS.
 "#;
-        let (meta, body) = parse_command_file(content).unwrap();
+        let (meta, body) = parse_strategy_file(content).unwrap();
         assert_eq!(meta.name, "prove-lean-lemma");
         assert_eq!(meta.kind, "prove");
         assert_eq!(meta.prover, "lean");
@@ -78,13 +78,13 @@ prover = "lean"
 +++
 Body here.
 "#;
-        let (meta, _) = parse_command_file(content).unwrap();
+        let (meta, _) = parse_strategy_file(content).unwrap();
         assert_eq!(meta.kind, "prove");
     }
 
     #[test]
     fn test_missing_frontmatter() {
         let content = "# Just markdown\nNo frontmatter here.";
-        assert!(parse_command_file(content).is_err());
+        assert!(parse_strategy_file(content).is_err());
     }
 }

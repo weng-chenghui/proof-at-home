@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS conjectures (
     dependencies    TEXT
 );
 
-CREATE TABLE IF NOT EXISTS contribution_results (
+CREATE TABLE IF NOT EXISTS proofs (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
     contribution_id TEXT NOT NULL DEFAULT '',
     conjecture_id TEXT NOT NULL,
@@ -24,9 +24,9 @@ CREATE TABLE IF NOT EXISTS contribution_results (
     created_at   TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE INDEX IF NOT EXISTS idx_contribution_results_conjecture_id ON contribution_results(conjecture_id);
-CREATE INDEX IF NOT EXISTS idx_contribution_results_username ON contribution_results(username);
-CREATE INDEX IF NOT EXISTS idx_contribution_results_contribution_id ON contribution_results(contribution_id);
+CREATE INDEX IF NOT EXISTS idx_proofs_conjecture_id ON proofs(conjecture_id);
+CREATE INDEX IF NOT EXISTS idx_proofs_username ON proofs(username);
+CREATE INDEX IF NOT EXISTS idx_proofs_contribution_id ON proofs(contribution_id);
 
 CREATE TABLE IF NOT EXISTS contributions (
     contribution_id    TEXT PRIMARY KEY,
@@ -56,7 +56,7 @@ CREATE TABLE IF NOT EXISTS certificates (
     created_at         TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE TABLE IF NOT EXISTS commands (
+CREATE TABLE IF NOT EXISTS strategies (
     name        TEXT PRIMARY KEY,
     kind        TEXT NOT NULL DEFAULT 'prove',
     prover      TEXT NOT NULL DEFAULT '',
