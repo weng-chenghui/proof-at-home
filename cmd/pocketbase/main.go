@@ -72,6 +72,19 @@ func main() {
 
 	app := pocketbase.New()
 
+	// Set app name on first serve
+	app.OnServe().BindFunc(func(se *core.ServeEvent) error {
+		settings := app.Settings()
+		if settings.Meta.AppName == "Acme" {
+			settings.Meta.AppName = "Proof@Home"
+			settings.Meta.AppURL = "https://pah.fly.dev"
+			if err := app.Save(settings); err != nil {
+				slog.Warn("Failed to update app settings", "error", err)
+			}
+		}
+		return se.Next()
+	})
+
 	// Register migration system
 	migratecmd.MustRegister(app, app.RootCmd, migratecmd.Config{
 		Dir:         "cmd/pocketbase/migrations",
