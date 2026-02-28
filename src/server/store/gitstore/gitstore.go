@@ -25,20 +25,33 @@ type GitStore struct {
 
 // New creates a GitStore. It clones the repo if not already present,
 // or pulls latest main if the clone already exists.
-func New(repoURL, repoPath string, forge ForgeClient) (*GitStore, error) {
+// If token is non-empty, it is injected into HTTPS URLs for authentication.
+func New(repoURL, repoPath, token string, forge ForgeClient) (*GitStore, error) {
 	gs := &GitStore{
 		repoPath: repoPath,
 		repoURL:  repoURL,
 		forge:    forge,
 	}
 
+	cloneURL := repoURL
+	if token != "" {
+		cloneURL = injectToken(repoURL, token)
+	}
+
 	if _, err := os.Stat(filepath.Join(repoPath, ".git")); os.IsNotExist(err) {
 		slog.Info("Cloning data repo", "url", repoURL, "path", repoPath)
-		if err := gs.git("clone", repoURL, repoPath); err != nil {
+		if err := gs.git("clone", cloneURL, repoPath); err != nil {
 			return nil, fmt.Errorf("cloning data repo: %w", err)
+		}
+		// Ensure the remote URL uses the token for future push/pull
+		if token != "" {
+			_ = gs.gitInRepo("remote", "set-url", "origin", cloneURL)
 		}
 	} else {
 		slog.Info("Data repo already cloned, pulling latest", "path", repoPath)
+		if token != "" {
+			_ = gs.gitInRepo("remote", "set-url", "origin", cloneURL)
+		}
 		if err := gs.gitInRepo("checkout", "main"); err != nil {
 			return nil, fmt.Errorf("checking out main: %w", err)
 		}
@@ -433,4 +446,13 @@ func (gs *GitStore) commitAndPush(branch, message string) error {
 
 func (gs *GitStore) getHeadSHA() (string, error) {
 	return gs.gitOutput("rev-parse", "HEAD")
+}
+
+// injectToken embeds a token into an HTTPS git URL for authentication.
+// e.g. https://github.com/org/repo.git -> https://x-access-token:TOKEN@github.com/org/repo.git
+func injectToken(repoURL, token string) string {
+	if strings.HasPrefix(repoURL, "https://") {
+		return "https://x-access-token:" + token + "@" + strings.TrimPrefix(repoURL, "https://")
+	}
+	return repoURL
 }

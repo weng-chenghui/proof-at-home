@@ -1,16 +1,28 @@
-app = "proof-at-home"
-primary_region = "nrt"
+# fly.toml app configuration file generated for pah on 2026-02-28T19:16:39+09:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'pah'
+primary_region = 'nrt'
 
 [build]
-  dockerfile = "Dockerfile.pocketbase"
+  dockerfile = 'Dockerfile.pocketbase'
 
 [env]
-  CONJECTURES_DIR = "/conjectures"
+  CONJECTURES_DIR = '/conjectures'
+  GIT_DATA_REPO_PATH = '/app/pb_data/git-data'
+
+[[mounts]]
+  source = 'pb_data'
+  destination = '/app/pb_data'
 
 [http_service]
   internal_port = 8090
   force_https = true
 
-[[mounts]]
-  source = "pb_data"
-  destination = "/app/pb_data"
+[[vm]]
+  memory = '1gb'
+  cpu_kind = 'shared'
+  cpus = 1
+  memory_mb = 1024

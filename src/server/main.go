@@ -52,7 +52,7 @@ func main() {
 	}
 
 	// Clone/pull data repo and initialize GitStore
-	gs, err := gitstore.New(cfg.GitDataRepoURL, cfg.GitDataRepoPath, forge)
+	gs, err := gitstore.New(cfg.GitDataRepoURL, cfg.GitDataRepoPath, cfg.GitForgeToken, forge)
 	if err != nil {
 		slog.Error("Failed to initialize git store", "error", err)
 		os.Exit(1)

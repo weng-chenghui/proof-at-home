@@ -95,7 +95,7 @@ gh api "repos/${OWNER_REPO}/hooks" \
     -f "config[content_type]=application/json" \
     -f "config[secret]=${WEBHOOK_SECRET}" \
     -f "events[]=push" \
-    -f active=true \
+    -F active=true \
     --silent
 
 echo "  Webhook created: ${SERVER_URL}/webhooks/git"
