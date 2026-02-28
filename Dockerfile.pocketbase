@@ -22,4 +22,4 @@ ENV CONJECTURES_DIR=/conjectures
 
 EXPOSE 8090
 
-ENTRYPOINT ["/pah-pocketbase", "serve", "--http=0.0.0.0:8090"]
+ENTRYPOINT ["/pah-pocketbase", "serve", "--http=0.0.0.0:8090", "--dir=/app/pb_data"]
