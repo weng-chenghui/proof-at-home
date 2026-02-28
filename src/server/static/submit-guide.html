@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Submit Conjectures — proof-at-home</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/shared.css">
+</head>
+<body>
+    <nav id="navbar"></nav>
+    <div class="container">
+        <h1>Submit Conjectures</h1>
+        <p class="text-secondary" style="margin-bottom: 2rem;">A guide for conjecture authors: write formal statements and submit them for the community to prove.</p>
+
+        <div class="workflow-step" style="margin-bottom: 1rem;">
+            <div class="workflow-number">1</div>
+            <div class="workflow-content">
+                <h3>Write conjecture JSON files</h3>
+                <p>Each conjecture is a JSON file with the following fields:</p>
+<pre><code>{
+  "id": "prob_004",
+  "title": "Your conjecture title",
+  "difficulty": "easy|medium|hard",
+  "prover": "rocq|lean4",
+  "status": "open",
+  "preamble": "Require Import Arith.",
+  "lemma_statement": "Lemma foo : forall n, n + 0 = n.",
+  "hints": ["Try induction on n"],
+  "skeleton": "Lemma foo : forall n, n + 0 = n.\nProof.\n  (* your proof here *)\nAdmitted."
+}</code></pre>
+                <ul style="margin: 0.75rem 0 0; padding-left: 1.25rem; font-size: 0.875rem; color: var(--text-secondary); line-height: 1.8;">
+                    <li><strong>id</strong> — unique identifier (e.g. <code>prob_004</code>)</li>
+                    <li><strong>prover</strong> — <code>rocq</code> or <code>lean4</code></li>
+                    <li><strong>preamble</strong> — imports and setup code for the proof assistant</li>
+                    <li><strong>lemma_statement</strong> — the formal statement to prove</li>
+                    <li><strong>hints</strong> — optional hints for provers</li>
+                    <li><strong>skeleton</strong> — a proof template with holes to fill in</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="workflow-step" style="margin-bottom: 1rem;">
+            <div class="workflow-number">2</div>
+            <div class="workflow-content">
+                <h3>Install the CLI</h3>
+                <p>Build from source:</p>
+<pre><code>git clone https://github.com/pah-org/proof-at-home.git
+cd proof-at-home
+cargo build --release</code></pre>
+                <p style="margin-top: 0.75rem;">Then configure it with <code>./target/release/proof-at-home init</code> and set the server URL.</p>
+            </div>
+        </div>
+
+        <div class="workflow-step" style="margin-bottom: 1rem;">
+            <div class="workflow-number">3</div>
+            <div class="workflow-content">
+                <h3>Authenticate</h3>
+                <p>Sign up at this server's <a href="/signup.html">signup page</a>, copy your auth token from <a href="/settings.html">settings</a>, then run:</p>
+<pre><code>./target/release/proof-at-home login</code></pre>
+                <p style="margin-top: 0.75rem;">Paste the token when prompted.</p>
+            </div>
+        </div>
+
+        <div class="workflow-step" style="margin-bottom: 1rem;">
+            <div class="workflow-number">4</div>
+            <div class="workflow-content">
+                <h3>Submit your conjectures</h3>
+                <p>Three submission methods are supported:</p>
+<pre><code># Submit a directory of conjecture JSON files
+pah conjecture create ./my-conjectures/
+
+# Submit a tar.gz archive
+pah conjecture create /tmp/conjectures.tar.gz
+
+# Submit a git repo URL (server clones it)
+pah conjecture create https://github.com/example/conjectures.git</code></pre>
+                <p style="margin-top: 0.75rem;">The server validates each conjecture, commits them to a git branch, creates a pull request, and generates submitter NFT metadata.</p>
+            </div>
+        </div>
+
+        <div class="workflow-step" style="margin-bottom: 1rem;">
+            <div class="workflow-number">5</div>
+            <div class="workflow-content">
+                <h3>Track your conjectures</h3>
+                <p>Browse your submitted conjectures and their status:</p>
+<pre><code># List all conjectures
+pah conjecture list
+
+# View details of a specific conjecture
+pah conjecture get prob_004</code></pre>
+                <p style="margin-top: 0.75rem;">Or browse them on the <a href="/conjectures.html">Conjectures</a> page.</p>
+            </div>
+        </div>
+
+        <div class="workflow-step" style="margin-bottom: 1rem;">
+            <div class="workflow-number">6</div>
+            <div class="workflow-content">
+                <h3>Your submitter NFT</h3>
+                <p>Each submission generates NFT metadata crediting you as the conjecture author. The metadata records:</p>
+                <ul style="margin: 0.75rem 0 0; padding-left: 1.25rem; font-size: 0.875rem; color: var(--text-secondary); line-height: 1.8;">
+                    <li>Your username and batch ID</li>
+                    <li>Number of conjectures submitted</li>
+                    <li>Difficulty levels and proof assistants</li>
+                    <li>Git commit SHA for provenance</li>
+                </ul>
+                <div class="workflow-actions" style="margin-top: 1rem;">
+                    <a href="/nft-gallery.html" class="btn">View NFT Gallery</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="/shared.js"></script>
+</body>
+</html>
