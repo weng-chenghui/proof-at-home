@@ -33,7 +33,7 @@
     <script>
         async function load() {
             try {
-                const packages = await api('GET', '/certificate-packages');
+                const packages = await api('GET', '/contribution-reviews');
                 const tbody = document.getElementById('tbody');
                 tbody.innerHTML = (packages || []).map(p => `
                     <tr>
@@ -43,7 +43,7 @@
                         <td>${(p.conjecture_ids || []).length}</td>
                         <td>${escapeHtml(p.proof_status || 'pending')}</td>
                         <td>${(p.certified_by || []).join(', ') || '—'}</td>
-                        <td><a href="/certificate-packages/${encodeURIComponent(p.contributor_contribution_id)}/archive" download>Download</a></td>
+                        <td><a href="/contributions/${encodeURIComponent(p.contributor_contribution_id)}/archive" download>Download</a></td>
                     </tr>
                 `).join('');
             } catch (e) {
