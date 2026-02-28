@@ -97,7 +97,7 @@ a:hover { color: var(--accent-hover); }
 #navbar .nav-user a:hover { color: var(--nav-text-active); }
 #navbar .nav-username {
     font-weight: 500;
-    color: var(--nav-text-active);
+    color: var(--nav-text-active) !important;
     font-size: 0.825rem;
 }
 

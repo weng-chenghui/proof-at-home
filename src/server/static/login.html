@@ -62,7 +62,7 @@
                 const authData = await pb.collection('users').authWithOAuth2({ provider });
                 localStorage.setItem('pah_jwt_token', pb.authStore.token);
                 showMsg('msg', 'Login successful! Redirecting...', false);
-                setTimeout(() => { window.location.href = '/'; }, 500);
+                setTimeout(() => { window.location.href = '/account.html'; }, 500);
             } catch (err) {
                 showMsg('msg', 'Login failed: ' + (err.message || err), true);
             }

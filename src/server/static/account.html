@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account — proof-at-home</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/shared.css">
+    <style>
+        .account-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            margin-bottom: 1.25rem;
+            box-shadow: var(--shadow-sm);
+        }
+        .account-card h2 {
+            margin: 0 0 1rem;
+            font-size: 1rem;
+        }
+        .info-row {
+            display: flex;
+            align-items: baseline;
+            gap: 0.75rem;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+        }
+        .info-label {
+            font-weight: 600;
+            color: var(--text-secondary);
+            min-width: 5rem;
+            flex-shrink: 0;
+        }
+        .info-value {
+            color: var(--text);
+            word-break: break-all;
+        }
+        .token-field {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+        .token-field input {
+            flex: 1;
+            padding: 0.5rem 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            font-family: "JetBrains Mono", "SF Mono", "Fira Code", Menlo, Consolas, monospace;
+            font-size: 0.8rem;
+            background: var(--code-bg);
+            color: var(--text);
+            outline: none;
+        }
+        .token-field input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-subtle);
+        }
+        .token-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        .cli-instructions {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 0.875rem 1rem;
+            font-size: 0.825rem;
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+        .cli-instructions code {
+            font-family: "JetBrains Mono", "SF Mono", "Fira Code", Menlo, Consolas, monospace;
+            background: var(--surface);
+            padding: 0.125rem 0.375rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            color: var(--text);
+        }
+        .account-footer {
+            margin-top: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <nav id="navbar"></nav>
+    <div class="container">
+        <h1>Account</h1>
+
+        <div class="account-card">
+            <h2>Profile</h2>
+            <div class="info-row">
+                <span class="info-label">Username</span>
+                <span class="info-value" id="acct-username">—</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Email</span>
+                <span class="info-value" id="acct-email">—</span>
+            </div>
+        </div>
+
+        <div class="account-card">
+            <h2>CLI Auth Token</h2>
+            <p style="font-size:0.85rem;color:var(--text-secondary);margin:0 0 0.75rem;">
+                Use this token to authenticate the <strong>pah</strong> CLI.
+            </p>
+            <div class="token-field">
+                <input type="password" id="token-input" readonly>
+                <button class="btn-secondary btn-sm" id="btn-toggle" onclick="toggleToken()">Show</button>
+                <button class="btn-sm" id="btn-copy" onclick="copyToken()">Copy</button>
+            </div>
+            <div class="cli-instructions">
+                <strong>Quick start:</strong><br>
+                1. Run <code>pah auth login</code><br>
+                2. Enter server URL: <code id="server-url"></code><br>
+                3. Paste the token above when prompted
+            </div>
+        </div>
+
+        <div class="account-footer">
+            <button class="btn-danger" onclick="logout()">Logout</button>
+        </div>
+    </div>
+    <script src="/shared.js"></script>
+    <script>
+        function init() {
+            if (!isLoggedIn()) {
+                window.location.href = '/login.html';
+                return;
+            }
+            const token = localStorage.getItem('pah_jwt_token');
+            document.getElementById('token-input').value = token;
+            document.getElementById('server-url').textContent = window.location.origin;
+
+            try {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                document.getElementById('acct-username').textContent =
+                    payload.username || payload.nickname || payload.sub || '—';
+                document.getElementById('acct-email').textContent =
+                    payload.email || '—';
+            } catch {
+                // token decode failed — fields stay as "—"
+            }
+        }
+
+        function toggleToken() {
+            const input = document.getElementById('token-input');
+            const btn = document.getElementById('btn-toggle');
+            if (input.type === 'password') {
+                input.type = 'text';
+                btn.textContent = 'Hide';
+            } else {
+                input.type = 'password';
+                btn.textContent = 'Show';
+            }
+        }
+
+        async function copyToken() {
+            const token = document.getElementById('token-input').value;
+            const btn = document.getElementById('btn-copy');
+            try {
+                await navigator.clipboard.writeText(token);
+                btn.textContent = 'Copied!';
+                setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
+            } catch {
+                // Fallback for insecure contexts
+                document.getElementById('token-input').type = 'text';
+                document.getElementById('token-input').select();
+                document.execCommand('copy');
+                btn.textContent = 'Copied!';
+                setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('pah_jwt_token');
+            window.location.href = '/login.html';
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

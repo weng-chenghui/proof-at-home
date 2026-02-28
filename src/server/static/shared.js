@@ -94,7 +94,7 @@ function initNav() {
 
     const userSection = token
         ? `<div class="nav-user">
-               <span class="nav-username">${escapeHtml(user || 'User')}</span>
+               <a href="/account.html" class="nav-username">${escapeHtml(user || 'User')}</a>
                <a href="#" onclick="navLogout(event)">Logout</a>
            </div>`
         : `<div class="nav-user"><a href="/login.html">Log In</a> <a href="/signup.html">Sign Up</a></div>`;
