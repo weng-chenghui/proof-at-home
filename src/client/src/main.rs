@@ -86,6 +86,42 @@ enum ConjectureAction {
         /// Batch ID to seal
         batch_id: String,
     },
+    /// Generate conjectures from Lean sources using LeanConjecturer
+    /// (https://github.com/auto-res/LeanConjecturer by auto-res, MIT license)
+    Generate {
+        /// Path to a Lean source file or directory
+        source: String,
+        /// Path to LeanConjecturer executable (default: searches PATH)
+        #[arg(long)]
+        bin: Option<String>,
+        /// Extra arguments passed through to LeanConjecturer
+        #[arg(long, num_args = 1..)]
+        args: Vec<String>,
+        /// Difficulty tag for generated conjectures
+        #[arg(long, default_value = "auto")]
+        difficulty: String,
+        /// Only write converted JSON files, do not submit
+        #[arg(long)]
+        dry_run: bool,
+        /// Output directory for converted files (default: temp dir)
+        #[arg(long)]
+        output_dir: Option<String>,
+    },
+    /// Import LeanConjecturer grpo_problem.jsonl as conjectures
+    /// (https://github.com/auto-res/LeanConjecturer by auto-res, MIT license)
+    Import {
+        /// Path to grpo_problem.jsonl
+        jsonl_path: String,
+        /// Difficulty tag
+        #[arg(long, default_value = "auto")]
+        difficulty: String,
+        /// Only write converted JSON files, do not submit
+        #[arg(long)]
+        dry_run: bool,
+        /// Output directory for converted files (default: temp dir)
+        #[arg(long)]
+        output_dir: Option<String>,
+    },
 }
 
 // ── Contribution ──
@@ -240,6 +276,38 @@ async fn main() {
             ConjectureAction::Get { id } => commands::conjecture::cmd_get(&id).await,
             ConjectureAction::Create { source } => commands::conjecture::cmd_create(&source).await,
             ConjectureAction::Seal { batch_id } => commands::conjecture::cmd_seal(&batch_id).await,
+            ConjectureAction::Generate {
+                source,
+                bin,
+                args,
+                difficulty,
+                dry_run,
+                output_dir,
+            } => {
+                commands::conjecture::cmd_generate(
+                    &source,
+                    bin.as_deref(),
+                    &args,
+                    &difficulty,
+                    dry_run,
+                    output_dir.as_deref(),
+                )
+                .await
+            }
+            ConjectureAction::Import {
+                jsonl_path,
+                difficulty,
+                dry_run,
+                output_dir,
+            } => {
+                commands::conjecture::cmd_import(
+                    &jsonl_path,
+                    &difficulty,
+                    dry_run,
+                    output_dir.as_deref(),
+                )
+                .await
+            }
         },
         Resource::Contribution { action } => match action {
             ContributionAction::List { status } => {

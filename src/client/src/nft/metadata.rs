@@ -174,59 +174,37 @@ pub struct ConjectureSubmitterInfo {
     pub git_repository: String,
     pub public_key: String,
     pub commit_signature: String,
+    #[serde(default)]
+    pub source_attribution: Option<String>,
 }
 
 /// Generate OpenSea-compatible NFT metadata JSON for a conjecture submission
 pub fn generate_submitter_nft_metadata(info: &ConjectureSubmitterInfo) -> Value {
     let date = Utc::now().format("%Y-%m-%d").to_string();
 
+    let mut attributes = vec![
+        json!({"trait_type": "Submitter", "value": info.submitter_username}),
+        json!({"trait_type": "Batch ID", "value": info.batch_id}),
+        json!({"trait_type": "Conjectures Submitted", "value": info.conjectures_submitted}),
+        json!({"trait_type": "Conjecture IDs", "value": info.conjecture_ids.join(", ")}),
+        json!({"trait_type": "Difficulties", "value": info.difficulties.join(", ")}),
+        json!({"trait_type": "Proof Assistants", "value": info.proof_assistants.join(", ")}),
+        json!({"trait_type": "Git Commit", "value": info.git_commit}),
+        json!({"trait_type": "Git Repository", "value": info.git_repository}),
+        json!({"trait_type": "Public Key", "value": info.public_key}),
+        json!({"trait_type": "Commit Signature", "value": info.commit_signature}),
+    ];
+
+    if let Some(attr) = &info.source_attribution {
+        attributes.push(json!({"trait_type": "Conjecture Source", "value": attr}));
+    }
+
     json!({
         "name": format!("Proof@Home Conjecture Submission — {} — {}", info.submitter_username, date),
         "description": "Conjecture submission record: conjectures contributed for formal verification.",
         "external_url": "",
         "image": "",
-        "attributes": [
-            {
-                "trait_type": "Submitter",
-                "value": info.submitter_username
-            },
-            {
-                "trait_type": "Batch ID",
-                "value": info.batch_id
-            },
-            {
-                "trait_type": "Conjectures Submitted",
-                "value": info.conjectures_submitted
-            },
-            {
-                "trait_type": "Conjecture IDs",
-                "value": info.conjecture_ids.join(", ")
-            },
-            {
-                "trait_type": "Difficulties",
-                "value": info.difficulties.join(", ")
-            },
-            {
-                "trait_type": "Proof Assistants",
-                "value": info.proof_assistants.join(", ")
-            },
-            {
-                "trait_type": "Git Commit",
-                "value": info.git_commit
-            },
-            {
-                "trait_type": "Git Repository",
-                "value": info.git_repository
-            },
-            {
-                "trait_type": "Public Key",
-                "value": info.public_key
-            },
-            {
-                "trait_type": "Commit Signature",
-                "value": info.commit_signature
-            }
-        ]
+        "attributes": attributes
     })
 }
 

@@ -6,11 +6,12 @@ Proof@Home turns mathematical contributions into formally verified, NFT-stamped 
 
 ## How It Works
 
-1. **Browse** open conjectures on the web UI or CLI
-2. **Prove** — AI generates proofs (or you write them by hand), then the compiler verifies correctness
-3. **Seal** — verified proofs are archived with SHA-256 hashes, signed, and committed to a git-backed data repo
-4. **Credit** — NFT metadata records who funded and verified the work
-5. **Publish** (optional) — pin to IPFS and mint an on-chain NFT
+1. **Conjecture** — authors submit open problems manually, or auto-generate them from Lean sources via [LeanConjecturer](https://github.com/auto-res/LeanConjecturer)
+2. **Browse** open conjectures on the web UI or CLI
+3. **Prove** — AI generates proofs (or you write them by hand), then the compiler verifies correctness
+4. **Seal** — verified proofs are archived with SHA-256 hashes, signed, and committed to a git-backed data repo
+5. **Credit** — NFT metadata records who funded and verified the work
+6. **Publish** (optional) — pin to IPFS and mint an on-chain NFT
 
 ## Cost per Proof
 
@@ -82,6 +83,59 @@ See the [Publishing Guide](docs/publishing-guide.md) for full details.
 | **Author** | Submit open conjectures for others to prove | CLI + domain knowledge |
 
 Pick one role or do all three.
+
+## Automated Conjecture Generation
+
+Proof@Home integrates with [LeanConjecturer](https://github.com/auto-res/LeanConjecturer) (by auto-res, MIT license) to automatically generate novel Lean 4 conjectures using LLMs. Instead of manually authoring conjectures, you can point the CLI at Lean source files and get a stream of non-trivial problems for provers to work on — closing the loop from discovery to proof.
+
+### Why use it?
+
+- **Scales the Author pipeline** — LLMs generate conjectures faster than humans can write them
+- **Novel problems** — LeanConjecturer filters out trivially provable and already-known results
+- **Full loop** — generate conjectures, submit to server, provers pick them up, proofs get verified and sealed
+
+### Import pre-generated conjectures
+
+If you already have a `grpo_problem.jsonl` file from a LeanConjecturer run:
+
+```bash
+pah conjecture import ./grpo_problem.jsonl                          # Import and submit
+pah conjecture import ./grpo_problem.jsonl --difficulty hard         # Tag difficulty
+pah conjecture import ./grpo_problem.jsonl --dry-run --output-dir ./out  # Preview without submitting
+```
+
+### Generate conjectures end-to-end
+
+If LeanConjecturer is installed (in PATH or specified via `--bin`):
+
+```bash
+pah conjecture generate ./Mathlib/Analysis/              # Generate from Lean sources
+pah conjecture generate ./MyFile.lean --bin ./lean_conjecturer --difficulty medium
+pah conjecture generate ./src --args --temperature 0.8   # Pass extra args through
+```
+
+This shells out to LeanConjecturer, finds the output JSONL, converts each entry to a Proof@Home conjecture, and submits the batch to the server.
+
+<details>
+<summary>Conversion details</summary>
+
+Each LeanConjecturer JSONL entry is converted as follows:
+
+| LeanConjecturer field | Proof@Home field | Logic |
+|---|---|---|
+| `conjecture.code` (before theorem/lemma) | `preamble` | Split at first `theorem`/`lemma`/`def` keyword |
+| `conjecture.code` (from theorem/lemma) | `lemma_statement` | Everything from keyword onward |
+| Extracted theorem name | `title` | Parsed from statement, snake_case to Title Case |
+| `id` | `id` | UUID pass-through |
+| `goal` | `hints[0]` | Prefixed with "Goal: " |
+| — | `hints[last]` | Static credit line |
+| Statement + sorry | `skeleton` | Proof body replaced with `sorry` |
+| — | `prover` | Always `lean4` |
+| — | `dependencies` | Lean 4 v4.16.0 + mathlib |
+
+Entries are skipped if they have `generate_err`, `error`, or `already_exists` set.
+
+</details>
 
 ## Certifying Proofs
 
@@ -194,7 +248,7 @@ proof-at-home/
 │   ├── client/                         # Rust CLI
 │   │   └── src/
 │   │       ├── main.rs                 # clap entry point
-│   │       ├── commands/               # Subcommands (prove, certify, seal, publish, ...)
+│   │       ├── commands/               # Subcommands (prove, certify, seal, publish, generate, import, ...)
 │   │       ├── prover/                 # LLM invocation + rocq/lean verification
 │   │       ├── certifier/              # AI comparison, report templates, sealing
 │   │       ├── server_client/          # HTTP client for the server API
@@ -218,6 +272,51 @@ proof-at-home/
 ├── conjectures/                        # Starter conjecture files
 └── docs/                               # Deployment guide, publishing guide
 ```
+
+</details>
+
+<details>
+<summary>LeanConjecturer integration architecture</summary>
+
+```
+                     ┌──────────────────────┐
+                     │   Lean source files   │
+                     └──────────┬───────────┘
+                                │
+                   pah conjecture generate
+                                │
+                     ┌──────────▼───────────┐
+                     │    LeanConjecturer    │  (external binary, auto-res, MIT)
+                     │  LLM-based conjecture │
+                     │      generation       │
+                     └──────────┬───────────┘
+                                │
+                      grpo_problem.jsonl
+                                │
+                   pah conjecture import
+                                │
+              ┌─────────────────▼─────────────────┐
+              │        Adapter (conjecture.rs)      │
+              │  • Parse JSONL entries              │
+              │  • Split code → preamble + statement│
+              │  • Generate skeleton (sorry)        │
+              │  • Extract title, set dependencies  │
+              │  • Skip errors / duplicates         │
+              └─────────────────┬─────────────────┘
+                                │
+                     <id>.json files (temp dir)
+                                │
+                   pah conjecture create
+                   (existing submission flow)
+                                │
+                     ┌──────────▼───────────┐
+                     │    Proof@Home server  │
+                     │  conjectures appear   │
+                     │  for provers to pick  │
+                     └──────────────────────┘
+```
+
+`pah conjecture generate` orchestrates the full pipeline: it shells out to LeanConjecturer, then delegates to `pah conjecture import`, which converts each JSONL entry into a Proof@Home conjecture JSON file and feeds the directory to the existing `pah conjecture create` submission flow. No new server API endpoints or dependencies are required — the adapter is purely a client-side format conversion.
 
 </details>
 
