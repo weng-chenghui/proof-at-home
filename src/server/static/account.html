@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/shared.css">
+    <script src="https://cdn.jsdelivr.net/npm/pocketbase@0.25/dist/pocketbase.umd.js"></script>
     <style>
         .account-card {
             background: var(--surface);
@@ -100,6 +101,9 @@
                 <span class="info-label">Email</span>
                 <span class="info-value" id="acct-email">—</span>
             </div>
+            <p id="profile-hint" style="display:none;margin:0.75rem 0 0;font-size:0.8rem;color:var(--text-secondary);">
+                Could not load profile. Your session may have expired — try <a href="/login.html">logging in again</a>.
+            </p>
         </div>
 
         <div class="account-card">
@@ -126,7 +130,9 @@
     </div>
     <script src="/shared.js"></script>
     <script>
-        function init() {
+        const pb = new PocketBase(window.location.origin);
+
+        async function init() {
             if (!isLoggedIn()) {
                 window.location.href = '/login.html';
                 return;
@@ -135,14 +141,29 @@
             document.getElementById('token-input').value = token;
             document.getElementById('server-url').textContent = window.location.origin;
 
+            // Load token into PocketBase auth store and fetch user record
+            pb.authStore.save(token, null);
             try {
-                const payload = JSON.parse(atob(token.split('.')[1]));
-                document.getElementById('acct-username').textContent =
-                    payload.username || payload.nickname || payload.sub || '—';
+                const authData = await pb.collection('users').authRefresh();
+                const user = authData.record;
+                const displayName = user.username || user.name
+                    || (user.email ? user.email.split('@')[0] : '');
+                if (displayName) {
+                    document.getElementById('acct-username').textContent = displayName;
+                } else {
+                    document.getElementById('acct-username').innerHTML =
+                        '<span style="color:var(--text-secondary)">Not set</span>';
+                }
                 document.getElementById('acct-email').textContent =
-                    payload.email || '—';
+                    user.email || '—';
+                // Update stored token in case it was refreshed
+                localStorage.setItem('pah_jwt_token', pb.authStore.token);
+                document.getElementById('token-input').value = pb.authStore.token;
             } catch {
-                // token decode failed — fields stay as "—"
+                // Token expired or invalid — show hint and prompt re-login
+                document.getElementById('acct-username').textContent = '—';
+                document.getElementById('acct-email').textContent = '—';
+                document.getElementById('profile-hint').style.display = 'block';
             }
         }
 

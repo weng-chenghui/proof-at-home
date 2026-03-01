@@ -35,18 +35,23 @@
     <script>
         const pb = new PocketBase(window.location.origin);
 
-        function updateLoginState() {
+        async function updateLoginState() {
             const token = localStorage.getItem('pah_jwt_token');
             const loggedOut = document.getElementById('logged-out');
             const loggedIn = document.getElementById('logged-in');
             if (token) {
                 loggedOut.style.display = 'none';
                 loggedIn.style.display = 'block';
-                // Try to decode JWT payload for display name
+                // Fetch user record from PocketBase
+                pb.authStore.save(token, null);
                 try {
-                    const payload = JSON.parse(atob(token.split('.')[1]));
+                    const authData = await pb.collection('users').authRefresh();
+                    const user = authData.record;
                     document.getElementById('user-display').textContent =
-                        payload.email || payload.name || payload.sub || 'authenticated user';
+                        user.username || user.name
+                        || (user.email ? user.email.split('@')[0] : null)
+                        || 'authenticated user';
+                    localStorage.setItem('pah_jwt_token', pb.authStore.token);
                 } catch {
                     document.getElementById('user-display').textContent = 'authenticated user';
                 }
