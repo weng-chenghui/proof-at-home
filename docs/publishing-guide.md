@@ -2,6 +2,8 @@
 
 End-to-end guide for publishing proof-of-contribution NFTs on-chain.
 
+**What the NFT represents:** The NFT is not about ownership — proofs are CC0 public domain. The NFT records *who funded and verified* the work, like a donor's name on a university building. It is a permanent, verifiable receipt of your contribution to the corpus of formally verified mathematics.
+
 ## Overview
 
 The publishing flow has three stages:
@@ -60,6 +62,8 @@ An Ethereum RPC URL for your target network:
 | Optimism | L2       | ~$0.01   | Ethereum rollup              |
 | Sepolia  | Testnet  | Free     | Use for testing              |
 | Mainnet  | L1       | ~$5-50   | Only if you need L1 security |
+
+**Total publishing cost:** IPFS pinning is free (Pinata free tier: 500 pins, 1 GB). On-chain minting costs ~$0.01 on L2 networks. The only ongoing cost is gas for minting.
 
 ---
 

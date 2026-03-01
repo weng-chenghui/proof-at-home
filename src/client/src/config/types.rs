@@ -128,7 +128,7 @@ impl Config {
 
     pub fn require_login(&self) -> Result<()> {
         if self.api.auth_token.is_empty() {
-            println!("\nWelcome to Proof-at-Home!\n");
+            println!("\nWelcome to Proof@Home!\n");
             println!("To get started, run:  pah auth login\n");
             std::process::exit(0);
         }

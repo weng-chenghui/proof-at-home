@@ -21,9 +21,9 @@
                 <h3>Prerequisites</h3>
                 <p>Make sure you have the following installed:</p>
                 <ul style="margin: 0; padding-left: 1.25rem; font-size: 0.875rem; color: var(--text-secondary); line-height: 1.8;">
-                    <li><a href="https://rustup.rs/">Rust</a> (1.70+) — needed to build the CLI</li>
-                    <li>An <a href="https://console.anthropic.com/">Anthropic API key</a> — powers the AI prover</li>
-                    <li><a href="https://rocq-prover.org/">Rocq</a> for Rocq proofs, or <a href="https://leanprover.github.io/">Lean 4</a> for Lean proofs</li>
+                    <li><a href="https://rustup.rs/">Rust</a> (1.70+) — needed to build the CLI <span class="text-muted">(~5 min one-time install)</span></li>
+                    <li>An <a href="https://console.anthropic.com/">Anthropic API key</a> — powers the AI prover <span class="text-muted">(~2 min signup)</span></li>
+                    <li><a href="https://rocq-prover.org/">Rocq</a> for Rocq proofs, or <a href="https://leanprover.github.io/">Lean 4</a> for Lean proofs <span class="text-muted">(~10 min with opam/elan)</span></li>
                 </ul>
             </div>
         </div>
@@ -32,7 +32,7 @@
             <div class="workflow-number">2</div>
             <div class="workflow-content">
                 <h3>Install the CLI</h3>
-                <p>Build from source:</p>
+                <p>Build from source (not yet on crates.io):</p>
 <pre><code>git clone https://github.com/pah-org/proof-at-home.git
 cd proof-at-home
 cargo build --release</code></pre>
@@ -53,20 +53,21 @@ cargo build --release</code></pre>
         <div class="workflow-step" style="margin-bottom: 1rem;">
             <div class="workflow-number">4</div>
             <div class="workflow-content">
-                <h3>Set your donation budget</h3>
-                <p>Choose how much API credit to donate per run:</p>
-<pre><code>./target/release/proof-at-home donate</code></pre>
-                <p style="margin-top: 0.75rem;">Read and accept the legal agreement, then pick an amount ($1 -- $10 or custom). This caps the API cost for a single contribution run.</p>
+                <h3>Set your proof budget</h3>
+                <p>Choose how much API credit to allocate per run:</p>
+<pre><code>./target/release/proof-at-home setting set budget</code></pre>
+                <p style="margin-top: 0.75rem;">Read and accept the legal agreement, then pick an amount ($1–$10 or custom). This caps the API cost for a single contribution run.</p>
+                <p style="margin-top: 0.5rem; font-size: 0.85rem;" class="text-muted">Typical costs: ~$0.05/proof with Haiku, ~$0.50 with Sonnet, ~$2.00 with Opus. A $2 budget can prove dozens of easy conjectures.</p>
             </div>
         </div>
 
         <div class="workflow-step" style="margin-bottom: 1rem;">
             <div class="workflow-number">5</div>
             <div class="workflow-content">
-                <h3>Submit your first certificate</h3>
+                <h3>Prove your first conjectures</h3>
                 <p>Start proving open conjectures:</p>
-<pre><code>./target/release/proof-at-home prove</code></pre>
-                <p style="margin-top: 0.75rem;">The CLI fetches conjectures from the server, calls Claude to generate proofs, verifies each with <code>rocq c</code> or <code>lean</code>, submits certificates, and archives everything with a SHA-256 hash.</p>
+<pre><code>./target/release/proof-at-home contribution run</code></pre>
+                <p style="margin-top: 0.75rem; font-size: 0.85rem;"><strong>What happens:</strong> The CLI fetches open conjectures from the server, sends each to Claude to generate a formal proof, compiles it with <code>rocq c</code> or <code>lean</code> to verify correctness, submits the results to the server, and archives everything with a SHA-256 hash. You get NFT metadata crediting your contribution.</p>
             </div>
         </div>
 

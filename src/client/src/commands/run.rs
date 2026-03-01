@@ -422,6 +422,16 @@ pub async fn run_prove(strategy_name: Option<&str>) -> Result<()> {
     println!("Archive:    {}", archive_path.display());
     println!("Git Commit: {}", commit_sha.dimmed());
     println!("NFT meta:   {}", nft_path.display());
+    println!();
+    println!("{}", "Next steps:".bold());
+    println!(
+        "  {} — Upload to IPFS and prepare NFT",
+        format!("pah contribution publish {}", contribution_id).cyan()
+    );
+    println!(
+        "  {} — View contribution details",
+        format!("pah contribution get {}", contribution_id).cyan()
+    );
 
     Ok(())
 }
@@ -783,6 +793,16 @@ pub async fn run_prove_submit(
     println!("Archive:    {}", archive_path.display());
     println!("Git Commit: {}", commit_sha.dimmed());
     println!("NFT meta:   {}", nft_path.display());
+    println!();
+    println!("{}", "Next steps:".bold());
+    println!(
+        "  {} — Upload to IPFS and prepare NFT",
+        format!("pah contribution publish {}", contribution_id).cyan()
+    );
+    println!(
+        "  {} — View contribution details",
+        format!("pah contribution get {}", contribution_id).cyan()
+    );
 
     Ok(())
 }

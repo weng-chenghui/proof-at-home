@@ -16,7 +16,7 @@ use std::path::PathBuf;
 #[derive(Parser)]
 #[command(
     name = "pah",
-    about = "Prove mathematical lemmas — verified, archived, and NFT-stamped",
+    about = "Proof@Home — donate spare AI budget to prove mathematical theorems.\nProofs are compiler-verified, git-archived, and permanently credited to you.",
     version
 )]
 struct Cli {
@@ -31,7 +31,8 @@ enum Resource {
         #[command(subcommand)]
         action: ConjectureAction,
     },
-    /// Manage contributions (list, get, run, seal, publish, archive)
+    /// Manage contributions (list, get, run, seal, publish, archive).
+    /// Typical workflow: run → get → publish
     Contribution {
         #[command(subcommand)]
         action: ContributionAction,
@@ -41,7 +42,8 @@ enum Resource {
         #[command(subcommand)]
         action: ProofAction,
     },
-    /// Manage certificates (list, create, import, compare, report, seal, publish)
+    /// Manage certificates (list, create, import, compare, report, seal, publish).
+    /// Typical workflow: create → import → compare → report → seal → publish
     Certificate {
         #[command(subcommand)]
         action: CertificateAction,

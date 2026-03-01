@@ -8,10 +8,16 @@ use crate::server_client::api::ServerClient;
 pub async fn cmd_login() -> Result<()> {
     println!("{}", "=== Proof@Home Login ===".bold().cyan());
     println!();
+    println!("{}", "To log in, follow these steps:".dimmed());
     println!(
         "{}",
-        "Paste your auth token from the web UI (Login page → Settings).".dimmed()
+        "  1. Open your account page in the web UI (sign up first if needed)".dimmed()
     );
+    println!(
+        "{}",
+        "  2. Copy the CLI auth token from the account page".dimmed()
+    );
+    println!("{}", "  3. Paste it below".dimmed());
     println!();
 
     let server_url = if let Ok(url) = std::env::var("PAH_SERVER_URL") {
@@ -74,9 +80,14 @@ pub async fn cmd_login() -> Result<()> {
         Err(e) => {
             println!("{}", "FAILED".red());
             println!("  {}", format!("Could not reach server: {e}").dimmed());
+            println!("  {}", "Token saved anyway. Check that:".dimmed());
             println!(
                 "  {}",
-                "Token saved anyway — verify your server URL is correct.".dimmed()
+                "  - The server URL is correct (currently set to the value above)".dimmed()
+            );
+            println!(
+                "  {}",
+                "  - The server is running and accessible from your network".dimmed()
             );
         }
     }

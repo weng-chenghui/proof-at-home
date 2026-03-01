@@ -47,6 +47,15 @@ pub async fn run_publish(kind: &str, id: &str) -> Result<()> {
     println!("Type: {}", kind);
     println!("ID:   {}", id);
     println!();
+    println!(
+        "{}",
+        "Publishing pins your proof archive and NFT metadata to IPFS (a".dimmed()
+    );
+    println!(
+        "{}",
+        "decentralized storage network) so they remain permanently accessible.".dimmed()
+    );
+    println!();
 
     // Load NFT metadata
     let nft_content = std::fs::read_to_string(&nft_path)?;
@@ -183,6 +192,14 @@ echo "View on block explorer or OpenSea to confirm."
         println!(
             "To mint on-chain, set env vars and run: {}",
             "./mint.sh".cyan()
+        );
+        println!(
+            "{}",
+            "The mint script calls `cast send` to create an ERC-721 NFT with your".dimmed()
+        );
+        println!(
+            "{}",
+            "IPFS-hosted metadata. Gas costs ~$0.01 on L2 networks (Base, Arbitrum).".dimmed()
         );
     } else {
         // Save updated NFT metadata (with git permalink) even without IPFS

@@ -169,10 +169,10 @@ fn run_status() -> Result<()> {
     let remaining = (donated - spent).max(0.0);
 
     if donated > 0.0 {
-        println!("  Donated:     {}", format!("${:.2}", donated).green());
+        println!("  Budget:      {}", format!("${:.2}", donated).green());
     } else {
         println!(
-            "  Donated:     {} (run `pah setting set budget`)",
+            "  Budget:      {} (run `pah setting set budget`)",
             "$0.00".yellow()
         );
     }
@@ -375,12 +375,13 @@ fn run_setup_wizard() -> Result<()> {
 // ── donate (merged from donate.rs) ──
 
 const LEGAL_TEXT: &str = r#"
-=== Proof@Home Donation Agreement ===
+=== Proof@Home Budget Agreement ===
 
 By proceeding, you acknowledge and agree to the following:
 
-1. VOLUNTARY DONATION: You are voluntarily donating a portion of your
-   Anthropic API credits toward automated mathematical theorem proving.
+1. YOUR API CREDITS: You are allocating a portion of your own Anthropic
+   API credits toward automated mathematical theorem proving. This is
+   not a donation to a third party — it spends your own API budget.
 
 2. NON-REFUNDABLE: API credits consumed during proof sessions cannot be
    recovered. You are responsible for monitoring your own Anthropic billing.
@@ -412,11 +413,25 @@ fn run_donate() -> Result<()> {
         return Ok(());
     }
 
-    let amounts = vec!["$1.00", "$2.00", "$5.00", "$10.00", "Custom amount"];
+    println!();
+    println!("{}", "Typical costs per proof:".dimmed());
+    println!(
+        "{}",
+        "  Haiku:  ~$0.05   Sonnet: ~$0.50   Opus: ~$2.00".dimmed()
+    );
+    println!();
+
+    let amounts = vec![
+        "$1.00  (~20 proofs with Haiku)",
+        "$2.00  (~40 proofs with Haiku)",
+        "$5.00  (~100 proofs with Haiku)",
+        "$10.00 (~200 proofs with Haiku)",
+        "Custom amount",
+    ];
     let selection = Select::new()
-        .with_prompt("How much would you like to donate?")
+        .with_prompt("How much API budget to allocate for this run?")
         .items(&amounts)
-        .default(2)
+        .default(1)
         .interact()?;
 
     let amount: f64 = match selection {
@@ -436,7 +451,7 @@ fn run_donate() -> Result<()> {
     };
 
     if amount <= 0.0 {
-        bail!("Donation amount must be positive.");
+        bail!("Budget amount must be positive.");
     }
 
     config.budget.donated_usd = amount;

@@ -30,20 +30,11 @@
                     <div class="form-group">
                         <label for="username">Username</label>
                         <input type="text" id="username" required>
-                        <div class="hint">For attribution on contributions and certificates</div>
-                    </div>
-                    <div class="form-group">
-                        <label for="real_name">Real Name</label>
-                        <input type="text" id="real_name" required>
+                        <div class="hint">How you appear publicly on contributions and certificates</div>
                     </div>
                     <div class="form-group">
                         <label for="email">Email</label>
                         <input type="text" id="email" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="affiliation">Affiliation</label>
-                        <input type="text" id="affiliation" placeholder="Optional">
-                        <div class="hint">University, company, or organization (optional)</div>
                     </div>
                     <div class="form-group">
                         <label for="password">Password</label>
@@ -53,6 +44,16 @@
                     <div class="form-group">
                         <label for="passwordConfirm">Confirm Password</label>
                         <input type="password" id="passwordConfirm" required minlength="8">
+                    </div>
+                    <div class="form-group">
+                        <label for="real_name">Real Name (optional)</label>
+                        <input type="text" id="real_name">
+                        <div class="hint">For attribution — leave blank if you prefer to stay pseudonymous</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="affiliation">Affiliation (optional)</label>
+                        <input type="text" id="affiliation">
+                        <div class="hint">University, company, or organization</div>
                     </div>
                     <button type="submit">Create Account</button>
                 </form>
@@ -106,7 +107,8 @@
             }
 
             try {
-                const data = { email, password, passwordConfirm, username, real_name };
+                const data = { email, password, passwordConfirm, username };
+                if (real_name) data.real_name = real_name;
                 if (affiliation) data.affiliation = affiliation;
                 await pb.collection('users').create(data);
                 // Auto-login after signup

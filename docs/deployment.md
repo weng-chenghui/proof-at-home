@@ -1,8 +1,8 @@
 # Deployment Guide
 
-## Quick Start (Recommended): PocketBase on Fly.io
+## Recommended: PocketBase on Fly.io
 
-The fastest way to get Proof@Home running publicly. PocketBase is an open-source backend that packs a database (SQLite), authentication, file storage, and an admin dashboard into a single executable. Fly.io hosts it with persistent storage for free.
+The fastest way to get Proof@Home running publicly (~15 minutes). PocketBase is an open-source backend that packs a database (SQLite), authentication, file storage, and an admin dashboard into a single executable. Fly.io hosts it with persistent storage on the free tier (~$0/month for a single instance with 1 GB volume).
 
 ### 1. Build
 
@@ -146,7 +146,8 @@ PB_S3_SECRET=... \
 
 To generate HMAC keys, go to Cloud Console > Cloud Storage > Settings > Interoperability > Create a key for a service account.
 
-### Alternative Remote: Bare VM
+<details>
+<summary><h3 style="display:inline">Advanced: Bare VM</h3></summary>
 
 If you prefer a VPS (Hetzner, DigitalOcean, etc.) over Fly.io:
 
@@ -185,7 +186,11 @@ pah.example.com {
 }
 ```
 
-### Alternative Remote: GCP Cloud Run
+</details>
+
+<details>
+<summary><h3 style="display:inline">Advanced: GCP Cloud Run</h3></summary>
+
 
 ```bash
 # Build and push container
@@ -212,6 +217,15 @@ Notes:
 - `--min-instances 1` keeps the instance warm (SQLite needs a persistent process)
 - `--max-instances 1` prevents concurrent writes to SQLite
 - The volume mount stores `pb_data/` in a GCS bucket so data survives redeployments
+
+</details>
+
+<details>
+<summary><h3 style="display:inline">Advanced: Custom Server</h3></summary>
+
+See the "Alternative: Custom Server" section below for PostgreSQL, custom JWT auth, Docker Compose, and other options.
+
+</details>
 
 ---
 

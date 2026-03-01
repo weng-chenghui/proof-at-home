@@ -40,7 +40,8 @@
                     <h2>Lemma Statement</h2>
                     <pre><code>${escapeHtml(p.lemma_statement)}</code></pre>
 
-                    ${p.skeleton ? `<h2>Skeleton</h2><pre><code>${escapeHtml(p.skeleton)}</code></pre>` : ''}
+                    ${p.skeleton ? `<h2>Skeleton</h2><pre><code>${escapeHtml(p.skeleton)}</code></pre>
+                    <p class="text-muted" style="font-size:0.8rem;margin-top:0.5rem">Note: <code>Admitted.</code> is a placeholder that accepts the lemma without proof. Your goal is to replace it with a real proof.</p>` : ''}
 
                     ${p.hints && p.hints.length ? `
                         <details>
@@ -48,6 +49,16 @@
                             <ul>${p.hints.map(h => `<li>${escapeHtml(h)}</li>`).join('')}</ul>
                         </details>
                     ` : ''}
+
+                    <div style="background:var(--code-bg);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1rem 1.25rem;margin:1.5rem 0;">
+                        <h3 style="margin:0 0 0.5rem 0;font-size:0.9rem;">How to prove this</h3>
+                        <ol style="margin:0;padding-left:1.25rem;font-size:0.85rem;color:var(--text-secondary);line-height:1.8;">
+                            <li>Read the lemma statement and skeleton above</li>
+                            <li>Run <code>pah contribution run</code> to let AI generate a proof, or write one by hand</li>
+                            <li>The CLI compiles the proof with ${escapeHtml(p.prover === 'lean4' ? 'Lean' : 'Rocq')} to verify correctness</li>
+                            <li>Verified proofs are submitted, archived, and credited to you via NFT metadata</li>
+                        </ol>
+                    </div>
 
                     ${p.dependencies ? `
                         <details>

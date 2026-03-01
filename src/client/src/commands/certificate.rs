@@ -319,13 +319,26 @@ pub async fn cmd_compare(strategy_name: Option<&str>) -> Result<()> {
         "Model: {}  |  Cost: ${:.4}\n",
         result.model, result.cost_usd
     );
+    println!(
+        "{}",
+        "Scoring dimensions (1-10): succinctness = shorter/cleaner proofs,".dimmed()
+    );
+    println!(
+        "{}",
+        "library reuse = use of existing lemmas, generality = general vs specific,".dimmed()
+    );
+    println!(
+        "{}",
+        "modularity = decomposition into reusable parts, math strategy = proof elegance".dimmed()
+    );
+    println!();
 
     for pc in &result.conjecture_comparisons {
         println!("{} ({})", pc.conjecture_title.bold(), pc.conjecture_id);
         println!("  {}", pc.analysis);
         for r in &pc.rankings {
             println!(
-                "    {} — overall: {} | suc: {} lib: {} gen: {} mod: {} math: {}",
+                "    {} — overall: {} | succinctness: {} library: {} generality: {} modularity: {} strategy: {}",
                 r.contributor_username,
                 r.scores.overall,
                 r.scores.succinctness,
