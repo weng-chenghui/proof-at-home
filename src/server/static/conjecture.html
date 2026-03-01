@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Conjecture Detail — proof-at-home</title>
+    <title>Conjecture Detail — Proof@Home</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -26,7 +26,7 @@
             }
             try {
                 const p = await api('GET', '/conjectures/' + encodeURIComponent(id));
-                document.title = p.title + ' — proof-at-home';
+                document.title = p.title + ' — Proof@Home';
                 document.getElementById('content').innerHTML = `
                     <h1>${escapeHtml(p.title)}</h1>
                     <p>

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Strategy Detail — proof-at-home</title>
+    <title>Strategy Detail — Proof@Home</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -26,7 +26,7 @@
             }
             try {
                 const c = await api('GET', '/strategies/' + encodeURIComponent(name));
-                document.title = c.name + ' — proof-at-home';
+                document.title = c.name + ' — Proof@Home';
                 document.getElementById('content').innerHTML = `
                     <h1>${escapeHtml(c.name)}</h1>
                     <p>

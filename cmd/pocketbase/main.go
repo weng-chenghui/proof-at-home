@@ -123,7 +123,7 @@ func main() {
 }
 
 // registerRoutes adds custom routes that preserve backward compatibility
-// with the existing proof-at-home client.
+// with the existing Proof@Home client.
 func registerRoutes(se *core.ServeEvent, app core.App) {
 	// ── Read routes (PocketBase as cache) ──
 

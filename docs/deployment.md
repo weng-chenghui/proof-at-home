@@ -2,7 +2,7 @@
 
 ## Quick Start (Recommended): PocketBase on Fly.io
 
-The fastest way to get proof-at-home running publicly. PocketBase is an open-source backend that packs a database (SQLite), authentication, file storage, and an admin dashboard into a single executable. Fly.io hosts it with persistent storage for free.
+The fastest way to get Proof@Home running publicly. PocketBase is an open-source backend that packs a database (SQLite), authentication, file storage, and an admin dashboard into a single executable. Fly.io hosts it with persistent storage for free.
 
 ### 1. Build
 
@@ -10,7 +10,7 @@ The fastest way to get proof-at-home running publicly. PocketBase is an open-sou
 go build -o pah-pocketbase ./cmd/pocketbase
 ```
 
-This compiles PocketBase with the proof-at-home API routes, web UI, database migrations, and business logic hooks into a single binary.
+This compiles PocketBase with the Proof@Home API routes, web UI, database migrations, and business logic hooks into a single binary.
 
 ### 2. Try It Locally
 
@@ -160,7 +160,7 @@ Create `/etc/systemd/system/pah-pocketbase.service`:
 
 ```ini
 [Unit]
-Description=proof-at-home PocketBase
+Description=Proof@Home PocketBase
 After=network.target
 
 [Service]

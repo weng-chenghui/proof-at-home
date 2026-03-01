@@ -1,4 +1,4 @@
-// shared.js — proof-at-home web UI helpers
+// shared.js — Proof@Home web UI helpers
 
 async function api(method, path, body, contentType) {
     const opts = { method, headers: {} };
@@ -100,7 +100,7 @@ function initNav() {
         : `<div class="nav-user"><a href="/login.html">Log In</a> <a href="/signup.html">Sign Up</a></div>`;
 
     nav.innerHTML = `
-        <a class="nav-brand" href="/">proof-at-home</a>
+        <a class="nav-brand" href="/">Proof@Home</a>
         <div class="nav-links">
             <a href="/conjectures.html">Conjectures</a>
             <a href="/certificates.html">Certificates</a>
