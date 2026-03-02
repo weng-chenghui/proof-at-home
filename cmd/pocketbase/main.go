@@ -29,6 +29,45 @@ import (
 	"github.com/proof-at-home/server/src/server/store/gitstore"
 )
 
+// getStringSlice extracts a []string from a PocketBase JSONField value.
+// PocketBase returns JSONRaw ([]byte) for JSON fields, not []any.
+func getStringSlice(record *core.Record, field string) []string {
+	raw := record.Get(field)
+	if raw == nil {
+		return nil
+	}
+	// Try []any first (in case PocketBase returns parsed values in some contexts)
+	if list, ok := raw.([]any); ok {
+		var out []string
+		for _, v := range list {
+			if s, ok := v.(string); ok {
+				out = append(out, s)
+			}
+		}
+		return out
+	}
+	// Handle JSONRaw / []byte / string (the common case for JSONField)
+	var b []byte
+	switch v := raw.(type) {
+	case []byte:
+		b = v
+	case string:
+		b = []byte(v)
+	default:
+		// Try JSON marshalling as fallback
+		var err error
+		b, err = json.Marshal(raw)
+		if err != nil {
+			return nil
+		}
+	}
+	var out []string
+	if json.Unmarshal(b, &out) == nil {
+		return out
+	}
+	return nil
+}
+
 var (
 	gs    *gitstore.GitStore
 	forge gitstore.ForgeClient
@@ -264,26 +303,6 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 
 		entries := make([]contributionEntry, 0, len(records))
 		for _, r := range records {
-			var conjectureIDs []string
-			if raw := r.Get("conjecture_ids"); raw != nil {
-				if list, ok := raw.([]any); ok {
-					for _, v := range list {
-						if s, ok := v.(string); ok {
-							conjectureIDs = append(conjectureIDs, s)
-						}
-					}
-				}
-			}
-			var certifiedBy []string
-			if raw := r.Get("certified_by"); raw != nil {
-				if list, ok := raw.([]any); ok {
-					for _, v := range list {
-						if s, ok := v.(string); ok {
-							certifiedBy = append(certifiedBy, s)
-						}
-					}
-				}
-			}
 			entries = append(entries, contributionEntry{
 				ContributionID:       r.GetString("contribution_id"),
 				Username:             r.GetString("username"),
@@ -292,9 +311,9 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 				TotalCostUSD:         r.GetFloat("cost_usd"),
 				ArchiveSHA256:        r.GetString("archive_sha256"),
 				Prover:               r.GetString("prover"),
-				ConjectureIDs:        conjectureIDs,
+				ConjectureIDs:        getStringSlice(r, "conjecture_ids"),
 				ProofStatus:          r.GetString("proof_status"),
-				CertifiedBy:          certifiedBy,
+				CertifiedBy:          getStringSlice(r, "certified_by"),
 				NFTMetadata:          r.Get("nft_metadata"),
 			})
 		}
@@ -311,27 +330,6 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 			return e.JSON(http.StatusNotFound, map[string]string{"error": "not found"})
 		}
 
-		var conjectureIDs []string
-		if raw := record.Get("conjecture_ids"); raw != nil {
-			if list, ok := raw.([]any); ok {
-				for _, v := range list {
-					if s, ok := v.(string); ok {
-						conjectureIDs = append(conjectureIDs, s)
-					}
-				}
-			}
-		}
-		var certifiedBy []string
-		if raw := record.Get("certified_by"); raw != nil {
-			if list, ok := raw.([]any); ok {
-				for _, v := range list {
-					if s, ok := v.(string); ok {
-						certifiedBy = append(certifiedBy, s)
-					}
-				}
-			}
-		}
-
 		result := map[string]any{
 			"contribution_id":       record.GetString("contribution_id"),
 			"username":              record.GetString("username"),
@@ -340,9 +338,9 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 			"total_cost_usd":        record.GetFloat("cost_usd"),
 			"archive_sha256":        record.GetString("archive_sha256"),
 			"prover":                record.GetString("prover"),
-			"conjecture_ids":        conjectureIDs,
+			"conjecture_ids":        getStringSlice(record, "conjecture_ids"),
 			"proof_status":          record.GetString("proof_status"),
-			"certified_by":          certifiedBy,
+			"certified_by":          getStringSlice(record, "certified_by"),
 			"nft_metadata":          record.Get("nft_metadata"),
 		}
 		return e.JSON(http.StatusOK, result)
@@ -446,37 +444,15 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 				prover = "rocq"
 			}
 
-			var conjectureIDs []string
-			if raw := r.Get("conjecture_ids"); raw != nil {
-				if list, ok := raw.([]any); ok {
-					for _, v := range list {
-						if s, ok := v.(string); ok {
-							conjectureIDs = append(conjectureIDs, s)
-						}
-					}
-				}
-			}
-
-			var certifiedBy []string
-			if raw := r.Get("certified_by"); raw != nil {
-				if list, ok := raw.([]any); ok {
-					for _, v := range list {
-						if s, ok := v.(string); ok {
-							certifiedBy = append(certifiedBy, s)
-						}
-					}
-				}
-			}
-
 			packages = append(packages, certPkg{
 				ContributorContributionID: contributionID,
 				ContributorUsername:       r.GetString("username"),
 				Prover:                    prover,
-				ConjectureIDs:             conjectureIDs,
+				ConjectureIDs:             getStringSlice(r, "conjecture_ids"),
 				ArchiveURL:                "/contributions/" + contributionID + "/archive",
 				ArchiveSHA256:             r.GetString("archive_sha256"),
 				ProofStatus:               r.GetString("proof_status"),
-				CertifiedBy:               certifiedBy,
+				CertifiedBy:               getStringSlice(r, "certified_by"),
 			})
 		}
 		return e.JSON(http.StatusOK, packages)
@@ -1038,8 +1014,7 @@ func rebuildFromGit(app core.App) error {
 						continue
 					}
 
-					certifiedBy := contribution.Get("certified_by")
-					certifiers, _ := certifiedBy.([]any)
+					certifiers := getStringSlice(contribution, "certified_by")
 					found := false
 					for _, c := range certifiers {
 						if c == cs.CertifierUsername {

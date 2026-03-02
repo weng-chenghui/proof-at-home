@@ -41,6 +41,7 @@ func init() {
 		// ── proofs ──
 		results := core.NewBaseCollection("proofs")
 		results.Fields.Add(
+			&core.TextField{Name: "contribution_id", Max: 200},
 			&core.TextField{Name: "conjecture_id", Required: true, Max: 200},
 			&core.TextField{Name: "username", Required: true, Max: 200},
 			&core.BoolField{Name: "success"},
@@ -50,6 +51,7 @@ func init() {
 			&core.TextField{Name: "error_output"},
 		)
 		results.Indexes = types.JSONArray[string]{
+			"CREATE INDEX idx_proofs_contribution_id ON proofs (contribution_id)",
 			"CREATE INDEX idx_proofs_conjecture_id ON proofs (conjecture_id)",
 			"CREATE INDEX idx_proofs_username ON proofs (username)",
 		}
