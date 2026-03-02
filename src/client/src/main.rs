@@ -9,6 +9,7 @@ mod prover;
 mod server_client;
 mod signing;
 mod strategy_store;
+mod tools;
 
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
@@ -62,6 +63,11 @@ enum Resource {
     Auth {
         #[command(subcommand)]
         action: AuthAction,
+    },
+    /// Check, list, or install external tool dependencies
+    Tools {
+        #[command(subcommand)]
+        action: ToolsAction,
     },
 }
 
@@ -266,6 +272,21 @@ enum AuthAction {
     Logout,
 }
 
+// ── Tools ──
+
+#[derive(Subcommand)]
+enum ToolsAction {
+    /// Check all tool dependencies and show their status
+    Check,
+    /// List all tools in a table
+    List,
+    /// Install a tool dependency (if auto-install is supported)
+    Install {
+        /// Tool name (e.g. elan, claude)
+        name: String,
+    },
+}
+
 #[tokio::main]
 async fn main() {
     let cli = Cli::parse();
@@ -362,6 +383,11 @@ async fn main() {
             AuthAction::Login => commands::auth::cmd_login().await,
             AuthAction::Status => commands::auth::cmd_status(),
             AuthAction::Logout => commands::auth::cmd_logout(),
+        },
+        Resource::Tools { action } => match action {
+            ToolsAction::Check => commands::tools::cmd_check(),
+            ToolsAction::List => commands::tools::cmd_list(),
+            ToolsAction::Install { name } => commands::tools::cmd_install(&name),
         },
     };
 

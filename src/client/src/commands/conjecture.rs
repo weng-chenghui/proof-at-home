@@ -412,17 +412,8 @@ pub async fn cmd_generate(
             b.to_string()
         }
         None => {
-            let output = std::process::Command::new("which")
-                .arg("lean_conjecturer")
-                .output()
-                .context("Failed to search PATH for lean_conjecturer")?;
-            if !output.status.success() {
-                anyhow::bail!(
-                    "LeanConjecturer not found in PATH. Install from \
-                     https://github.com/auto-res/LeanConjecturer or use --bin to specify path."
-                );
-            }
-            String::from_utf8_lossy(&output.stdout).trim().to_string()
+            let info = crate::tools::registry::require_tool("lean_conjecturer")?;
+            info.path.to_string_lossy().to_string()
         }
     };
 

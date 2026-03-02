@@ -362,11 +362,7 @@ pub async fn prove_conjecture(
     let max_attempts = 5;
 
     // Check if claude CLI is available
-    let cli_available = Command::new("claude")
-        .arg("--version")
-        .output()
-        .map(|o| o.status.success())
-        .unwrap_or(false);
+    let claude_tool = crate::tools::registry::require_tool("claude").ok();
 
     for attempt in 1..=max_attempts {
         let prompt = if attempt == 1 {
@@ -383,7 +379,7 @@ pub async fn prove_conjecture(
         };
 
         // Try CLI first, fall back to API
-        let (response, cost) = if cli_available {
+        let (response, cost) = if claude_tool.is_some() {
             match try_claude_cli(&prompt, &config.api.model) {
                 Ok(r) => r,
                 Err(_) => {

@@ -2,11 +2,11 @@ use anyhow::{bail, Result};
 use colored::Colorize;
 use dialoguer::{Confirm, Input, Password, Select};
 use std::path::Path;
-use std::process::Command;
 
 use crate::config::types::*;
 use crate::config::Config;
 use crate::signing;
+use crate::tools::registry;
 
 /// `pah setting get [<key>]` — no key: show full status; with key: show single value
 pub fn cmd_get(key: Option<&str>) -> Result<()> {
@@ -314,25 +314,22 @@ fn run_setup_wizard() -> Result<()> {
 
     println!();
     println!("{}", "Checking prover toolchains...".bold());
-    check_tool(
-        "opam",
-        &["--version"],
-        "Install opam: https://opam.ocaml.org/doc/Install.html",
-        "Rocq conjectures will not work without opam.",
-    );
-    check_tool(
-        "elan",
-        &["--version"],
-        "Install elan: https://github.com/leanprover/elan#installation",
-        "Lean conjectures will not work without elan.",
-    );
-    check_tool(
-        "lake",
-        &["--version"],
-        "",
-        "lake is usually installed with elan.",
-    );
-    check_tool("claude", &["--version"], "", "Will use API fallback.");
+    for name in &["opam", "elan", "lake", "claude"] {
+        if let Some(spec) = registry::get_spec(name) {
+            print!("  {}... ", name);
+            match registry::detect_tool(spec) {
+                Some(info) => {
+                    println!("{} ({})", "OK".green(), info.version);
+                }
+                None => {
+                    println!("{}", "NOT FOUND".yellow());
+                    if !spec.install_hint.is_empty() {
+                        println!("    {}", spec.install_hint.dimmed());
+                    }
+                }
+            }
+        }
+    }
 
     let config = Config {
         identity,
@@ -472,25 +469,6 @@ fn run_donate() -> Result<()> {
 }
 
 // ── Helpers ──
-
-fn check_tool(name: &str, args: &[&str], install_hint: &str, note: &str) {
-    print!("  {}... ", name);
-    match Command::new(name).args(args).output() {
-        Ok(output) if output.status.success() => {
-            let version = String::from_utf8_lossy(&output.stdout);
-            println!("{} ({})", "OK".green(), version.trim());
-        }
-        _ => {
-            println!("{}", "NOT FOUND".yellow());
-            if !install_hint.is_empty() {
-                println!("    {}", install_hint.dimmed());
-            }
-            if !note.is_empty() {
-                println!("    {}", note.dimmed());
-            }
-        }
-    }
-}
 
 fn default_envs_dir() -> String {
     let home = dirs::home_dir().unwrap_or_else(|| std::path::PathBuf::from("."));

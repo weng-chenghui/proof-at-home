@@ -132,6 +132,11 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 		return e.JSON(http.StatusOK, map[string]string{"status": "ok"})
 	})
 
+	// Installer script redirect
+	se.Router.GET("/install.sh", func(e *core.RequestEvent) error {
+		return e.Redirect(http.StatusFound, "https://raw.githubusercontent.com/pah-org/proof-at-home/main/scripts/install.sh")
+	})
+
 	// GET /conjectures — list all conjectures
 	se.Router.GET("/conjectures", func(e *core.RequestEvent) error {
 		records, err := app.FindAllRecords("conjectures")

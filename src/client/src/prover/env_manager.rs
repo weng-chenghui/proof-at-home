@@ -72,6 +72,9 @@ impl EnvManager {
     }
 
     fn ensure_rocq_env(&self, deps: &RocqDeps) -> Result<ResolvedEnv> {
+        let opam_info = crate::tools::registry::require_tool("opam")?;
+        let opam_path = &opam_info.path;
+
         let canonical = Self::rocq_canonical(deps);
         let hash = Self::dep_hash(&canonical);
         let env_name = format!("rocq-{}-{}", deps.rocq_version, hash);
@@ -100,7 +103,7 @@ impl EnvManager {
 
         // Step a: create opam switch
         eprintln!("  Creating opam switch '{}'...", switch_name);
-        let status = Command::new("opam")
+        let status = Command::new(opam_path)
             .args([
                 "switch",
                 "create",
@@ -111,7 +114,7 @@ impl EnvManager {
             .context("Failed to run opam switch create")?;
         if !status.success() {
             // Switch might already exist, try to use it
-            let check = Command::new("opam")
+            let check = Command::new(opam_path)
                 .args(["switch", "show", "--switch", &switch_name])
                 .output();
             if check.map(|o| o.status.success()).unwrap_or(false) {
@@ -123,7 +126,7 @@ impl EnvManager {
 
         // Step b: add rocq-released opam repo and install rocq packages
         eprintln!("  Adding rocq-released opam repo...");
-        let _ = Command::new("opam")
+        let _ = Command::new(opam_path)
             .args([
                 "repo",
                 "add",
@@ -145,7 +148,7 @@ impl EnvManager {
             install_args.push(pkg.clone());
         }
         eprintln!("  Installing Rocq packages (this may take a while)...");
-        let status = Command::new("opam")
+        let status = Command::new(opam_path)
             .args(&install_args)
             .status()
             .context("Failed to run opam install")?;
@@ -195,6 +198,9 @@ impl EnvManager {
     }
 
     fn ensure_lean_env(&self, deps: &LeanDeps) -> Result<ResolvedEnv> {
+        let lake_info = crate::tools::registry::require_tool("lake")?;
+        let lake_path = &lake_info.path;
+
         let canonical = Self::lean_canonical(deps);
         let hash = Self::dep_hash(&canonical);
         let toolchain_version = deps
@@ -228,7 +234,7 @@ impl EnvManager {
         if has_mathlib {
             init_args.push("math".to_string());
         }
-        let status = Command::new("lake")
+        let status = Command::new(lake_path)
             .current_dir(&env_dir)
             .args(&init_args)
             .status()
@@ -240,7 +246,7 @@ impl EnvManager {
         // Step c: download pre-built Mathlib oleans if using Mathlib
         if has_mathlib {
             eprintln!("  Downloading Mathlib cache (this may take a while)...");
-            let status = Command::new("lake")
+            let status = Command::new(lake_path)
                 .current_dir(&env_dir)
                 .args(["exe", "cache", "get"])
                 .status()
@@ -252,7 +258,7 @@ impl EnvManager {
 
         // Step d: lake build
         eprintln!("  Building Lean project...");
-        let status = Command::new("lake")
+        let status = Command::new(lake_path)
             .current_dir(&env_dir)
             .args(["build"])
             .status()

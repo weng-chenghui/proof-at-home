@@ -110,6 +110,11 @@ func main() {
 	healthHandler := &handlers.HealthHandler{Store: lite}
 	r.Get("/health", healthHandler.Check)
 
+	// Installer script redirect
+	r.Get("/install.sh", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "https://raw.githubusercontent.com/pah-org/proof-at-home/main/scripts/install.sh", http.StatusFound)
+	})
+
 	// Public GET endpoints
 	r.Get("/conjectures", conjectureHandler.List)
 	r.Get("/conjectures/{id}", conjectureHandler.Get)
