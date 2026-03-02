@@ -120,7 +120,7 @@ $(PAH_LINUX_BIN): ## Build Linux pah binary via Docker (for macOS hosts)
 	@mkdir -p .build
 	docker run --rm \
 	  -v $(CURDIR):/workspace -w /workspace \
-	  rust:1-bookworm \
+	  rust:1 \
 	  cargo build --release
 	cp target/release/pah $(PAH_LINUX_BIN)
 
