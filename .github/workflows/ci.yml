@@ -43,6 +43,51 @@ jobs:
       - name: Test
         run: cargo test
 
+      - name: Upload pah binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: pah-linux-arm64
+          path: target/release/pah
+
+  tools-tests:
+    name: Tools & Installer Tests
+    runs-on: ubuntu-24.04-arm
+    needs: rust
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: pah-linux-arm64
+          path: .build/
+
+      - run: chmod +x .build/pah
+
+      - name: Test install.sh
+        run: |
+          docker build -f tests/docker/Dockerfile.install-sh \
+            --build-arg PAH_BINARY=.build/pah -t pah-test-install .
+          docker run --rm pah-test-install
+
+      - name: Test pah tools
+        run: |
+          docker build -f tests/docker/Dockerfile.tools \
+            --build-arg PAH_BINARY=.build/pah -t pah-test-tools .
+          docker run --rm pah-test-tools
+
+      - name: Test require_tool errors
+        run: |
+          docker build -f tests/docker/Dockerfile.require-tool \
+            --build-arg PAH_BINARY=.build/pah -t pah-test-require .
+          docker run --rm pah-test-require
+
+      - name: Test elan install (slow)
+        if: contains(github.event.head_commit.message, '[test-tools]')
+        run: |
+          docker build -f tests/docker/Dockerfile.tools \
+            --build-arg PAH_BINARY=.build/pah -t pah-test-tools-slow .
+          docker run --rm -e RUN_SLOW_TESTS=1 pah-test-tools-slow
+
   go:
     name: Go
     runs-on: ubuntu-24.04-arm
@@ -67,15 +112,20 @@ jobs:
         run: go vet ./src/server/...
 
       - name: Build
-        run: go build -o target/proof-at-home-server ./src/server
+        run: |
+          go build -o target/proof-at-home-server ./src/server
+          go build -o target/pah-pocketbase ./cmd/pocketbase
 
       - name: Test
         run: go test ./src/server/...
 
   integration:
-    name: Integration
+    name: Integration (${{ matrix.server }})
     runs-on: ubuntu-24.04-arm
     needs: go
+    strategy:
+      matrix:
+        server: [standalone, pocketbase]
     steps:
       - uses: actions/checkout@v4
 
@@ -89,13 +139,16 @@ jobs:
           git config --global user.email "ci@proof-at-home.local"
           git config --global user.name "Proof@Home CI"
 
-      - name: Build server
-        run: go build -o target/proof-at-home-server ./src/server
+      - name: Build servers
+        run: |
+          go build -o target/proof-at-home-server ./src/server
+          go build -o target/pah-pocketbase ./cmd/pocketbase
 
       - name: Set up dev environment
         run: make dev-setup
 
-      - name: Start server
+      - name: Start standalone server
+        if: matrix.server == 'standalone'
         run: |
           GIT_DATA_REPO_URL=.dev/data-repo.git \
           GIT_DATA_REPO_PATH=.dev/data \
@@ -111,5 +164,26 @@ jobs:
             sleep 1
           done
 
-      - name: Run integration tests
+      - name: Start PocketBase server
+        if: matrix.server == 'pocketbase'
+        run: |
+          GIT_DATA_REPO_URL=.dev/data-repo.git \
+          GIT_DATA_REPO_PATH=.dev/data \
+          GIT_FORGE_TYPE=local \
+          CONJECTURES_DIR=conjectures \
+          ./target/pah-pocketbase serve --http=0.0.0.0:8090 &
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8090/health > /dev/null 2>&1; then
+              echo "PocketBase ready"
+              break
+            fi
+            sleep 1
+          done
+
+      - name: Run integration tests (standalone)
+        if: matrix.server == 'standalone'
         run: go test -v -count=1 ./tests/integration/...
+
+      - name: Run integration tests (pocketbase)
+        if: matrix.server == 'pocketbase'
+        run: TEST_SERVER_URL=http://localhost:8090 go test -v -count=1 ./tests/integration/...

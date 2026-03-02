@@ -1,4 +1,4 @@
-.PHONY: build build-client build-server clean run-server run-init run-donate run-prove run-status test test-integration conjectures help dev-setup dev-run dev-clean dev-reset setup-github setup-gitlab
+.PHONY: build build-client build-server build-pocketbase clean run-server run-pocketbase run-init run-donate run-prove run-status test test-integration test-integration-pocketbase conjectures help dev-setup dev-run dev-clean dev-reset setup-github setup-gitlab test-docker test-docker-install test-docker-tools test-docker-require
 
 # Paths
 CLIENT_BIN = target/release/proof-at-home
@@ -17,6 +17,9 @@ build-client: ## Build Rust CLI (release)
 build-server: ## Build Go server
 	go build -o target/proof-at-home-server ./src/server
 
+build-pocketbase: ## Build PocketBase server
+	go build -o target/pah-pocketbase ./cmd/pocketbase
+
 build-debug: ## Build Rust CLI (debug, faster compile)
 	cargo build
 
@@ -24,6 +27,13 @@ build-debug: ## Build Rust CLI (debug, faster compile)
 
 run-server: build-server ## Start the conjecture server
 	CONJECTURES_DIR=conjectures ./target/proof-at-home-server
+
+run-pocketbase: build-pocketbase dev-setup ## Run PocketBase with local dev environment
+	GIT_DATA_REPO_URL=.dev/data-repo.git \
+	GIT_DATA_REPO_PATH=.dev/data \
+	GIT_FORGE_TYPE=local \
+	CONJECTURES_DIR=conjectures \
+	./target/pah-pocketbase serve --http=0.0.0.0:8090
 
 run-login: build-debug ## Log in with auth token from web UI
 	$(CLIENT_DEBUG) login
@@ -76,6 +86,9 @@ test-server: ## Run Go tests
 test-integration: ## Run integration tests (requires running server)
 	go test -v -count=1 ./tests/integration/...
 
+test-integration-pocketbase: ## Run integration tests against PocketBase server
+	TEST_SERVER_URL=http://localhost:8090 go test -v -count=1 ./tests/integration/...
+
 check: ## Cargo check (fast type-checking, no codegen)
 	cargo check
 
@@ -98,3 +111,34 @@ conjectures: ## List conjectures from the server
 fmt: ## Format Rust and Go code
 	cargo fmt
 	gofmt -w src/server/
+
+# ── Docker Tests ──────────────────────────────────────
+
+PAH_LINUX_BIN = .build/pah
+
+$(PAH_LINUX_BIN): ## Build Linux pah binary via Docker (for macOS hosts)
+	@mkdir -p .build
+	docker run --rm \
+	  -v $(CURDIR):/workspace -w /workspace \
+	  rust:1-bookworm \
+	  cargo build --release
+	cp target/release/pah $(PAH_LINUX_BIN)
+
+build-linux: $(PAH_LINUX_BIN) ## Build Linux pah binary via Docker
+
+test-docker-install: $(PAH_LINUX_BIN) ## Run install.sh tests in Docker
+	docker build -f tests/docker/Dockerfile.install-sh \
+	  --build-arg PAH_BINARY=$(PAH_LINUX_BIN) -t pah-test-install .
+	docker run --rm pah-test-install
+
+test-docker-tools: $(PAH_LINUX_BIN) ## Run pah tools tests in Docker
+	docker build -f tests/docker/Dockerfile.tools \
+	  --build-arg PAH_BINARY=$(PAH_LINUX_BIN) -t pah-test-tools .
+	docker run --rm pah-test-tools
+
+test-docker-require: $(PAH_LINUX_BIN) ## Run require_tool error tests in Docker
+	docker build -f tests/docker/Dockerfile.require-tool \
+	  --build-arg PAH_BINARY=$(PAH_LINUX_BIN) -t pah-test-require .
+	docker run --rm pah-test-require
+
+test-docker: test-docker-install test-docker-tools test-docker-require ## Run all Docker tests

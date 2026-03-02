@@ -1,0 +1,23 @@
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl ca-certificates python3 tar gzip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Receive the pre-built pah binary
+ARG PAH_BINARY=target/release/pah
+COPY ${PAH_BINARY} /usr/local/bin/pah
+RUN chmod +x /usr/local/bin/pah
+
+# Copy installer and test script
+COPY scripts/install.sh /workspace/scripts/install.sh
+COPY tests/docker/test-install.sh /workspace/tests/docker/test-install.sh
+RUN chmod +x /workspace/tests/docker/test-install.sh
+
+# Create a .bashrc so setup_path has somewhere to write
+RUN touch /root/.bashrc
+
+ENV SHELL=/bin/bash
+WORKDIR /workspace
+
+CMD ["/workspace/tests/docker/test-install.sh"]

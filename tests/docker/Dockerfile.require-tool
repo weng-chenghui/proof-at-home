@@ -1,0 +1,17 @@
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Receive the pre-built pah binary — no other tools installed
+ARG PAH_BINARY=target/release/pah
+COPY ${PAH_BINARY} /usr/local/bin/pah
+RUN chmod +x /usr/local/bin/pah
+
+COPY tests/docker/test-require-tool.sh /workspace/tests/docker/test-require-tool.sh
+RUN chmod +x /workspace/tests/docker/test-require-tool.sh
+
+WORKDIR /workspace
+
+CMD ["/workspace/tests/docker/test-require-tool.sh"]

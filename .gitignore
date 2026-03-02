@@ -22,6 +22,9 @@ Thumbs.db
 # Local dev environment
 .dev/
 
+# Docker test build artifacts
+.build/
+
 # Generated review demo archives (re-created by seed script)
 examples/review-demo/*.tar.gz
 examples/review-demo/seed/

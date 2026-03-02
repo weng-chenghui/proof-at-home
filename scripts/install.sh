@@ -103,7 +103,7 @@ fetch_version() {
 
 download_binary() {
   ARCHIVE="pah-${TARGET}.tar.gz"
-  URL="https://github.com/${GITHUB_REPO}/releases/download/${VERSION}/${ARCHIVE}"
+  URL="${PAH_DOWNLOAD_URL:-https://github.com/${GITHUB_REPO}/releases/download/${VERSION}/${ARCHIVE}}"
 
   echo ""
   echo "Installing Proof@Home CLI ${VERSION} (${TARGET})..."
