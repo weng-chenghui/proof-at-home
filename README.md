@@ -75,8 +75,9 @@ See the [Publishing Guide](docs/publishing-guide.md) for full details.
 | **Prover** | Run AI proofs or submit hand-written proofs | API key (AI mode) or proof assistant (manual mode) |
 | **Certifier** | Compare and rank proof packages from multiple provers | CLI + server access |
 | **Author** | Submit open conjectures for others to prove | CLI + domain knowledge |
+| **Expositor** | Explain proved theorems in plain language using AI | CLI + API key |
 
-Pick one role or do all three.
+Pick one role or try them all.
 
 ## Automated Conjecture Generation
 

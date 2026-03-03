@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Contributor Quick Start — Proof@Home</title>
+    <title>Prover Quick Start — Proof@Home</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -12,8 +12,8 @@
 <body>
     <nav id="navbar"></nav>
     <div class="container">
-        <h1>Contributor Quick Start</h1>
-        <p class="text-secondary" style="margin-bottom: 2rem;">Donate spare AI compute to prove theorems automatically.</p>
+        <h1>Prover Quick Start</h1>
+        <p class="text-secondary" style="margin-bottom: 2rem;">Prove theorems with AI, by hand, or both.</p>
 
         <div class="workflow-step" style="margin-bottom: 1rem;">
             <div class="workflow-number">1</div>
@@ -37,10 +37,11 @@
         <div class="workflow-step" style="margin-bottom: 1rem;">
             <div class="workflow-number">3</div>
             <div class="workflow-content">
-                <h3>Configure AI provider</h3>
-                <p>Set up your AI provider (Anthropic, OpenAI, or Ollama). The interactive wizard will guide you:</p>
+                <h3>Configure AI provider <span style="font-size: 0.85rem; font-weight: normal; color: var(--color-text-secondary);">(optional — only for AI-assisted mode)</span></h3>
+                <p>Set up your AI provider (Anthropic, OpenAI, or Ollama) and budget. Skip this step if you plan to write proofs by hand.</p>
 <pre><code>pah setting set provider
-pah setting set api_key</code></pre>
+pah setting set api_key
+pah setting set budget</code></pre>
                 <p style="margin-top: 0.5rem; font-size: 0.9rem; color: var(--color-text-secondary);">Use <code>pah provider list</code> to see available providers. Ollama runs locally for free.</p>
             </div>
         </div>
@@ -48,18 +49,24 @@ pah setting set api_key</code></pre>
         <div class="workflow-step" style="margin-bottom: 1rem;">
             <div class="workflow-number">4</div>
             <div class="workflow-content">
-                <h3>Set budget</h3>
-                <p>Cap how much API credit to spend per run:</p>
-<pre><code>pah setting set budget</code></pre>
+                <h3>Browse conjectures</h3>
+                <p>Find an open conjecture to work on:</p>
+<pre><code>pah conjecture list</code></pre>
+                <p style="margin-top: 0.5rem;">Or browse them on the <a href="/conjectures.html">web UI</a>.</p>
             </div>
         </div>
 
         <div class="workflow-step" style="margin-bottom: 1rem;">
             <div class="workflow-number">5</div>
             <div class="workflow-content">
-                <h3>Prove!</h3>
-                <p>Fetch conjectures, AI-prove them, verify, and seal with NFT metadata:</p>
+                <h3>Prove</h3>
+                <p><strong>AI-assisted</strong> — fetch conjectures, AI-prove them, verify, and seal:</p>
 <pre><code>pah contribution run</code></pre>
+                <p style="margin-top: 1rem;"><strong>Manual</strong> — write a <code>.v</code> (Rocq) or <code>.lean</code> (Lean) file, then submit:</p>
+<pre><code>pah proof submit &lt;conjecture_id&gt; &lt;proof_file&gt;
+
+# Or batch-submit a directory:
+pah proof submit --dir ./proofs/</code></pre>
             </div>
         </div>
 
@@ -67,7 +74,7 @@ pah setting set api_key</code></pre>
             <div class="workflow-number">6</div>
             <div class="workflow-content">
                 <h3>View your NFT credit</h3>
-                <p>Check <code>nft_metadata.json</code> in the contribution directory, or browse the gallery.</p>
+                <p>Your submission is sealed with NFT metadata. Browse the gallery to see it.</p>
                 <div class="workflow-actions">
                     <a href="/nft-gallery.html" class="btn">NFT Gallery</a>
                 </div>
