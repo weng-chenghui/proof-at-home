@@ -635,6 +635,105 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 		})
 	})
 
+	// GET /expositions — list expositions
+	se.Router.GET("/expositions", func(e *core.RequestEvent) error {
+		records, err := app.FindAllRecords("expositions")
+		if err != nil {
+			return e.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		}
+
+		type expositionEntry struct {
+			ExpositionID   string  `json:"exposition_id"`
+			AuthorUsername string  `json:"author_username"`
+			ContributionID string  `json:"contribution_id,omitempty"`
+			ConjectureID   string  `json:"conjecture_id,omitempty"`
+			Prover         string  `json:"prover,omitempty"`
+			ExpositionText string  `json:"exposition_text"`
+			CostUSD        float64 `json:"cost_usd"`
+			StrategyUsed   string  `json:"strategy_used,omitempty"`
+			NFTMetadata    any     `json:"nft_metadata"`
+		}
+
+		entries := make([]expositionEntry, 0, len(records))
+		for _, r := range records {
+			entries = append(entries, expositionEntry{
+				ExpositionID:   r.GetString("exposition_id"),
+				AuthorUsername: r.GetString("author_username"),
+				ContributionID: r.GetString("contribution_id"),
+				ConjectureID:   r.GetString("conjecture_id"),
+				Prover:         r.GetString("prover"),
+				ExpositionText: r.GetString("exposition_text"),
+				CostUSD:        r.GetFloat("cost_usd"),
+				StrategyUsed:   r.GetString("strategy_used"),
+				NFTMetadata:    r.Get("nft_metadata"),
+			})
+		}
+		return e.JSON(http.StatusOK, entries)
+	})
+
+	// GET /expositions/{id} — get specific exposition
+	se.Router.GET("/expositions/{id}", func(e *core.RequestEvent) error {
+		id := e.Request.PathValue("id")
+		record, err := app.FindFirstRecordByFilter("expositions", "exposition_id = {:eid}", map[string]any{
+			"eid": id,
+		})
+		if err != nil {
+			return e.JSON(http.StatusNotFound, map[string]string{"error": "not found"})
+		}
+
+		result := map[string]any{
+			"exposition_id":   record.GetString("exposition_id"),
+			"author_username": record.GetString("author_username"),
+			"contribution_id": record.GetString("contribution_id"),
+			"conjecture_id":   record.GetString("conjecture_id"),
+			"prover":          record.GetString("prover"),
+			"proof_script":    record.GetString("proof_script"),
+			"exposition_text": record.GetString("exposition_text"),
+			"cost_usd":        record.GetFloat("cost_usd"),
+			"strategy_used":   record.GetString("strategy_used"),
+			"nft_metadata":    record.Get("nft_metadata"),
+		}
+		return e.JSON(http.StatusOK, result)
+	})
+
+	// POST /expositions — submit exposition via GitStore
+	se.Router.POST("/expositions", func(e *core.RequestEvent) error {
+		var expo data.Exposition
+		if err := json.NewDecoder(e.Request.Body).Decode(&expo); err != nil {
+			return e.JSON(http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
+		}
+
+		commitSHA, err := gs.AddExposition(expo)
+		if err != nil {
+			return e.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to create exposition: " + err.Error()})
+		}
+
+		return e.JSON(http.StatusCreated, map[string]string{
+			"commit_sha": commitSHA,
+			"status":     "accepted",
+		})
+	})
+
+	// POST /expositions/{id}/seal — seal exposition, create PR
+	se.Router.POST("/expositions/{id}/seal", func(e *core.RequestEvent) error {
+		id := e.Request.PathValue("id")
+
+		var nftMetadata any
+		if err := json.NewDecoder(e.Request.Body).Decode(&nftMetadata); err != nil {
+			return e.JSON(http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
+		}
+
+		prURL, err := gs.SealExposition(id, nftMetadata)
+		if err != nil {
+			return e.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to seal: " + err.Error()})
+		}
+
+		return e.JSON(http.StatusCreated, map[string]string{
+			"pr_url": prURL,
+			"status": "pending",
+		})
+	})
+
 	// POST /conjectures — submit conjecture package (tar.gz or git URL)
 	se.Router.POST("/conjectures", func(e *core.RequestEvent) error {
 		ct := e.Request.Header.Get("Content-Type")
@@ -832,7 +931,7 @@ func rebuildFromGit(app core.App) error {
 	repoPath := gs.RepoPath()
 
 	// Clear existing records
-	for _, collName := range []string{"proofs", "certificates", "contributions", "conjectures", "strategies"} {
+	for _, collName := range []string{"proofs", "certificates", "contributions", "conjectures", "strategies", "expositions"} {
 		records, err := app.FindAllRecords(collName)
 		if err != nil {
 			continue
@@ -1027,6 +1126,43 @@ func rebuildFromGit(app core.App) error {
 						contribution.Set("certified_by", certifiers)
 						app.Save(contribution)
 					}
+				}
+			}
+		}
+	}
+
+	// Walk expositions/*/summary.json
+	expositionsDir := filepath.Join(repoPath, "expositions")
+	if entries, err := os.ReadDir(expositionsDir); err == nil {
+		expoCollection, _ := app.FindCollectionByNameOrId("expositions")
+		if expoCollection != nil {
+			for _, entry := range entries {
+				if !entry.IsDir() {
+					continue
+				}
+				summaryPath := filepath.Join(expositionsDir, entry.Name(), "summary.json")
+				raw, err := os.ReadFile(summaryPath)
+				if err != nil {
+					continue
+				}
+				var ex data.Exposition
+				if err := json.Unmarshal(raw, &ex); err != nil {
+					continue
+				}
+
+				record := core.NewRecord(expoCollection)
+				record.Set("exposition_id", ex.ExpositionID)
+				record.Set("author_username", ex.AuthorUsername)
+				record.Set("contribution_id", ex.ContributionID)
+				record.Set("conjecture_id", ex.ConjectureID)
+				record.Set("prover", ex.Prover)
+				record.Set("proof_script", ex.ProofScript)
+				record.Set("exposition_text", ex.ExpositionText)
+				record.Set("cost_usd", ex.CostUSD)
+				record.Set("strategy_used", ex.StrategyUsed)
+				record.Set("nft_metadata", ex.NFTMetadata)
+				if err := app.Save(record); err != nil {
+					slog.Error("Rebuild: failed to save exposition", "id", ex.ExpositionID, "error", err)
 				}
 			}
 		}
