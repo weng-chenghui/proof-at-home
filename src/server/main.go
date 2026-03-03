@@ -78,9 +78,9 @@ func main() {
 	}
 	slog.Info("SQLite cache rebuilt from git data", "path", cfg.DatabasePath)
 
-	// Wire up LocalForge rebuild callback now that SQLite is ready
-	if lf, ok := forge.(*gitstore.LocalForge); ok {
-		lf.SetRebuildFn(lite.RebuildFromDir)
+	// Wire up rebuild callback so cache is refreshed after each local merge
+	if cfg.GitForgeType == "local" {
+		gs.SetRebuildFn(lite.RebuildFromDir)
 	}
 
 	// Initialize handlers

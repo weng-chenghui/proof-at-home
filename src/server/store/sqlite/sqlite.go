@@ -32,8 +32,8 @@ func New(dbPath string) (*SQLiteStore, error) {
 		return nil, fmt.Errorf("opening database: %w", err)
 	}
 
-	// SQLite performs best with a single writer
-	db.SetMaxOpenConns(1)
+	// Allow concurrent readers alongside a single writer in WAL mode.
+	db.SetMaxOpenConns(4)
 
 	if err := db.Ping(); err != nil {
 		return nil, fmt.Errorf("pinging database: %w", err)

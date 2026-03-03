@@ -11,17 +11,11 @@ import (
 // Instead of creating PRs on a remote forge, it merges branches directly
 // into main and pushes to the local bare repo origin.
 type LocalForge struct {
-	repoPath  string
-	rebuildFn func(repoPath string) error
+	repoPath string
 }
 
 func NewLocalForge(repoPath string) *LocalForge {
 	return &LocalForge{repoPath: repoPath}
-}
-
-// SetRebuildFn sets the callback invoked after each merge to rebuild the SQLite cache.
-func (f *LocalForge) SetRebuildFn(fn func(repoPath string) error) {
-	f.rebuildFn = fn
 }
 
 func (f *LocalForge) CreatePR(branch, base, title, body string) (string, error) {
@@ -45,15 +39,6 @@ func (f *LocalForge) CreatePR(branch, base, title, body string) (string, error) 
 	// Delete the merged branch
 	if err := f.git("branch", "-d", branch); err != nil {
 		slog.Warn("LocalForge: could not delete merged branch", "branch", branch, "error", err)
-	}
-
-	// Rebuild SQLite cache
-	if f.rebuildFn != nil {
-		slog.Info("LocalForge: rebuilding SQLite cache after merge")
-		if err := f.rebuildFn(f.repoPath); err != nil {
-			slog.Error("LocalForge: cache rebuild failed", "error", err)
-			return "", fmt.Errorf("rebuilding cache: %w", err)
-		}
 	}
 
 	return fmt.Sprintf("local://merged/%s", branch), nil

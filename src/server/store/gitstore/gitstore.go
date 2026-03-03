@@ -17,10 +17,26 @@ import (
 // All write operations create branches, commit files, and push.
 // Read operations are served from the SQLite cache (not this struct).
 type GitStore struct {
-	mu       sync.Mutex
-	repoPath string
-	repoURL  string
-	forge    ForgeClient
+	mu        sync.Mutex
+	repoPath  string
+	repoURL   string
+	forge     ForgeClient
+	rebuildFn func(repoPath string) error
+}
+
+// SetRebuildFn sets the callback invoked after each merge to rebuild the read cache.
+func (gs *GitStore) SetRebuildFn(fn func(repoPath string) error) {
+	gs.rebuildFn = fn
+}
+
+// triggerRebuild runs the rebuild callback (if set) outside the git mutex.
+func (gs *GitStore) triggerRebuild() {
+	if gs.rebuildFn != nil {
+		slog.Info("GitStore: triggering cache rebuild after merge")
+		if err := gs.rebuildFn(gs.repoPath); err != nil {
+			slog.Error("GitStore: cache rebuild failed", "error", err)
+		}
+	}
 }
 
 // New creates a GitStore. It clones the repo if not already present,
@@ -168,33 +184,36 @@ func (gs *GitStore) FinalizeContribution(id string, cs data.Contribution) (strin
 
 // SealContribution writes nft_metadata.json, commits, pushes, and creates a PR.
 func (gs *GitStore) SealContribution(id string, nftMetadata any) (string, error) {
-	gs.mu.Lock()
-	defer gs.mu.Unlock()
+	prURL, err := func() (string, error) {
+		gs.mu.Lock()
+		defer gs.mu.Unlock()
 
-	branch := fmt.Sprintf("contrib/%s", id)
+		branch := fmt.Sprintf("contrib/%s", id)
 
-	if err := gs.checkoutBranch(branch); err != nil {
-		return "", err
-	}
+		if err := gs.checkoutBranch(branch); err != nil {
+			return "", err
+		}
 
-	dir := filepath.Join("contributions", id)
-	if err := gs.writeJSON(filepath.Join(dir, "nft_metadata.json"), nftMetadata); err != nil {
-		return "", err
-	}
+		dir := filepath.Join("contributions", id)
+		if err := gs.writeJSON(filepath.Join(dir, "nft_metadata.json"), nftMetadata); err != nil {
+			return "", err
+		}
 
-	if err := gs.commitAndPush(branch, fmt.Sprintf("Seal contribution %s with NFT metadata", id)); err != nil {
-		return "", err
-	}
+		if err := gs.commitAndPush(branch, fmt.Sprintf("Seal contribution %s with NFT metadata", id)); err != nil {
+			return "", err
+		}
 
-	prURL, err := gs.forge.CreatePR(
-		branch, "main",
-		fmt.Sprintf("Contribution: %s", id),
-		fmt.Sprintf("Sealed contribution `%s` with NFT metadata.", id),
-	)
+		return gs.forge.CreatePR(
+			branch, "main",
+			fmt.Sprintf("Contribution: %s", id),
+			fmt.Sprintf("Sealed contribution `%s` with NFT metadata.", id),
+		)
+	}()
 	if err != nil {
 		return "", fmt.Errorf("creating PR: %w", err)
 	}
 
+	gs.triggerRebuild()
 	return prURL, nil
 }
 
@@ -230,33 +249,36 @@ func (gs *GitStore) AddCertificate(cs data.Certificate) (string, error) {
 
 // SealCertificate writes nft_metadata.json, commits, pushes, and creates a PR.
 func (gs *GitStore) SealCertificate(id string, nftMetadata any) (string, error) {
-	gs.mu.Lock()
-	defer gs.mu.Unlock()
+	prURL, err := func() (string, error) {
+		gs.mu.Lock()
+		defer gs.mu.Unlock()
 
-	branch := fmt.Sprintf("cert/%s", id)
+		branch := fmt.Sprintf("cert/%s", id)
 
-	if err := gs.checkoutBranch(branch); err != nil {
-		return "", err
-	}
+		if err := gs.checkoutBranch(branch); err != nil {
+			return "", err
+		}
 
-	dir := filepath.Join("certificates", id)
-	if err := gs.writeJSON(filepath.Join(dir, "nft_metadata.json"), nftMetadata); err != nil {
-		return "", err
-	}
+		dir := filepath.Join("certificates", id)
+		if err := gs.writeJSON(filepath.Join(dir, "nft_metadata.json"), nftMetadata); err != nil {
+			return "", err
+		}
 
-	if err := gs.commitAndPush(branch, fmt.Sprintf("Seal certificate %s with NFT metadata", id)); err != nil {
-		return "", err
-	}
+		if err := gs.commitAndPush(branch, fmt.Sprintf("Seal certificate %s with NFT metadata", id)); err != nil {
+			return "", err
+		}
 
-	prURL, err := gs.forge.CreatePR(
-		branch, "main",
-		fmt.Sprintf("Certificate: %s", id),
-		fmt.Sprintf("Sealed certificate `%s` with NFT metadata.", id),
-	)
+		return gs.forge.CreatePR(
+			branch, "main",
+			fmt.Sprintf("Certificate: %s", id),
+			fmt.Sprintf("Sealed certificate `%s` with NFT metadata.", id),
+		)
+	}()
 	if err != nil {
 		return "", fmt.Errorf("creating PR: %w", err)
 	}
 
+	gs.triggerRebuild()
 	return prURL, nil
 }
 
@@ -271,77 +293,93 @@ type ConjectureSubmitResult struct {
 // AddConjectures creates a branch, writes conjecture JSON files, commits, and creates a PR.
 // Returns the PR URL and the commit SHA.
 func (gs *GitStore) AddConjectures(conjectures []data.Conjecture, batchID string) (*ConjectureSubmitResult, error) {
-	gs.mu.Lock()
-	defer gs.mu.Unlock()
+	result, err := func() (*ConjectureSubmitResult, error) {
+		gs.mu.Lock()
+		defer gs.mu.Unlock()
 
-	branch := fmt.Sprintf("conj/%s", batchID)
+		branch := fmt.Sprintf("conj/%s", batchID)
 
-	if err := gs.createBranch(branch); err != nil {
-		return nil, err
-	}
-
-	for _, c := range conjectures {
-		path := filepath.Join("conjectures", c.ID+".json")
-		if err := gs.writeJSON(path, c); err != nil {
+		if err := gs.createBranch(branch); err != nil {
 			return nil, err
 		}
-	}
 
-	msg := fmt.Sprintf("Add %d conjectures (batch %s)", len(conjectures), batchID)
-	if err := gs.commitAndPush(branch, msg); err != nil {
-		return nil, err
-	}
+		for _, c := range conjectures {
+			path := filepath.Join("conjectures", c.ID+".json")
+			if err := gs.writeJSON(path, c); err != nil {
+				return nil, err
+			}
+		}
 
-	sha, err := gs.getHeadSHA()
+		msg := fmt.Sprintf("Add %d conjectures (batch %s)", len(conjectures), batchID)
+		if err := gs.commitAndPush(branch, msg); err != nil {
+			return nil, err
+		}
+
+		sha, err := gs.getHeadSHA()
+		if err != nil {
+			return nil, err
+		}
+
+		prURL, err := gs.forge.CreatePR(
+			branch, "main",
+			fmt.Sprintf("Conjectures: batch %s (%d)", batchID, len(conjectures)),
+			msg,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("creating PR: %w", err)
+		}
+
+		return &ConjectureSubmitResult{PRUrl: prURL, CommitSHA: sha}, nil
+	}()
 	if err != nil {
 		return nil, err
 	}
 
-	prURL, err := gs.forge.CreatePR(
-		branch, "main",
-		fmt.Sprintf("Conjectures: batch %s (%d)", batchID, len(conjectures)),
-		msg,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("creating PR: %w", err)
-	}
-
-	return &ConjectureSubmitResult{PRUrl: prURL, CommitSHA: sha}, nil
+	gs.triggerRebuild()
+	return result, nil
 }
 
 // SealConjecturePackage writes nft_metadata.json to the conj/{batchID} branch, commits, pushes, and returns the PR URL.
 func (gs *GitStore) SealConjecturePackage(batchID string, nftMetadata any) (string, error) {
-	gs.mu.Lock()
-	defer gs.mu.Unlock()
+	prURL, err := func() (string, error) {
+		gs.mu.Lock()
+		defer gs.mu.Unlock()
 
-	branch := fmt.Sprintf("conj/%s", batchID)
+		branch := fmt.Sprintf("conj/%s", batchID)
 
-	if err := gs.checkoutBranch(branch); err != nil {
-		return "", err
-	}
+		if err := gs.checkoutBranch(branch); err != nil {
+			return "", err
+		}
 
-	path := filepath.Join("conjectures", "nft_metadata_"+batchID+".json")
-	if err := gs.writeJSON(path, nftMetadata); err != nil {
-		return "", err
-	}
+		path := filepath.Join("conjectures", "nft_metadata_"+batchID+".json")
+		if err := gs.writeJSON(path, nftMetadata); err != nil {
+			return "", err
+		}
 
-	if err := gs.commitAndPush(branch, fmt.Sprintf("Seal conjecture batch %s with NFT metadata", batchID)); err != nil {
-		return "", err
-	}
+		if err := gs.commitAndPush(branch, fmt.Sprintf("Seal conjecture batch %s with NFT metadata", batchID)); err != nil {
+			return "", err
+		}
 
-	// The PR already exists from AddConjectures; just return a reference.
-	// For forges that support it, we could update the PR. For now, return the branch name.
-	prURL, err := gs.forge.CreatePR(
-		branch, "main",
-		fmt.Sprintf("Conjectures: batch %s (sealed)", batchID),
-		fmt.Sprintf("Sealed conjecture batch `%s` with submitter NFT metadata.", batchID),
-	)
+		// The PR already exists from AddConjectures; just return a reference.
+		// For forges that support it, we could update the PR. For now, return the branch name.
+		prURL, err := gs.forge.CreatePR(
+			branch, "main",
+			fmt.Sprintf("Conjectures: batch %s (sealed)", batchID),
+			fmt.Sprintf("Sealed conjecture batch `%s` with submitter NFT metadata.", batchID),
+		)
+		if err != nil {
+			// PR may already exist (e.g. local forge), which is fine
+			slog.Warn("SealConjecturePackage: CreatePR returned error (may already exist)", "error", err)
+			return "", nil
+		}
+
+		return prURL, nil
+	}()
 	if err != nil {
-		// PR may already exist (e.g. local forge), which is fine
-		slog.Warn("SealConjecturePackage: CreatePR returned error (may already exist)", "error", err)
-		return "", nil
+		return "", err
 	}
 
+	gs.triggerRebuild()
 	return prURL, nil
 }
 
@@ -377,33 +415,36 @@ func (gs *GitStore) AddExposition(ex data.Exposition) (string, error) {
 
 // SealExposition writes nft_metadata.json, commits, pushes, and creates a PR.
 func (gs *GitStore) SealExposition(id string, nftMetadata any) (string, error) {
-	gs.mu.Lock()
-	defer gs.mu.Unlock()
+	prURL, err := func() (string, error) {
+		gs.mu.Lock()
+		defer gs.mu.Unlock()
 
-	branch := fmt.Sprintf("expo/%s", id)
+		branch := fmt.Sprintf("expo/%s", id)
 
-	if err := gs.checkoutBranch(branch); err != nil {
-		return "", err
-	}
+		if err := gs.checkoutBranch(branch); err != nil {
+			return "", err
+		}
 
-	dir := filepath.Join("expositions", id)
-	if err := gs.writeJSON(filepath.Join(dir, "nft_metadata.json"), nftMetadata); err != nil {
-		return "", err
-	}
+		dir := filepath.Join("expositions", id)
+		if err := gs.writeJSON(filepath.Join(dir, "nft_metadata.json"), nftMetadata); err != nil {
+			return "", err
+		}
 
-	if err := gs.commitAndPush(branch, fmt.Sprintf("Seal exposition %s with NFT metadata", id)); err != nil {
-		return "", err
-	}
+		if err := gs.commitAndPush(branch, fmt.Sprintf("Seal exposition %s with NFT metadata", id)); err != nil {
+			return "", err
+		}
 
-	prURL, err := gs.forge.CreatePR(
-		branch, "main",
-		fmt.Sprintf("Exposition: %s", id),
-		fmt.Sprintf("Sealed exposition `%s` with NFT metadata.", id),
-	)
+		return gs.forge.CreatePR(
+			branch, "main",
+			fmt.Sprintf("Exposition: %s", id),
+			fmt.Sprintf("Sealed exposition `%s` with NFT metadata.", id),
+		)
+	}()
 	if err != nil {
 		return "", fmt.Errorf("creating PR: %w", err)
 	}
 
+	gs.triggerRebuild()
 	return prURL, nil
 }
 
@@ -412,14 +453,19 @@ func (gs *GitStore) SealExposition(id string, nftMetadata any) (string, error) {
 // PullAndRebuild pulls latest main and calls the rebuild function.
 // The rebuild func is provided by the caller (typically SQLiteStore.RebuildFromDir).
 func (gs *GitStore) PullAndRebuild(rebuildFn func(repoPath string) error) error {
-	gs.mu.Lock()
-	defer gs.mu.Unlock()
+	if err := func() error {
+		gs.mu.Lock()
+		defer gs.mu.Unlock()
 
-	if err := gs.gitInRepo("checkout", "main"); err != nil {
-		return fmt.Errorf("checking out main: %w", err)
-	}
-	if err := gs.gitInRepo("pull", "origin", "main"); err != nil {
-		return fmt.Errorf("pulling latest: %w", err)
+		if err := gs.gitInRepo("checkout", "main"); err != nil {
+			return fmt.Errorf("checking out main: %w", err)
+		}
+		if err := gs.gitInRepo("pull", "origin", "main"); err != nil {
+			return fmt.Errorf("pulling latest: %w", err)
+		}
+		return nil
+	}(); err != nil {
+		return err
 	}
 
 	return rebuildFn(gs.repoPath)

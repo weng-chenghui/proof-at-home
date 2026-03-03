@@ -66,6 +66,19 @@ func getJSON(t *testing.T, path string, v any) {
 	}
 }
 
+// waitFor polls f every 200ms until it returns true or timeout elapses.
+func waitFor(t *testing.T, timeout time.Duration, desc string, f func() bool) {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if f() {
+			return
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+	t.Fatalf("timed out waiting for: %s", desc)
+}
+
 // ── Health ──
 
 func TestHealth(t *testing.T) {
@@ -775,13 +788,21 @@ func TestContributorFlow(t *testing.T) {
 		t.Error("seal response missing pr_url")
 	}
 
-	// 5. Verify the contribution is retrievable
+	// 5. Verify the contribution is retrievable (rebuild may be async)
+	waitFor(t, 5*time.Second, "contribution appears in GET /contributions", func() bool {
+		var contributions []contribution
+		getJSON(t, "/contributions", &contributions)
+		for _, c := range contributions {
+			if c.ContributionID == contribID {
+				return true
+			}
+		}
+		return false
+	})
 	var contributions []contribution
 	getJSON(t, "/contributions", &contributions)
-	var found bool
 	for _, c := range contributions {
 		if c.ContributionID == contribID {
-			found = true
 			if c.Username != "flow-contributor" {
 				t.Errorf("username = %q, want %q", c.Username, "flow-contributor")
 			}
@@ -793,9 +814,6 @@ func TestContributorFlow(t *testing.T) {
 			}
 			break
 		}
-	}
-	if !found {
-		t.Errorf("contribution %s not found in GET /contributions", contribID)
 	}
 }
 
@@ -862,24 +880,31 @@ func TestCertifierFlow(t *testing.T) {
 		t.Error("seal certificate response missing pr_url")
 	}
 
-	// 4. Verify the certificate appears in the list
+	// 4. Verify the certificate appears in the list (rebuild may be async)
+	waitFor(t, 5*time.Second, "certificate appears in GET /certificates", func() bool {
+		var certs []struct {
+			CertificateID string `json:"certificate_id"`
+		}
+		getJSON(t, "/certificates", &certs)
+		for _, c := range certs {
+			if c.CertificateID == certID {
+				return true
+			}
+		}
+		return false
+	})
 	var certs []struct {
 		CertificateID     string `json:"certificate_id"`
 		CertifierUsername string `json:"certifier_username"`
 	}
 	getJSON(t, "/certificates", &certs)
-	var certFound bool
 	for _, c := range certs {
 		if c.CertificateID == certID {
-			certFound = true
 			if c.CertifierUsername != "flow-certifier" {
 				t.Errorf("certifier_username = %q, want %q", c.CertifierUsername, "flow-certifier")
 			}
 			break
 		}
-	}
-	if !certFound {
-		t.Errorf("certificate %s not found in GET /certificates", certID)
 	}
 }
 
@@ -927,7 +952,19 @@ func TestExpositionFlow(t *testing.T) {
 		t.Error("response missing pr_url")
 	}
 
-	// 3. GET /expositions → verify expoID in list
+	// 3. GET /expositions → verify expoID in list (rebuild may be async)
+	waitFor(t, 5*time.Second, "exposition appears in GET /expositions", func() bool {
+		var expositions []struct {
+			ExpositionID string `json:"exposition_id"`
+		}
+		getJSON(t, "/expositions", &expositions)
+		for _, e := range expositions {
+			if e.ExpositionID == expoID {
+				return true
+			}
+		}
+		return false
+	})
 	var expositions []struct {
 		ExpositionID   string `json:"exposition_id"`
 		AuthorUsername string `json:"author_username"`
@@ -936,10 +973,8 @@ func TestExpositionFlow(t *testing.T) {
 		StrategyUsed   string `json:"strategy_used"`
 	}
 	getJSON(t, "/expositions", &expositions)
-	var found bool
 	for _, e := range expositions {
 		if e.ExpositionID == expoID {
-			found = true
 			if e.AuthorUsername != "expo-author" {
 				t.Errorf("author_username = %q, want %q", e.AuthorUsername, "expo-author")
 			}
@@ -951,9 +986,6 @@ func TestExpositionFlow(t *testing.T) {
 			}
 			break
 		}
-	}
-	if !found {
-		t.Errorf("exposition %s not found in GET /expositions", expoID)
 	}
 
 	// 4. GET /expositions/{id} → verify fields match
@@ -1031,13 +1063,21 @@ func TestConjectureAuthorFlow(t *testing.T) {
 		t.Errorf("seal status = %q, want %q", resp["status"], "sealed")
 	}
 
-	// 4. Verify the new conjecture appears in the list
+	// 4. Verify the new conjecture appears in the list (rebuild may be async)
+	waitFor(t, 5*time.Second, "conjecture appears in GET /conjectures", func() bool {
+		var conjs []conjecture
+		getJSON(t, "/conjectures", &conjs)
+		for _, c := range conjs {
+			if c.ID == conjID {
+				return true
+			}
+		}
+		return false
+	})
 	var allConjectures []conjecture
 	getJSON(t, "/conjectures", &allConjectures)
-	var found bool
 	for _, c := range allConjectures {
 		if c.ID == conjID {
-			found = true
 			if c.Title != "Flow test conjecture" {
 				t.Errorf("title = %q, want %q", c.Title, "Flow test conjecture")
 			}
@@ -1046,8 +1086,5 @@ func TestConjectureAuthorFlow(t *testing.T) {
 			}
 			break
 		}
-	}
-	if !found {
-		t.Errorf("conjecture %s not found in GET /conjectures (got %d total)", conjID, len(allConjectures))
 	}
 }

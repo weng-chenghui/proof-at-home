@@ -146,9 +146,9 @@ func main() {
 			slog.Error("Failed to rebuild from git on startup", "error", err)
 		}
 
-		// Wire up LocalForge rebuild callback
-		if lf, ok := forge.(*gitstore.LocalForge); ok {
-			lf.SetRebuildFn(func(repoPath string) error {
+		// Wire up rebuild callback so cache is refreshed after each local merge
+		if cfg.GitForgeType == "local" {
+			gs.SetRebuildFn(func(repoPath string) error {
 				return rebuildFromGit(app)
 			})
 		}
