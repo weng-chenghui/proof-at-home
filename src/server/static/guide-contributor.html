@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Expositor Quick Start — Proof@Home</title>
+    <title>Contributor Quick Start — Proof@Home</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -12,8 +12,8 @@
 <body>
     <nav id="navbar"></nav>
     <div class="container">
-        <h1>Expositor Quick Start</h1>
-        <p class="text-secondary" style="margin-bottom: 2rem;">Use AI to explain proved theorems in plain language. Turn formal proofs into human-readable narratives.</p>
+        <h1>Contributor Quick Start</h1>
+        <p class="text-secondary" style="margin-bottom: 2rem;">Donate spare AI compute to prove theorems automatically.</p>
 
         <div class="workflow-step" style="margin-bottom: 1rem;">
             <div class="workflow-number">1</div>
@@ -37,38 +37,28 @@
             <div class="workflow-number">3</div>
             <div class="workflow-content">
                 <h3>Configure AI provider</h3>
-                <p>An AI provider is needed to generate explanations. Set up your provider and API key:</p>
+                <p>Set up your AI provider (Anthropic, OpenAI, or Ollama). The interactive wizard will guide you:</p>
 <pre><code>pah setting set provider
 pah setting set api_key</code></pre>
-                <p style="margin-top: 0.5rem; font-size: 0.9rem; color: var(--color-text-secondary);">Supports Anthropic Claude, OpenAI ChatGPT, and Ollama (free local models). Run <code>pah provider list</code> for details.</p>
+                <p style="margin-top: 0.5rem; font-size: 0.9rem; color: var(--color-text-secondary);">Use <code>pah provider list</code> to see available providers. Ollama runs locally for free.</p>
             </div>
         </div>
 
         <div class="workflow-step" style="margin-bottom: 1rem;">
             <div class="workflow-number">4</div>
             <div class="workflow-content">
-                <h3>Browse proved conjectures</h3>
-                <p>Find conjectures that have been proved and are ready to be explained:</p>
-<pre><code>pah conjecture list</code></pre>
-                <div class="workflow-actions">
-                    <a href="/conjectures.html" class="btn btn-secondary">Browse Conjectures</a>
-                </div>
+                <h3>Set budget</h3>
+                <p>Cap how much API credit to spend per run:</p>
+<pre><code>pah setting set budget</code></pre>
             </div>
         </div>
 
         <div class="workflow-step" style="margin-bottom: 1rem;">
             <div class="workflow-number">5</div>
             <div class="workflow-content">
-                <h3>Parse a proof</h3>
-                <p>Generate a human-readable explanation from a local proof file or from a server contribution:</p>
-<pre><code># From a local file
-pah proof parse my_proof.v
-
-# From a server contribution
-pah proof parse --contribution &lt;id&gt; --conjecture &lt;id&gt;
-
-# With a custom strategy
-pah proof parse my_proof.lean --by my-custom-parse</code></pre>
+                <h3>Prove!</h3>
+                <p>Fetch conjectures, AI-prove them, verify, and seal with NFT metadata:</p>
+<pre><code>pah contribution run</code></pre>
             </div>
         </div>
 
@@ -76,7 +66,7 @@ pah proof parse my_proof.lean --by my-custom-parse</code></pre>
             <div class="workflow-number">6</div>
             <div class="workflow-content">
                 <h3>View your NFT credit</h3>
-                <p>Expositions generate NFT metadata just like contributions and certificates. Check the gallery to see your work.</p>
+                <p>Check <code>nft_metadata.json</code> in the contribution directory, or browse the gallery.</p>
                 <div class="workflow-actions">
                     <a href="/nft-gallery.html" class="btn">NFT Gallery</a>
                 </div>

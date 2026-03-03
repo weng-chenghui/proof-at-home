@@ -28,7 +28,7 @@ A $2 budget can prove dozens of easy conjectures with Haiku.
 ### Prerequisites
 
 - [Rust](https://rustup.rs/) (1.70+)
-- An [Anthropic API key](https://console.anthropic.com/) (AI-assisted mode only)
+- An AI provider API key ([Anthropic](https://console.anthropic.com/), [OpenAI](https://platform.openai.com/), or [Ollama](https://ollama.com/) for local models) — AI-assisted mode only
 - [Rocq](https://rocq-prover.org/) for Rocq proofs, or [Lean 4](https://leanprover.github.io/) for Lean proofs
 
 ### 1. Build the CLI
@@ -332,9 +332,10 @@ username = "ada_lovelace"
 email = "ada@example.com"
 
 [api]
-anthropic_api_key = "sk-ant-..."
+provider = "anthropic"          # "anthropic", "openai", or "ollama"
+api_key = "sk-ant-..."          # Provider API key (not needed for ollama)
 server_url = "http://localhost:8080"
-model = "claude-sonnet-4-6"
+model = "claude-sonnet-4-6"    # Provider-specific model name
 
 [prover]
 scratch_dir = "/tmp/proof-at-home"
@@ -345,7 +346,9 @@ run_spent = 0.0
 total_spent = 0.0
 ```
 
-> **Note:** `[api].anthropic_api_key` and `[budget]` are only needed for AI-assisted mode. Manual proof submission requires only `[identity]`, `[api].server_url`, and `[prover]`.
+> **Note:** `[api].provider`, `[api].api_key`, and `[budget]` are only needed for AI-assisted mode. Manual proof submission requires only `[identity]`, `[api].server_url`, and `[prover]`.
+>
+> **Supported providers:** Anthropic Claude (`anthropic`), OpenAI ChatGPT (`openai`), Ollama local models (`ollama`). Use `pah provider list` to see all options, and `pah provider quota` to check remaining credits.
 
 </details>
 
