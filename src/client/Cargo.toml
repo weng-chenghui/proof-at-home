@@ -31,6 +31,7 @@ anyhow     = "1"
 base64     = "0.22"
 uuid       = { version = "1", features = ["v4"] }
 colored    = "2"
+async-trait = "0.1"
 ed25519-dalek = { version = "2", features = ["rand_core"] }
 rand       = "0.8"
 schemars   = { version = "0.8", features = ["chrono"] }
@@ -39,3 +40,4 @@ schemars   = { version = "0.8", features = ["chrono"] }
 assert_cmd = "2"
 predicates = "3"
 tempfile   = "3"
+wiremock   = "0.6"

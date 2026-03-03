@@ -10,7 +10,7 @@ use crate::archive::pack;
 use crate::budget::BudgetTracker;
 use crate::config::Config;
 use crate::nft::metadata::{generate_nft_metadata, ContributionInfo};
-use crate::prover::claude;
+use crate::prover::ai_prover;
 use crate::prover::env_manager::{EnvManager, ResolvedEnv};
 use crate::prover::verifier;
 use crate::server_client::api::{Conjecture, Contribution, Dependencies, Proof, ServerClient};
@@ -172,7 +172,8 @@ pub async fn run_prove(strategy_name: Option<&str>) -> Result<()> {
     std::fs::create_dir_all(&contribution_dir)?;
     std::fs::create_dir_all(&config.prover.scratch_dir)?;
 
-    let audit_logger = claude::AuditLogger::new(&contribution_dir);
+    let audit_logger = ai_prover::AuditLogger::new(&contribution_dir);
+    let provider = crate::ai::create_provider(&config)?;
 
     println!("{}", "=== Proof@Home Contribution ===".bold().cyan());
     println!("Mode:         {}", "AI-assisted".cyan());
@@ -311,8 +312,9 @@ pub async fn run_prove(strategy_name: Option<&str>) -> Result<()> {
         ));
         spinner.enable_steady_tick(std::time::Duration::from_millis(100));
 
-        let result = claude::prove_conjecture(
+        let result = ai_prover::prove_conjecture(
             &config,
+            &*provider,
             conjecture,
             resolved_env,
             &audit_logger,

@@ -1,3 +1,4 @@
+mod ai;
 mod archive;
 mod budget;
 mod certifier;
@@ -68,6 +69,11 @@ enum Resource {
     Tools {
         #[command(subcommand)]
         action: ToolsAction,
+    },
+    /// Query AI provider info (list, get, quota)
+    Provider {
+        #[command(subcommand)]
+        action: ProviderAction,
     },
 }
 
@@ -301,6 +307,18 @@ enum ToolsAction {
     },
 }
 
+// ── Provider ──
+
+#[derive(Subcommand)]
+enum ProviderAction {
+    /// List available AI providers
+    List,
+    /// Show current provider configuration
+    Get,
+    /// Query remaining credits/requests from the provider
+    Quota,
+}
+
 #[tokio::main]
 async fn main() {
     let cli = Cli::parse();
@@ -416,6 +434,11 @@ async fn main() {
             ToolsAction::Check => commands::tools::cmd_check(),
             ToolsAction::List => commands::tools::cmd_list(),
             ToolsAction::Install { name } => commands::tools::cmd_install(&name),
+        },
+        Resource::Provider { action } => match action {
+            ProviderAction::List => commands::provider::cmd_list(),
+            ProviderAction::Get => commands::provider::cmd_get(),
+            ProviderAction::Quota => commands::provider::cmd_quota().await,
         },
     };
 

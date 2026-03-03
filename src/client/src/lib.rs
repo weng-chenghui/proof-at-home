@@ -1,3 +1,4 @@
+pub mod ai;
 pub mod certifier;
 pub mod config;
 pub mod nft;

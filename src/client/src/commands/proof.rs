@@ -3,7 +3,6 @@ use colored::Colorize;
 use std::path::Path;
 
 use crate::config::Config;
-use crate::prover::claude;
 use crate::server_client::api::ServerClient;
 use crate::strategy_store::loader::{self, ParseStrategyVars};
 
@@ -122,23 +121,13 @@ pub async fn cmd_parse(
     };
     let prompt = loader::render_parse_strategy(&strategy, &vars);
 
-    // 4. Call Claude
+    // 4. Call AI provider
     println!("{}", "Generating exposition...".cyan());
-    let claude_tool = crate::tools::registry::require_tool("claude").ok();
-
-    let (response, cost) = if claude_tool.is_some() {
-        match claude::try_claude_cli(&prompt, &cfg.api.model) {
-            Ok(r) => r,
-            Err(_) => {
-                claude::try_api_fallback(&prompt, &cfg.api.anthropic_api_key, &cfg.api.model)
-                    .await?
-            }
-        }
-    } else {
-        claude::try_api_fallback(&prompt, &cfg.api.anthropic_api_key, &cfg.api.model).await?
-    };
-
-    let explanation = response.trim().to_string();
+    let provider = crate::ai::create_provider(&cfg)?;
+    let model = cfg.model();
+    let ai_response = provider.complete(&prompt, &model, 4096).await?;
+    let cost = ai_response.cost_usd;
+    let explanation = ai_response.text.trim().to_string();
 
     // 5. Print colored explanation
     println!();

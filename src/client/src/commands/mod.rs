@@ -3,6 +3,7 @@ pub mod certificate;
 pub mod conjecture;
 pub mod contribution;
 pub mod proof;
+pub mod provider;
 pub mod publish;
 pub mod run;
 pub mod setting;

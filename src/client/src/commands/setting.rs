@@ -21,11 +21,11 @@ pub fn cmd_get(key: Option<&str>) -> Result<()> {
                 "affiliation" => cfg.identity.affiliation.clone(),
                 "public_key" => cfg.identity.public_key.clone(),
                 "api_key" | "anthropic_api_key" => {
-                    if cfg.api.anthropic_api_key.len() > 8 {
+                    if cfg.api.api_key.len() > 8 {
                         format!(
                             "{}...{}",
-                            &cfg.api.anthropic_api_key[..8],
-                            &cfg.api.anthropic_api_key[cfg.api.anthropic_api_key.len() - 4..]
+                            &cfg.api.api_key[..8],
+                            &cfg.api.api_key[cfg.api.api_key.len() - 4..]
                         )
                     } else {
                         "***".to_string()
@@ -69,7 +69,9 @@ pub fn cmd_set(key: Option<&str>, value: Option<&str>) -> Result<()> {
                 "affiliation" => cfg.identity.affiliation = v.to_string(),
                 "server_url" => cfg.api.server_url = v.to_string(),
                 "model" => cfg.api.model = v.to_string(),
-                "api_key" | "anthropic_api_key" => cfg.api.anthropic_api_key = v.to_string(),
+                "provider" => cfg.api.provider = v.to_string(),
+                "api_key" | "anthropic_api_key" => cfg.api.api_key = v.to_string(),
+                "api_base_url" => cfg.api.api_base_url = v.to_string(),
                 "scratch_dir" => cfg.prover.scratch_dir = v.to_string(),
                 "envs_dir" => cfg.prover.envs_dir = v.to_string(),
                 _ => bail!("Unknown or read-only setting key: {}", k),
@@ -103,19 +105,27 @@ fn run_status() -> Result<()> {
     }
     println!();
 
-    println!("{}", "API".bold());
-    let key_display = if config.api.anthropic_api_key.len() > 8 {
+    println!("{}", "AI Provider".bold());
+    println!("  Provider:    {}", config.provider().cyan());
+    let key_display = if config.api.api_key.len() > 8 {
         format!(
             "{}...{}",
-            &config.api.anthropic_api_key[..8],
-            &config.api.anthropic_api_key[config.api.anthropic_api_key.len() - 4..]
+            &config.api.api_key[..8],
+            &config.api.api_key[config.api.api_key.len() - 4..]
         )
+    } else if config.api.api_key.is_empty() {
+        "(not set)".to_string()
     } else {
         "***".to_string()
     };
     println!("  API Key:     {}", key_display);
+    if !config.api.api_base_url.is_empty() {
+        println!("  Base URL:    {}", config.api.api_base_url);
+    }
+    println!("  Model:       {}", config.model());
+    println!();
+    println!("{}", "Server".bold());
     println!("  Server:      {}", config.server_url());
-    println!("  Model:       {}", config.api.model);
     println!();
 
     println!("{}", "Cached Environments".bold());
@@ -249,23 +259,49 @@ fn run_setup_wizard() -> Result<()> {
         }
     };
 
+    // Provider selection
     println!();
-    println!(
-        "{}",
-        "Get your API key at: https://console.anthropic.com → Settings → API Keys".dimmed()
-    );
+    let providers: Vec<&str> = crate::ai::PROVIDERS.iter().map(|(name, _)| *name).collect();
+    let provider_descriptions: Vec<String> = crate::ai::PROVIDERS
+        .iter()
+        .map(|(name, desc)| format!("{} — {}", name, desc))
+        .collect();
+    let current_provider = existing
+        .as_ref()
+        .map(|c| c.api.provider.as_str())
+        .unwrap_or("anthropic");
+    let default_provider_idx = providers
+        .iter()
+        .position(|p| *p == current_provider)
+        .unwrap_or(0);
+    let provider_selection = Select::new()
+        .with_prompt("AI Provider")
+        .items(&provider_descriptions)
+        .default(default_provider_idx)
+        .interact()?;
+    let provider = providers[provider_selection].to_string();
+
+    // API key (not needed for ollama)
+    let api_key_hint = match provider.as_str() {
+        "anthropic" => "Get your API key at: https://console.anthropic.com → Settings → API Keys",
+        "openai" => "Get your API key at: https://platform.openai.com/api-keys",
+        "ollama" => "Ollama runs locally — no API key needed.",
+        _ => "Enter your provider API key.",
+    };
+    println!("{}", api_key_hint.dimmed());
+
     let default_api_key = existing
         .as_ref()
-        .map(|c| c.api.anthropic_api_key.clone())
+        .map(|c| c.api.api_key.clone())
         .unwrap_or_default();
-    let api_key: String = if default_api_key.is_empty() {
-        Password::new()
-            .with_prompt("Anthropic API key")
-            .interact()?
+    let api_key: String = if provider == "ollama" {
+        String::new()
+    } else if default_api_key.is_empty() {
+        Password::new().with_prompt("API key").interact()?
     } else {
         println!("  (Press Enter to keep existing API key)");
         let input: String = Password::new()
-            .with_prompt("Anthropic API key")
+            .with_prompt("API key")
             .allow_empty_password(true)
             .interact()?;
         if input.is_empty() {
@@ -275,16 +311,33 @@ fn run_setup_wizard() -> Result<()> {
         }
     };
 
-    let models = vec![
-        "claude-sonnet-4-6",
-        "claude-opus-4-6",
-        "claude-haiku-4-5",
-        "claude-3-5-sonnet-20241022",
-    ];
+    // API base URL (optional override)
+    let default_base_url = existing
+        .as_ref()
+        .map(|c| c.api.api_base_url.clone())
+        .unwrap_or_default();
+    let api_base_url: String = Input::new()
+        .with_prompt("API base URL (press Enter for default)")
+        .default(default_base_url)
+        .allow_empty(true)
+        .interact_text()?;
+
+    // Model selection — provider-specific options
+    let models: Vec<&str> = match provider.as_str() {
+        "anthropic" => vec![
+            "claude-sonnet-4-6",
+            "claude-opus-4-6",
+            "claude-haiku-4-5",
+            "claude-3-5-sonnet-20241022",
+        ],
+        "openai" => vec!["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "o1", "o1-mini"],
+        "ollama" => vec!["llama3", "codellama", "mistral", "deepseek-coder"],
+        _ => vec!["default"],
+    };
     let current_model = existing
         .as_ref()
         .map(|c| c.api.model.as_str())
-        .unwrap_or("claude-sonnet-4-6");
+        .unwrap_or(models[0]);
     let default_idx = models.iter().position(|m| *m == current_model).unwrap_or(0);
     let model_selection = Select::new()
         .with_prompt("Model")
@@ -334,7 +387,9 @@ fn run_setup_wizard() -> Result<()> {
     let config = Config {
         identity,
         api: Api {
-            anthropic_api_key: api_key,
+            provider,
+            api_key,
+            api_base_url,
             server_url,
             model,
             auth_token,

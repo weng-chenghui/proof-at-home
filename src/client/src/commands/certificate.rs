@@ -304,8 +304,15 @@ pub async fn cmd_compare(strategy_name: Option<&str>) -> Result<()> {
         anyhow::bail!("Need at least 2 packages to compare. Import more packages first.");
     }
 
-    let result =
-        comparison::run_comparison(&config, &state, &certification_dir, strategy_name).await?;
+    let provider = crate::ai::create_provider(&config)?;
+    let result = comparison::run_comparison(
+        &config,
+        &*provider,
+        &state,
+        &certification_dir,
+        strategy_name,
+    )
+    .await?;
 
     let comp_path = certification_dir.join("ai_comparison.json");
     let content = serde_json::to_string_pretty(&result)?;

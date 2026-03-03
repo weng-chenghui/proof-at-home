@@ -5,8 +5,8 @@ use std::collections::HashMap;
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
+use crate::ai::AiProvider;
 use crate::certifier::types::*;
 use crate::config::Config;
 use crate::strategy_store::loader::{self, CertifyStrategyVars};
@@ -145,162 +145,6 @@ fn build_inline_rollup_prompt(rankings_block: &str) -> String {
     )
 }
 
-// ── Claude API calling (duplicated from prover/claude.rs to keep scope small) ──
-
-const PRICING: &[(&str, f64, f64)] = &[
-    ("claude-opus-4", 15.0, 75.0),
-    ("claude-sonnet-4", 3.0, 15.0),
-    ("claude-haiku-4", 0.80, 4.0),
-    ("claude-3-5-sonnet", 3.0, 15.0),
-    ("claude-3-5-haiku", 0.80, 4.0),
-];
-
-fn estimate_cost_from_tokens(model: &str, input_tokens: u64, output_tokens: u64) -> f64 {
-    let (input_rate, output_rate) = PRICING
-        .iter()
-        .find(|(prefix, _, _)| model.starts_with(prefix))
-        .map(|(_, i, o)| (*i, *o))
-        .unwrap_or((3.0, 15.0));
-    (input_tokens as f64 * input_rate + output_tokens as f64 * output_rate) / 1_000_000.0
-}
-
-#[derive(Deserialize, Default)]
-struct ClaudeCliResponse {
-    #[serde(default)]
-    result: String,
-    #[serde(default)]
-    cost_usd: Option<f64>,
-    #[serde(default)]
-    usage: Option<ClaudeUsage>,
-    #[serde(default)]
-    model: Option<String>,
-}
-
-#[derive(Deserialize, Default)]
-struct ClaudeUsage {
-    #[serde(default)]
-    input_tokens: u64,
-    #[serde(default)]
-    output_tokens: u64,
-}
-
-#[derive(Deserialize)]
-struct ApiResponse {
-    content: Vec<ApiContentBlock>,
-    usage: ApiUsage,
-    model: String,
-}
-
-#[derive(Deserialize)]
-struct ApiContentBlock {
-    #[serde(default)]
-    text: String,
-}
-
-#[derive(Deserialize)]
-struct ApiUsage {
-    input_tokens: u64,
-    output_tokens: u64,
-}
-
-fn try_claude_cli(prompt: &str, model: &str) -> Result<(String, f64)> {
-    let output = Command::new("claude")
-        .args([
-            "-p",
-            prompt,
-            "--output-format",
-            "json",
-            "--max-turns",
-            "1",
-            "--model",
-            model,
-        ])
-        .output()
-        .context("Failed to invoke claude CLI")?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        anyhow::bail!("claude CLI failed: {}", stderr);
-    }
-
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let resp: ClaudeCliResponse =
-        serde_json::from_str(&stdout).context("Failed to parse claude CLI JSON output")?;
-
-    let cost = resp.cost_usd.unwrap_or_else(|| {
-        if let Some(usage) = &resp.usage {
-            let m = resp.model.as_deref().unwrap_or(model);
-            estimate_cost_from_tokens(m, usage.input_tokens, usage.output_tokens)
-        } else {
-            0.0
-        }
-    });
-
-    Ok((resp.result, cost))
-}
-
-async fn try_api_fallback(prompt: &str, api_key: &str, model: &str) -> Result<(String, f64)> {
-    let client = reqwest::Client::new();
-    let body = serde_json::json!({
-        "model": model,
-        "max_tokens": 4096,
-        "messages": [
-            {"role": "user", "content": prompt}
-        ]
-    });
-
-    let resp = client
-        .post("https://api.anthropic.com/v1/messages")
-        .header("x-api-key", api_key)
-        .header("anthropic-version", "2023-06-01")
-        .header("content-type", "application/json")
-        .json(&body)
-        .send()
-        .await
-        .context("Failed to call Anthropic API")?;
-
-    if !resp.status().is_success() {
-        let status = resp.status();
-        let body = resp.text().await.unwrap_or_default();
-        anyhow::bail!("Anthropic API error ({}): {}", status, body);
-    }
-
-    let api_resp: ApiResponse = resp.json().await.context("Failed to parse API response")?;
-    let text = api_resp
-        .content
-        .first()
-        .map(|b| b.text.clone())
-        .unwrap_or_default();
-
-    let cost = estimate_cost_from_tokens(
-        &api_resp.model,
-        api_resp.usage.input_tokens,
-        api_resp.usage.output_tokens,
-    );
-
-    Ok((text, cost))
-}
-
-/// Call Claude (CLI first, API fallback) and return (response_text, cost)
-pub async fn call_claude(config: &Config, prompt: &str) -> Result<(String, f64)> {
-    let cli_available = Command::new("claude")
-        .arg("--version")
-        .output()
-        .map(|o| o.status.success())
-        .unwrap_or(false);
-
-    if cli_available {
-        match try_claude_cli(prompt, &config.api.model) {
-            Ok(r) => Ok(r),
-            Err(_) => {
-                try_api_fallback(prompt, &config.api.anthropic_api_key, &config.api.model).await
-            }
-        }
-    } else {
-        try_api_fallback(prompt, &config.api.anthropic_api_key, &config.api.model).await
-    }
-}
-
 // ── Audit logger for certification comparisons ──
 
 pub struct CertificationAuditLogger {
@@ -332,6 +176,7 @@ pub struct CertificationAuditEntry {
     pub timestamp: String,
     pub action: String,
     pub conjecture_id: String,
+    pub provider: String,
     pub model: String,
     pub cost_usd: f64,
     pub provers_compared: u32,
@@ -388,10 +233,10 @@ fn extract_json(response: &str) -> &str {
     trimmed
 }
 
-/// Run the full AI comparison pipeline.
-/// `strategy_name` selects a specific comparison strategy; None auto-selects.
+/// Run the full AI comparison pipeline using the given provider.
 pub async fn run_comparison(
     config: &Config,
+    provider: &dyn AiProvider,
     state: &CertificationState,
     certification_dir: &Path,
     strategy_name: Option<&str>,
@@ -399,13 +244,11 @@ pub async fn run_comparison(
     let audit = CertificationAuditLogger::new(certification_dir);
     let packages_dir = certification_dir.join("packages");
     let mut total_cost = 0.0;
+    let model = config.model();
 
     // Collect all proof files per conjecture per prover
-    // Map: conjecture_id -> Vec<(contribution_id, username, script)>
     let mut conjecture_proofs: HashMap<String, Vec<(String, String, String)>> = HashMap::new();
-    // Track conjecture titles: conjecture_id -> title (use filename as fallback)
     let mut conjecture_titles: HashMap<String, String> = HashMap::new();
-    // Detect prover from file extensions
     let mut prover = String::from("Rocq");
 
     for pkg in &state.packages {
@@ -419,7 +262,6 @@ pub async fn run_comparison(
         }
 
         for pid in &pkg.conjecture_ids {
-            // Try to find the proof file: {pid}.v or {pid}.lean
             let v_file = pkg_dir.join(format!("{}.v", pid));
             let lean_file = pkg_dir.join(format!("{}.lean", pid));
             let proof_path = if v_file.exists() {
@@ -477,19 +319,21 @@ pub async fn run_comparison(
             proofs.len()
         );
 
-        let (response, cost) = call_claude(config, &prompt).await?;
+        let ai_response = provider.complete(&prompt, &model, 4096).await?;
+        let cost = ai_response.cost_usd;
         total_cost += cost;
 
         audit.log(&CertificationAuditEntry {
             timestamp: Utc::now().to_rfc3339(),
             action: "conjecture_comparison".into(),
             conjecture_id: (*conjecture_id).clone(),
-            model: config.api.model.clone(),
+            provider: provider.name().to_string(),
+            model: model.clone(),
             cost_usd: cost,
             provers_compared: proofs.len() as u32,
         });
 
-        let json_str = extract_json(&response);
+        let json_str = extract_json(&ai_response.text);
         let parsed: ComparisonResponse =
             serde_json::from_str(json_str).context("Failed to parse AI comparison JSON")?;
 
@@ -556,19 +400,21 @@ pub async fn run_comparison(
     // Ask AI for narrative summaries
     if !package_rankings.is_empty() {
         let rollup_prompt = build_rollup_prompt(&package_rankings, strategy_name);
-        let (rollup_response, rollup_cost) = call_claude(config, &rollup_prompt).await?;
+        let rollup_response = provider.complete(&rollup_prompt, &model, 4096).await?;
+        let rollup_cost = rollup_response.cost_usd;
         total_cost += rollup_cost;
 
         audit.log(&CertificationAuditEntry {
             timestamp: Utc::now().to_rfc3339(),
             action: "rollup_summary".into(),
             conjecture_id: String::new(),
-            model: config.api.model.clone(),
+            provider: provider.name().to_string(),
+            model: model.clone(),
             cost_usd: rollup_cost,
             provers_compared: package_rankings.len() as u32,
         });
 
-        let json_str = extract_json(&rollup_response);
+        let json_str = extract_json(&rollup_response.text);
         if let Ok(rollup) = serde_json::from_str::<RollupResponse>(json_str) {
             for s in rollup.summaries {
                 if let Some(pr) = package_rankings
@@ -583,7 +429,7 @@ pub async fn run_comparison(
 
     let result = ComparisonResult {
         timestamp: Utc::now().to_rfc3339(),
-        model: config.api.model.clone(),
+        model: model.clone(),
         cost_usd: total_cost,
         conjecture_comparisons,
         package_rankings,

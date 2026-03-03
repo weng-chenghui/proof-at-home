@@ -37,8 +37,15 @@ pub struct Identity {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Api {
+    /// AI provider: "anthropic", "openai", or "ollama"
+    #[serde(default = "default_provider")]
+    pub provider: String,
+    /// Provider API key (replaces the old anthropic_api_key)
+    #[serde(default, alias = "anthropic_api_key")]
+    pub api_key: String,
+    /// Override the provider's base URL (for Azure, self-hosted, etc.)
     #[serde(default)]
-    pub anthropic_api_key: String,
+    pub api_base_url: String,
     #[serde(default)]
     pub server_url: String,
     #[serde(default = "default_model")]
@@ -50,12 +57,18 @@ pub struct Api {
 impl Default for Api {
     fn default() -> Self {
         Self {
-            anthropic_api_key: String::new(),
+            provider: default_provider(),
+            api_key: String::new(),
+            api_base_url: String::new(),
             server_url: String::new(),
             model: default_model(),
             auth_token: String::new(),
         }
     }
+}
+
+fn default_provider() -> String {
+    "anthropic".to_string()
 }
 
 fn default_model() -> String {
@@ -114,6 +127,38 @@ impl Default for Budget {
 impl Config {
     pub fn load_or_default() -> Self {
         Self::load().unwrap_or_default()
+    }
+
+    /// Effective provider name (env var override > config).
+    pub fn provider(&self) -> String {
+        std::env::var("PAH_PROVIDER").unwrap_or_else(|_| {
+            if self.api.provider.is_empty() {
+                "anthropic".to_string()
+            } else {
+                self.api.provider.clone()
+            }
+        })
+    }
+
+    /// Effective API key (env var override > config).
+    pub fn api_key(&self) -> String {
+        std::env::var("PAH_API_KEY").unwrap_or_else(|_| self.api.api_key.clone())
+    }
+
+    /// Effective API base URL (env var override > config).
+    pub fn api_base_url(&self) -> String {
+        std::env::var("PAH_API_BASE_URL").unwrap_or_else(|_| self.api.api_base_url.clone())
+    }
+
+    /// Effective model name (env var override > config).
+    pub fn model(&self) -> String {
+        std::env::var("PAH_MODEL").unwrap_or_else(|_| {
+            if self.api.model.is_empty() {
+                default_model()
+            } else {
+                self.api.model.clone()
+            }
+        })
     }
 
     pub fn server_url(&self) -> String {
