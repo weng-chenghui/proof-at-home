@@ -523,4 +523,20 @@ impl ServerClient {
             .await?;
         Ok(item)
     }
+
+    pub async fn get_pool_url(&self) -> Result<String> {
+        let resp: PoolUrlResponse = self
+            .authed(self.client.get(format!("{}/api/pool-url", self.base_url)))
+            .send()
+            .await
+            .context("Failed to fetch pool URL")?
+            .json()
+            .await?;
+        Ok(resp.git_url)
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct PoolUrlResponse {
+    git_url: String,
 }

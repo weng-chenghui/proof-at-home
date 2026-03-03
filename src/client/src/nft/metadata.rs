@@ -20,63 +20,39 @@ pub struct ContributionInfo {
     pub commit_signature: String,
     /// "manual" or "ai-assisted"
     pub proof_mode: String,
+    /// Optional ID of the contribution this work is based on (provenance chain)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub based_on_contribution_id: Option<String>,
 }
 
 /// Generate OpenSea-compatible NFT metadata JSON for a proof contribution
 pub fn generate_nft_metadata(info: &ContributionInfo) -> Value {
     let date = Utc::now().format("%Y-%m-%d").to_string();
 
+    let mut attributes = vec![
+        json!({"trait_type": "Username", "value": info.username}),
+        json!({"trait_type": "Conjectures Proved", "value": info.conjectures_proved}),
+        json!({"trait_type": "Conjectures Attempted", "value": info.conjectures_attempted}),
+        json!({"trait_type": "Cost Donated (USD)", "value": format!("{:.2}", info.cost_donated_usd)}),
+        json!({"trait_type": "Prover", "value": info.prover}),
+        json!({"trait_type": "Proof Status", "value": info.proof_status}),
+        json!({"trait_type": "Git Commit", "value": info.git_commit}),
+        json!({"trait_type": "Git Repository", "value": info.git_repository}),
+        json!({"trait_type": "Public Key", "value": info.public_key}),
+        json!({"trait_type": "Commit Signature", "value": info.commit_signature}),
+        json!({"trait_type": "Proof Mode", "value": info.proof_mode}),
+    ];
+
+    if let Some(based_on) = &info.based_on_contribution_id {
+        attributes.push(json!({"trait_type": "Based On Contribution", "value": based_on}));
+    }
+
     json!({
         "name": format!("Proof@Home Contribution — {} — {}", info.username, date),
         "description": "Formally verified mathematical proofs for the public domain.",
         "external_url": "",
         "image": "",
-        "attributes": [
-            {
-                "trait_type": "Username",
-                "value": info.username
-            },
-            {
-                "trait_type": "Conjectures Proved",
-                "value": info.conjectures_proved
-            },
-            {
-                "trait_type": "Conjectures Attempted",
-                "value": info.conjectures_attempted
-            },
-            {
-                "trait_type": "Cost Donated (USD)",
-                "value": format!("{:.2}", info.cost_donated_usd)
-            },
-            {
-                "trait_type": "Prover",
-                "value": info.prover
-            },
-            {
-                "trait_type": "Proof Status",
-                "value": info.proof_status
-            },
-            {
-                "trait_type": "Git Commit",
-                "value": info.git_commit
-            },
-            {
-                "trait_type": "Git Repository",
-                "value": info.git_repository
-            },
-            {
-                "trait_type": "Public Key",
-                "value": info.public_key
-            },
-            {
-                "trait_type": "Commit Signature",
-                "value": info.commit_signature
-            },
-            {
-                "trait_type": "Proof Mode",
-                "value": info.proof_mode
-            }
-        ]
+        "attributes": attributes
     })
 }
 

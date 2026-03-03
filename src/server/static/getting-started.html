@@ -18,25 +18,23 @@
         <div class="workflow-step" style="margin-bottom: 1rem;">
             <div class="workflow-number">1</div>
             <div class="workflow-content">
-                <h3>Prerequisites</h3>
-                <p>Make sure you have the following installed:</p>
-                <ul style="margin: 0; padding-left: 1.25rem; font-size: 0.875rem; color: var(--text-secondary); line-height: 1.8;">
-                    <li><a href="https://rustup.rs/">Rust</a> (1.70+) — needed to build the CLI <span class="text-muted">(~5 min one-time install)</span></li>
-                    <li>An <a href="https://console.anthropic.com/">Anthropic API key</a> — powers the AI prover <span class="text-muted">(~2 min signup)</span></li>
-                    <li><a href="https://rocq-prover.org/">Rocq</a> for Rocq proofs, or <a href="https://leanprover.github.io/">Lean 4</a> for Lean proofs <span class="text-muted">(~10 min with opam/elan)</span></li>
-                </ul>
+                <h3>Install the CLI</h3>
+                <p>Run the one-line installer to download a pre-built binary:</p>
+<pre><code>curl -fsSL https://pah.fly.dev/install.sh | sh</code></pre>
+                <p style="margin-top: 0.75rem;">The installer places <code>pah</code> in your PATH. To build from source instead: <code>git clone https://github.com/pah-org/proof-at-home.git && cargo build --release</code></p>
             </div>
         </div>
 
         <div class="workflow-step" style="margin-bottom: 1rem;">
             <div class="workflow-number">2</div>
             <div class="workflow-content">
-                <h3>Install the CLI</h3>
-                <p>Build from source (not yet on crates.io):</p>
-<pre><code>git clone https://github.com/pah-org/proof-at-home.git
-cd proof-at-home
-cargo build --release</code></pre>
-                <p style="margin-top: 0.75rem;">The binary will be at <code>target/release/proof-at-home</code>. Add it to your PATH or run it directly.</p>
+                <h3>Install a proof assistant</h3>
+                <p>You need at least one proof compiler to verify proofs:</p>
+                <ul style="margin: 0; padding-left: 1.25rem; font-size: 0.875rem; color: var(--text-secondary); line-height: 1.8;">
+                    <li><a href="https://rocq-prover.org/">Rocq</a> for Rocq/Coq proofs <span class="text-muted">(~10 min with opam)</span></li>
+                    <li><a href="https://leanprover.github.io/">Lean 4</a> for Lean proofs <span class="text-muted">(~5 min with elan)</span></li>
+                </ul>
+                <p style="margin-top: 0.5rem;">Check what's detected: <code>pah tools check</code></p>
             </div>
         </div>
 
@@ -45,8 +43,9 @@ cargo build --release</code></pre>
             <div class="workflow-content">
                 <h3>Configure</h3>
                 <p>Run the interactive setup wizard:</p>
-<pre><code>./target/release/proof-at-home init</code></pre>
-                <p style="margin-top: 0.75rem;">This will ask for your name, username, Anthropic API key, and the server URL. Config is saved to <code>~/.proof-at-home/config.toml</code>.</p>
+<pre><code>pah setting set          # Identity, AI provider, budget
+pah auth login           # Paste token from web UI</code></pre>
+                <p style="margin-top: 0.75rem;">For AI-assisted mode you'll need an API key from <a href="https://console.anthropic.com/">Anthropic</a>, <a href="https://platform.openai.com/">OpenAI</a>, or a local <a href="https://ollama.com/">Ollama</a> install. Manual proof submission needs no API key.</p>
             </div>
         </div>
 
@@ -55,7 +54,7 @@ cargo build --release</code></pre>
             <div class="workflow-content">
                 <h3>Set your proof budget</h3>
                 <p>Choose how much API credit to allocate per run:</p>
-<pre><code>./target/release/proof-at-home setting set budget</code></pre>
+<pre><code>pah setting set budget</code></pre>
                 <p style="margin-top: 0.75rem;">Read and accept the legal agreement, then pick an amount ($1–$10 or custom). This caps the API cost for a single contribution run.</p>
                 <p style="margin-top: 0.5rem; font-size: 0.85rem;" class="text-muted">Typical costs: ~$0.05/proof with Haiku, ~$0.50 with Sonnet, ~$2.00 with Opus. A $2 budget can prove dozens of easy conjectures.</p>
             </div>
@@ -65,19 +64,20 @@ cargo build --release</code></pre>
             <div class="workflow-number">5</div>
             <div class="workflow-content">
                 <h3>Prove your first conjectures</h3>
-                <p>Start proving open conjectures:</p>
-<pre><code>./target/release/proof-at-home contribution run</code></pre>
-                <p style="margin-top: 0.75rem; font-size: 0.85rem;"><strong>What happens:</strong> The CLI fetches open conjectures from the server, sends each to Claude to generate a formal proof, compiles it with <code>rocq c</code> or <code>lean</code> to verify correctness, submits the results to the server, and archives everything with a SHA-256 hash. You get NFT metadata crediting your contribution.</p>
+                <p><strong>AI-assisted</strong> — LLM generates proofs, compiler verifies:</p>
+<pre><code>pah contribution run</code></pre>
+                <p style="margin-top: 0.5rem;"><strong>Manual</strong> — you write proofs, compiler verifies:</p>
+<pre><code>pah proof submit prob_001 ./my_proof.v</code></pre>
+                <p style="margin-top: 0.75rem; font-size: 0.85rem;">The CLI fetches open conjectures, generates or accepts a formal proof, compiles it with <code>rocq c</code> or <code>lean</code> to verify correctness, submits the results, and archives everything with a SHA-256 hash.</p>
             </div>
         </div>
 
         <div class="workflow-step" style="margin-bottom: 1rem;">
             <div class="workflow-number">6</div>
             <div class="workflow-content">
-                <h3>Check your contribution</h3>
-                <p>See your stats and contribution history:</p>
-<pre><code>./target/release/proof-at-home status</code></pre>
-                <p style="margin-top: 0.75rem;">This shows your total certificates, budget spent, and contribution IDs.</p>
+                <h3>Check your contributions</h3>
+                <p>See your contributions and their status:</p>
+<pre><code>pah contribution list</code></pre>
             </div>
         </div>
 

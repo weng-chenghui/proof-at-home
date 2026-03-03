@@ -11,6 +11,14 @@ pub struct Config {
     pub budget: Budget,
     #[serde(default)]
     pub ipfs: Ipfs,
+    #[serde(default)]
+    pub pool: Pool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct Pool {
+    #[serde(default)]
+    pub dir: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -187,6 +195,14 @@ impl Config {
 
     pub fn config_path() -> Result<PathBuf> {
         Ok(Self::config_dir()?.join("config.toml"))
+    }
+
+    pub fn pool_dir(&self) -> Result<PathBuf> {
+        if !self.pool.dir.is_empty() {
+            Ok(PathBuf::from(&self.pool.dir))
+        } else {
+            Ok(Self::config_dir()?.join("pool"))
+        }
     }
 
     pub fn contributions_dir() -> Result<PathBuf> {

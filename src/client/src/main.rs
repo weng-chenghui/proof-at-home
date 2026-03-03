@@ -76,6 +76,11 @@ enum Resource {
         #[command(subcommand)]
         action: ProviderAction,
     },
+    /// Manage the shared data pool (clone, pull, push, status)
+    Pool {
+        #[command(subcommand)]
+        action: PoolAction,
+    },
 }
 
 // ── Conjecture ──
@@ -326,6 +331,24 @@ enum ProviderAction {
     Quota,
 }
 
+// ── Pool ──
+
+#[derive(Subcommand)]
+enum PoolAction {
+    /// Clone the shared data pool
+    Clone {
+        /// Custom directory for the pool
+        #[arg(long)]
+        dir: Option<String>,
+    },
+    /// Pull latest changes from the pool
+    Pull,
+    /// Push local changes to the pool
+    Push,
+    /// Show pool git status
+    Status,
+}
+
 #[tokio::main]
 async fn main() {
     let cli = Cli::parse();
@@ -450,6 +473,12 @@ async fn main() {
             ProviderAction::List => commands::provider::cmd_list(),
             ProviderAction::Get => commands::provider::cmd_get(),
             ProviderAction::Quota => commands::provider::cmd_quota().await,
+        },
+        Resource::Pool { action } => match action {
+            PoolAction::Clone { dir } => commands::pool::cmd_clone(dir.as_deref()).await,
+            PoolAction::Pull => commands::pool::cmd_pull().await,
+            PoolAction::Push => commands::pool::cmd_push().await,
+            PoolAction::Status => commands::pool::cmd_status().await,
         },
     };
 

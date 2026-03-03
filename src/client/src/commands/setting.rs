@@ -409,6 +409,10 @@ fn run_setup_wizard() -> Result<()> {
             .as_ref()
             .map(|c| c.ipfs.clone())
             .unwrap_or_default(),
+        pool: existing
+            .as_ref()
+            .map(|c| c.pool.clone())
+            .unwrap_or_default(),
     };
 
     config.save()?;

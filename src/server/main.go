@@ -130,6 +130,12 @@ func main() {
 	r.Get("/expositions", expositionHandler.List)
 	r.Get("/expositions/{id}", expositionHandler.Get)
 
+	// Pool URL endpoint (returns the data repo git URL for CLI cloning)
+	r.Get("/api/pool-url", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `{"git_url":%q}`, cfg.GitDataRepoURL)
+	})
+
 	// Webhook endpoint (signature-verified internally)
 	r.Post("/webhooks/git", webhookHandler.Handle)
 
