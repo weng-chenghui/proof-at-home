@@ -25,26 +25,20 @@ A $2 budget can prove dozens of easy conjectures with Haiku.
 
 ## Quick Start
 
-### Prerequisites
-
-- [Rust](https://rustup.rs/) (1.70+)
-- An AI provider API key ([Anthropic](https://console.anthropic.com/), [OpenAI](https://platform.openai.com/), or [Ollama](https://ollama.com/) for local models) — AI-assisted mode only
-- [Rocq](https://rocq-prover.org/) for Rocq proofs, or [Lean 4](https://leanprover.github.io/) for Lean proofs
-
-### 1. Build the CLI
+### 1. Install
 
 ```bash
-git clone https://github.com/pah-org/proof-at-home.git
-cd proof-at-home
-cargo build --release
+curl -fsSL https://pah.fly.dev/install.sh | sh
 ```
+
+The installer downloads a pre-built binary and optionally sets up proof toolchains (Lean 4, Rocq).
+To build from source instead: `git clone https://github.com/pah-org/proof-at-home.git && cargo build --release`
 
 ### 2. Configure
 
 ```bash
-./target/release/proof-at-home setting set          # Interactive setup wizard
-./target/release/proof-at-home auth login            # Paste token from web UI
-./target/release/proof-at-home setting set budget    # Set your API budget
+pah setting set          # Interactive setup wizard (identity, AI provider, budget)
+pah auth login           # Paste token from web UI
 ```
 
 ### 3. Prove

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Expositor Quick Start — Proof@Home</title>
+    <title>Craftsman Quick Start — Proof@Home</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -12,8 +12,8 @@
 <body>
     <nav id="navbar"></nav>
     <div class="container">
-        <h1>Expositor Quick Start</h1>
-        <p class="text-secondary" style="margin-bottom: 2rem;">Use AI to explain proved theorems in plain language. Turn formal proofs into human-readable narratives.</p>
+        <h1>Craftsman Quick Start</h1>
+        <p class="text-secondary" style="margin-bottom: 2rem;">Write formal proofs by hand in Rocq or Lean.</p>
 
         <div class="workflow-step" style="margin-bottom: 1rem;">
             <div class="workflow-number">1</div>
@@ -21,6 +21,7 @@
                 <h3>Install</h3>
                 <p>Install the CLI in one command. The installer optionally sets up proof toolchains (Lean 4, Rocq):</p>
 <pre><code>curl -fsSL https://pah.fly.dev/install.sh | sh</code></pre>
+                <p style="margin-top: 0.5rem; font-size: 0.9rem; color: var(--color-text-secondary);">Run <code>pah tools check</code> to verify Rocq or Lean is available.</p>
             </div>
         </div>
 
@@ -36,39 +37,30 @@
         <div class="workflow-step" style="margin-bottom: 1rem;">
             <div class="workflow-number">3</div>
             <div class="workflow-content">
-                <h3>Configure AI provider</h3>
-                <p>An AI provider is needed to generate explanations. Set up your provider and API key:</p>
-<pre><code>pah setting set provider
-pah setting set api_key</code></pre>
-                <p style="margin-top: 0.5rem; font-size: 0.9rem; color: var(--color-text-secondary);">Supports Anthropic Claude, OpenAI ChatGPT, and Ollama (free local models). Run <code>pah provider list</code> for details.</p>
+                <h3>Browse conjectures</h3>
+                <p>Find an open conjecture to work on:</p>
+<pre><code>pah conjecture list</code></pre>
+                <p style="margin-top: 0.5rem;">Or browse them on the <a href="/conjectures.html">web UI</a>.</p>
             </div>
         </div>
 
         <div class="workflow-step" style="margin-bottom: 1rem;">
             <div class="workflow-number">4</div>
             <div class="workflow-content">
-                <h3>Browse proved conjectures</h3>
-                <p>Find conjectures that have been proved and are ready to be explained:</p>
-<pre><code>pah conjecture list</code></pre>
-                <div class="workflow-actions">
-                    <a href="/conjectures.html" class="btn btn-secondary">Browse Conjectures</a>
-                </div>
+                <h3>Write your proof</h3>
+                <p>Write a <code>.v</code> (Rocq) or <code>.lean</code> (Lean) file proving the conjecture. Use your favourite editor and proof assistant.</p>
             </div>
         </div>
 
         <div class="workflow-step" style="margin-bottom: 1rem;">
             <div class="workflow-number">5</div>
             <div class="workflow-content">
-                <h3>Parse a proof</h3>
-                <p>Generate a human-readable explanation from a local proof file or from a server contribution:</p>
-<pre><code># From a local file
-pah proof parse my_proof.v
+                <h3>Submit</h3>
+                <p>Submit a single proof or a whole directory. The CLI verifies, then seals with NFT metadata automatically:</p>
+<pre><code>pah proof submit &lt;conjecture_id&gt; &lt;proof_file&gt;
 
-# From a server contribution
-pah proof parse --contribution &lt;id&gt; --conjecture &lt;id&gt;
-
-# With a custom strategy
-pah proof parse my_proof.lean --by my-custom-parse</code></pre>
+# Or batch-submit a directory:
+pah proof submit --dir ./proofs/</code></pre>
             </div>
         </div>
 
@@ -76,7 +68,7 @@ pah proof parse my_proof.lean --by my-custom-parse</code></pre>
             <div class="workflow-number">6</div>
             <div class="workflow-content">
                 <h3>View your NFT credit</h3>
-                <p>Expositions generate NFT metadata just like contributions and certificates. Check the gallery to see your work.</p>
+                <p>Your submission is sealed with proof_mode "manual". Browse the gallery to see it.</p>
                 <div class="workflow-actions">
                     <a href="/nft-gallery.html" class="btn">NFT Gallery</a>
                 </div>

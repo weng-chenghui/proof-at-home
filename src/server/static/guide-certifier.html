@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Expositor Quick Start — Proof@Home</title>
+    <title>Certifier Quick Start — Proof@Home</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -12,14 +12,14 @@
 <body>
     <nav id="navbar"></nav>
     <div class="container">
-        <h1>Expositor Quick Start</h1>
-        <p class="text-secondary" style="margin-bottom: 2rem;">Use AI to explain proved theorems in plain language. Turn formal proofs into human-readable narratives.</p>
+        <h1>Certifier Quick Start</h1>
+        <p class="text-secondary" style="margin-bottom: 2rem;">Review and certify proof packages submitted by others.</p>
 
         <div class="workflow-step" style="margin-bottom: 1rem;">
             <div class="workflow-number">1</div>
             <div class="workflow-content">
                 <h3>Install</h3>
-                <p>Install the CLI in one command. The installer optionally sets up proof toolchains (Lean 4, Rocq):</p>
+                <p>Install the CLI in one command:</p>
 <pre><code>curl -fsSL https://pah.fly.dev/install.sh | sh</code></pre>
             </div>
         </div>
@@ -37,46 +37,55 @@
             <div class="workflow-number">3</div>
             <div class="workflow-content">
                 <h3>Configure AI provider</h3>
-                <p>An AI provider is needed to generate explanations. Set up your provider and API key:</p>
+                <p>Set up your AI provider for proof comparison:</p>
 <pre><code>pah setting set provider
 pah setting set api_key</code></pre>
-                <p style="margin-top: 0.5rem; font-size: 0.9rem; color: var(--color-text-secondary);">Supports Anthropic Claude, OpenAI ChatGPT, and Ollama (free local models). Run <code>pah provider list</code> for details.</p>
+                <p style="margin-top: 0.5rem; font-size: 0.9rem; color: var(--color-text-secondary);">Supports Anthropic Claude, OpenAI ChatGPT, and Ollama (free local models).</p>
             </div>
         </div>
 
         <div class="workflow-step" style="margin-bottom: 1rem;">
             <div class="workflow-number">4</div>
             <div class="workflow-content">
-                <h3>Browse proved conjectures</h3>
-                <p>Find conjectures that have been proved and are ready to be explained:</p>
-<pre><code>pah conjecture list</code></pre>
-                <div class="workflow-actions">
-                    <a href="/conjectures.html" class="btn btn-secondary">Browse Conjectures</a>
-                </div>
+                <h3>Create session</h3>
+                <p>Start a certification session — this fetches proof packages from the server:</p>
+<pre><code>pah certificate create</code></pre>
             </div>
         </div>
 
         <div class="workflow-step" style="margin-bottom: 1rem;">
             <div class="workflow-number">5</div>
             <div class="workflow-content">
-                <h3>Parse a proof</h3>
-                <p>Generate a human-readable explanation from a local proof file or from a server contribution:</p>
-<pre><code># From a local file
-pah proof parse my_proof.v
-
-# From a server contribution
-pah proof parse --contribution &lt;id&gt; --conjecture &lt;id&gt;
-
-# With a custom strategy
-pah proof parse my_proof.lean --by my-custom-parse</code></pre>
+                <h3>Compare proofs</h3>
+                <p>Use AI to compare proofs across packages:</p>
+<pre><code>pah certificate compare</code></pre>
             </div>
         </div>
 
         <div class="workflow-step" style="margin-bottom: 1rem;">
             <div class="workflow-number">6</div>
             <div class="workflow-content">
+                <h3>Generate &amp; edit report</h3>
+                <p>Generate a TOML report template (opens in <code>$EDITOR</code> if set). Edit your rankings and notes, then re-run to validate:</p>
+<pre><code>pah certificate report</code></pre>
+            </div>
+        </div>
+
+        <div class="workflow-step" style="margin-bottom: 1rem;">
+            <div class="workflow-number">7</div>
+            <div class="workflow-content">
+                <h3>Seal &amp; publish</h3>
+                <p>Seal your certification with NFT metadata, then publish it:</p>
+<pre><code>pah certificate seal
+pah certificate publish &lt;id&gt;</code></pre>
+            </div>
+        </div>
+
+        <div class="workflow-step" style="margin-bottom: 1rem;">
+            <div class="workflow-number">8</div>
+            <div class="workflow-content">
                 <h3>View your NFT credit</h3>
-                <p>Expositions generate NFT metadata just like contributions and certificates. Check the gallery to see your work.</p>
+                <p>Check <code>certification_nft_metadata.json</code>, or browse the gallery.</p>
                 <div class="workflow-actions">
                     <a href="/nft-gallery.html" class="btn">NFT Gallery</a>
                 </div>
