@@ -240,7 +240,7 @@ Output the proof script now:"#,
 }
 
 /// Try to prove via the `claude` CLI (primary path)
-fn try_claude_cli(prompt: &str, model: &str) -> Result<(String, f64)> {
+pub fn try_claude_cli(prompt: &str, model: &str) -> Result<(String, f64)> {
     let output = Command::new("claude")
         .args([
             "-p",
@@ -277,7 +277,7 @@ fn try_claude_cli(prompt: &str, model: &str) -> Result<(String, f64)> {
 }
 
 /// Fallback: call Anthropic API directly
-async fn try_api_fallback(prompt: &str, api_key: &str, model: &str) -> Result<(String, f64)> {
+pub async fn try_api_fallback(prompt: &str, api_key: &str, model: &str) -> Result<(String, f64)> {
     let client = reqwest::Client::new();
     let body = serde_json::json!({
         "model": model,
@@ -320,7 +320,7 @@ async fn try_api_fallback(prompt: &str, api_key: &str, model: &str) -> Result<(S
 }
 
 /// Extract just the code block from a response (strip markdown fences if present)
-fn extract_code(response: &str) -> String {
+pub fn extract_code(response: &str) -> String {
     let trimmed = response.trim();
 
     // Try to extract from code fence

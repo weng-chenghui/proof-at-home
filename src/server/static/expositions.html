@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expositions — Proof@Home</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/shared.css">
+</head>
+<body>
+    <nav id="navbar"></nav>
+    <div class="container">
+        <h1>Expositions</h1>
+        <p class="text-secondary" style="margin-bottom:1.5rem;font-size:0.9rem">AI-generated explanations of formally verified proofs. Each exposition turns a formal proof into a human-readable narrative.</p>
+
+        <div id="msg" class="msg" style="display:none"></div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Exposition ID</th>
+                    <th>Author</th>
+                    <th>Conjecture</th>
+                    <th>Prover</th>
+                    <th>Strategy</th>
+                </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+        </table>
+        <div id="empty" class="empty-state" style="display:none">
+            <h2>No expositions yet</h2>
+            <p>Expositions are created with <code>pah proof parse</code>. Try explaining a proof to get started.</p>
+            <a href="/guide-exposition.html" class="btn">Expositor Guide</a>
+        </div>
+    </div>
+    <script src="/shared.js"></script>
+    <script>
+        async function load() {
+            try {
+                const expositions = await api('GET', '/expositions');
+                const table = document.querySelector('table');
+                const empty = document.getElementById('empty');
+                const tbody = document.getElementById('tbody');
+
+                if (!expositions || expositions.length === 0) {
+                    table.style.display = 'none';
+                    empty.style.display = 'block';
+                    return;
+                }
+
+                table.style.display = '';
+                empty.style.display = 'none';
+
+                tbody.innerHTML = expositions.map(e => `
+                    <tr>
+                        <td>${escapeHtml(e.exposition_id || '')}</td>
+                        <td>${escapeHtml(e.author_username || '')}</td>
+                        <td>${escapeHtml(e.conjecture_id || '')}</td>
+                        <td>${escapeHtml(e.prover || '')}</td>
+                        <td>${escapeHtml(e.strategy_used || '')}</td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                showMsg('msg', 'Failed to load expositions: ' + (e.error || e.message || 'unknown error'), true);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', load);
+    </script>
+</body>
+</html>

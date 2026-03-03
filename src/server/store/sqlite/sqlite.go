@@ -19,6 +19,9 @@ import (
 //go:embed migrations/001_initial.sql
 var migrationSQL string
 
+//go:embed migrations/002_expositions.sql
+var migration002SQL string
+
 type SQLiteStore struct {
 	db *sql.DB
 }
@@ -42,7 +45,11 @@ func New(dbPath string) (*SQLiteStore, error) {
 func (s *SQLiteStore) Migrate() error {
 	_, err := s.db.Exec(migrationSQL)
 	if err != nil {
-		return fmt.Errorf("running migration: %w", err)
+		return fmt.Errorf("running migration 001: %w", err)
+	}
+	_, err = s.db.Exec(migration002SQL)
+	if err != nil {
+		return fmt.Errorf("running migration 002: %w", err)
 	}
 	slog.Info("SQLite migration completed")
 	return nil
@@ -510,6 +517,91 @@ func (s *SQLiteStore) GetStrategy(name string) (data.Strategy, bool) {
 	return c, true
 }
 
+// ListExpositions returns all expositions.
+func (s *SQLiteStore) ListExpositions() []data.Exposition {
+	rows, err := s.db.Query(
+		`SELECT exposition_id, author_username, contribution_id, conjecture_id,
+		 prover, proof_script, exposition_text, cost_usd, strategy_used, nft_metadata
+		 FROM expositions ORDER BY created_at DESC`)
+	if err != nil {
+		slog.Error("ListExpositions query failed", "error", err)
+		return nil
+	}
+	defer rows.Close()
+
+	var results []data.Exposition
+	for rows.Next() {
+		var e data.Exposition
+		var nftJSON sql.NullString
+		if err := rows.Scan(&e.ExpositionID, &e.AuthorUsername, &e.ContributionID, &e.ConjectureID,
+			&e.Prover, &e.ProofScript, &e.ExpositionText, &e.CostUSD, &e.StrategyUsed, &nftJSON); err != nil {
+			slog.Error("ListExpositions scan failed", "error", err)
+			continue
+		}
+		if nftJSON.Valid {
+			json.Unmarshal([]byte(nftJSON.String), &e.NFTMetadata)
+		}
+		results = append(results, e)
+	}
+	return results
+}
+
+// GetExposition returns an exposition by ID.
+func (s *SQLiteStore) GetExposition(id string) (data.Exposition, bool) {
+	var e data.Exposition
+	var nftJSON sql.NullString
+
+	err := s.db.QueryRow(
+		`SELECT exposition_id, author_username, contribution_id, conjecture_id,
+		 prover, proof_script, exposition_text, cost_usd, strategy_used, nft_metadata
+		 FROM expositions WHERE exposition_id = ?`, id,
+	).Scan(&e.ExpositionID, &e.AuthorUsername, &e.ContributionID, &e.ConjectureID,
+		&e.Prover, &e.ProofScript, &e.ExpositionText, &e.CostUSD, &e.StrategyUsed, &nftJSON)
+
+	if err == sql.ErrNoRows {
+		return data.Exposition{}, false
+	}
+	if err != nil {
+		slog.Error("GetExposition query failed", "error", err, "id", id)
+		return data.Exposition{}, false
+	}
+	if nftJSON.Valid {
+		json.Unmarshal([]byte(nftJSON.String), &e.NFTMetadata)
+	}
+	return e, true
+}
+
+// AddExposition inserts or updates an exposition.
+func (s *SQLiteStore) AddExposition(e data.Exposition) {
+	var nftJSON *string
+	if e.NFTMetadata != nil {
+		b, _ := json.Marshal(e.NFTMetadata)
+		n := string(b)
+		nftJSON = &n
+	}
+
+	_, err := s.db.Exec(
+		`INSERT INTO expositions (exposition_id, author_username, contribution_id, conjecture_id,
+		 prover, proof_script, exposition_text, cost_usd, strategy_used, nft_metadata)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		 ON CONFLICT (exposition_id) DO UPDATE SET
+		   author_username = excluded.author_username,
+		   contribution_id = excluded.contribution_id,
+		   conjecture_id = excluded.conjecture_id,
+		   prover = excluded.prover,
+		   proof_script = excluded.proof_script,
+		   exposition_text = excluded.exposition_text,
+		   cost_usd = excluded.cost_usd,
+		   strategy_used = excluded.strategy_used,
+		   nft_metadata = excluded.nft_metadata`,
+		e.ExpositionID, e.AuthorUsername, e.ContributionID, e.ConjectureID,
+		e.Prover, e.ProofScript, e.ExpositionText, e.CostUSD, e.StrategyUsed, nftJSON,
+	)
+	if err != nil {
+		slog.Error("AddExposition insert failed", "error", err, "id", e.ExpositionID)
+	}
+}
+
 // parseCommandFile parses a .md command file with TOML frontmatter (between +++ delimiters).
 func parseCommandFile(raw []byte) (data.Strategy, error) {
 	content := string(raw)
@@ -570,7 +662,7 @@ func (s *SQLiteStore) RebuildFromDir(repoPath string) error {
 	defer tx.Rollback()
 
 	// Clear all tables
-	tables := []string{"proofs", "certificates", "contributions", "conjectures", "strategies"}
+	tables := []string{"proofs", "certificates", "contributions", "conjectures", "strategies", "expositions"}
 	for _, table := range tables {
 		if _, err := tx.Exec("DELETE FROM " + table); err != nil {
 			return fmt.Errorf("clearing %s: %w", table, err)
@@ -784,6 +876,42 @@ func (s *SQLiteStore) RebuildFromDir(repoPath string) error {
 			)
 			if err != nil {
 				slog.Error("RebuildFromDir: failed to insert command", "name", cmd.Name, "error", err)
+			}
+		}
+	}
+
+	// Walk expositions/*/summary.json
+	expositionsDir := filepath.Join(repoPath, "expositions")
+	if entries, err := os.ReadDir(expositionsDir); err == nil {
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				continue
+			}
+			summaryPath := filepath.Join(expositionsDir, entry.Name(), "summary.json")
+			raw, err := os.ReadFile(summaryPath)
+			if err != nil {
+				continue
+			}
+			var e data.Exposition
+			if err := json.Unmarshal(raw, &e); err != nil {
+				continue
+			}
+			var nftJSON *string
+			if e.NFTMetadata != nil {
+				b, _ := json.Marshal(e.NFTMetadata)
+				n := string(b)
+				nftJSON = &n
+			}
+			_, err = tx.Exec(
+				`INSERT INTO expositions (exposition_id, author_username, contribution_id, conjecture_id,
+				 prover, proof_script, exposition_text, cost_usd, strategy_used, nft_metadata)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				 ON CONFLICT (exposition_id) DO NOTHING`,
+				e.ExpositionID, e.AuthorUsername, e.ContributionID, e.ConjectureID,
+				e.Prover, e.ProofScript, e.ExpositionText, e.CostUSD, e.StrategyUsed, nftJSON,
+			)
+			if err != nil {
+				slog.Error("RebuildFromDir: failed to insert exposition", "id", e.ExpositionID, "error", err)
 			}
 		}
 	}

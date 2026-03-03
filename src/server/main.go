@@ -89,6 +89,7 @@ func main() {
 	certificateHandler := &handlers.CertificateHandler{Store: lite, GitStore: gs}
 	conjectureWriteHandler := &handlers.ConjectureWriteHandler{GitStore: gs}
 	strategyHandler := &handlers.StrategyHandler{Store: lite}
+	expositionHandler := &handlers.ExpositionHandler{Store: lite, GitStore: gs}
 	webhookHandler := &handlers.WebhookHandler{
 		GitStore:  gs,
 		RebuildFn: lite.RebuildFromDir,
@@ -126,6 +127,8 @@ func main() {
 	r.Get("/strategies/{name}", strategyHandler.Get)
 	r.Get("/contribution-reviews", certificateHandler.List)
 	r.Get("/contributions/{contributionID}/archive", certificateHandler.DownloadArchive)
+	r.Get("/expositions", expositionHandler.List)
+	r.Get("/expositions/{id}", expositionHandler.Get)
 
 	// Webhook endpoint (signature-verified internally)
 	r.Post("/webhooks/git", webhookHandler.Handle)
@@ -148,6 +151,8 @@ func main() {
 		r.Post("/contributions/{id}/seal", contributionHandler.Seal)
 		r.Post("/certificates", certificateHandler.SubmitCertificate)
 		r.Post("/certificates/{id}/seal", certificateHandler.SealCertificate)
+		r.Post("/expositions", expositionHandler.Submit)
+		r.Post("/expositions/{id}/seal", expositionHandler.SealExposition)
 	})
 
 	// Serve embedded static files

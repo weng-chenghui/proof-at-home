@@ -188,6 +188,20 @@ enum ProofAction {
         #[arg(long = "dir")]
         dir: Option<String>,
     },
+    /// Parse a proof and generate a human-readable explanation (exposition)
+    Parse {
+        /// Path to a local proof file (.v or .lean)
+        proof_file: Option<String>,
+        /// Contribution ID (to fetch proof from server)
+        #[arg(long)]
+        contribution: Option<String>,
+        /// Conjecture ID (to fetch proof from server)
+        #[arg(long)]
+        conjecture: Option<String>,
+        /// Use a specific parse strategy (by name)
+        #[arg(long = "by")]
+        by: Option<String>,
+    },
 }
 
 // ── Certificate ──
@@ -353,6 +367,20 @@ async fn main() {
                     conjecture_id.as_deref(),
                     proof_file.as_deref(),
                     dir.as_deref(),
+                )
+                .await
+            }
+            ProofAction::Parse {
+                proof_file,
+                contribution,
+                conjecture,
+                by,
+            } => {
+                commands::proof::cmd_parse(
+                    proof_file.as_deref(),
+                    contribution.as_deref(),
+                    conjecture.as_deref(),
+                    by.as_deref(),
                 )
                 .await
             }

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expositor Quick Start — Proof@Home</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/shared.css">
+</head>
+<body>
+    <nav id="navbar"></nav>
+    <div class="container">
+        <h1>Expositor Quick Start</h1>
+        <p class="text-secondary" style="margin-bottom: 2rem;">Use AI to explain proved theorems in plain language. Turn formal proofs into human-readable narratives.</p>
+
+        <div class="workflow-step" style="margin-bottom: 1rem;">
+            <div class="workflow-number">1</div>
+            <div class="workflow-content">
+                <h3>Install</h3>
+                <p>Install the CLI in one command:</p>
+<pre><code>curl -fsSL https://pah.fly.dev/install.sh | sh</code></pre>
+            </div>
+        </div>
+
+        <div class="workflow-step" style="margin-bottom: 1rem;">
+            <div class="workflow-number">2</div>
+            <div class="workflow-content">
+                <h3>Sign up &amp; log in</h3>
+                <p>Create an account on the <a href="/signup.html">web UI</a>, then authenticate the CLI:</p>
+<pre><code>pah auth login</code></pre>
+            </div>
+        </div>
+
+        <div class="workflow-step" style="margin-bottom: 1rem;">
+            <div class="workflow-number">3</div>
+            <div class="workflow-content">
+                <h3>Set your API key</h3>
+                <p>An Anthropic API key is needed to generate explanations with Claude:</p>
+<pre><code>pah setting set anthropic_api_key</code></pre>
+            </div>
+        </div>
+
+        <div class="workflow-step" style="margin-bottom: 1rem;">
+            <div class="workflow-number">4</div>
+            <div class="workflow-content">
+                <h3>Browse proved conjectures</h3>
+                <p>Find conjectures that have been proved and are ready to be explained:</p>
+<pre><code>pah conjecture list</code></pre>
+                <div class="workflow-actions">
+                    <a href="/conjectures.html" class="btn btn-secondary">Browse Conjectures</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="workflow-step" style="margin-bottom: 1rem;">
+            <div class="workflow-number">5</div>
+            <div class="workflow-content">
+                <h3>Parse a proof</h3>
+                <p>Generate a human-readable explanation from a local proof file or from a server contribution:</p>
+<pre><code># From a local file
+pah proof parse my_proof.v
+
+# From a server contribution
+pah proof parse --contribution &lt;id&gt; --conjecture &lt;id&gt;
+
+# With a custom strategy
+pah proof parse my_proof.lean --by my-custom-parse</code></pre>
+            </div>
+        </div>
+
+        <div class="workflow-step" style="margin-bottom: 1rem;">
+            <div class="workflow-number">6</div>
+            <div class="workflow-content">
+                <h3>View your NFT credit</h3>
+                <p>Expositions generate NFT metadata just like contributions and certificates. Check the gallery to see your work.</p>
+                <div class="workflow-actions">
+                    <a href="/nft-gallery.html" class="btn">NFT Gallery</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="/shared.js"></script>
+</body>
+</html>

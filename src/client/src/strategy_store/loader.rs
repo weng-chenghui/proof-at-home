@@ -10,12 +10,14 @@ const BUILTIN_LEAN: &str = include_str!("builtins/prove-lean-lemma.md");
 const BUILTIN_ROCQ: &str = include_str!("builtins/prove-coq-lemma.md");
 const BUILTIN_CERTIFY_COMPARE: &str = include_str!("builtins/certify-compare.md");
 const BUILTIN_CERTIFY_ROLLUP: &str = include_str!("builtins/certify-rollup.md");
+const BUILTIN_PARSE: &str = include_str!("builtins/parse-proof.md");
 
 const ALL_BUILTINS: &[&str] = &[
     BUILTIN_LEAN,
     BUILTIN_ROCQ,
     BUILTIN_CERTIFY_COMPARE,
     BUILTIN_CERTIFY_ROLLUP,
+    BUILTIN_PARSE,
 ];
 
 /// A loaded strategy ready for rendering.
@@ -166,6 +168,24 @@ pub struct StrategyVars {
     pub lemma_file: String,
 }
 
+/// Variables available for substitution in parse strategy templates.
+pub struct ParseStrategyVars {
+    pub proof_script: String,
+    pub conjecture_title: String,
+    pub lemma_statement: String,
+    pub prover: String,
+}
+
+/// Render a parse strategy body by substituting variables.
+pub fn render_parse_strategy(strategy: &LoadedStrategy, vars: &ParseStrategyVars) -> String {
+    strategy
+        .body
+        .replace("$PROOF_SCRIPT", &vars.proof_script)
+        .replace("$CONJECTURE_TITLE", &vars.conjecture_title)
+        .replace("$LEMMA_STATEMENT", &vars.lemma_statement)
+        .replace("$PROVER", &vars.prover)
+}
+
 /// Variables available for substitution in certify strategy templates.
 pub struct CertifyStrategyVars {
     pub prover: String,
@@ -221,12 +241,13 @@ mod tests {
     #[test]
     fn test_load_builtins() {
         let strategies = load_all_strategies().unwrap();
-        assert!(strategies.len() >= 4);
+        assert!(strategies.len() >= 5);
         let names: Vec<&str> = strategies.iter().map(|c| c.meta.name.as_str()).collect();
         assert!(names.contains(&"prove-lean-lemma"));
         assert!(names.contains(&"prove-coq-lemma"));
         assert!(names.contains(&"certify-compare"));
         assert!(names.contains(&"certify-rollup"));
+        assert!(names.contains(&"parse-proof"));
     }
 
     #[test]
@@ -253,5 +274,33 @@ mod tests {
     fn test_auto_select_certify_rollup() {
         let cmd = auto_select_by_kind("certify-rollup").unwrap();
         assert_eq!(cmd.meta.kind, "certify-rollup");
+    }
+
+    #[test]
+    fn test_auto_select_parse() {
+        let cmd = auto_select_by_kind("parse").unwrap();
+        assert_eq!(cmd.meta.name, "parse-proof");
+        assert_eq!(cmd.meta.kind, "parse");
+    }
+
+    #[test]
+    fn test_render_parse_strategy() {
+        let strategy = load_strategy("parse-proof").unwrap();
+        let vars = ParseStrategyVars {
+            proof_script: "Proof. auto. Qed.".into(),
+            conjecture_title: "Sum of two naturals".into(),
+            lemma_statement: "forall n m, n + m = m + n".into(),
+            prover: "rocq".into(),
+        };
+        let rendered = render_parse_strategy(&strategy, &vars);
+        assert!(rendered.contains("Proof. auto. Qed."));
+        assert!(rendered.contains("Sum of two naturals"));
+        assert!(rendered.contains("forall n m, n + m = m + n"));
+        assert!(rendered.contains("rocq"));
+        // Template variables should be replaced
+        assert!(!rendered.contains("$PROOF_SCRIPT"));
+        assert!(!rendered.contains("$CONJECTURE_TITLE"));
+        assert!(!rendered.contains("$LEMMA_STATEMENT"));
+        assert!(!rendered.contains("$PROVER"));
     }
 }

@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Site Admin Setup Guide — Proof@Home</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/shared.css">
+</head>
+<body>
+    <nav id="navbar"></nav>
+    <div class="container">
+        <h1>Site Admin Setup Guide</h1>
+        <p class="text-secondary" style="margin-bottom: 2rem;">Deploy your own Proof@Home instance from scratch. Follow these steps to create a data repository, configure the server, and start accepting contributions.</p>
+
+        <div class="workflow-step" style="margin-bottom: 1rem;">
+            <div class="workflow-number">1</div>
+            <div class="workflow-content">
+                <h3>Create a data repository</h3>
+                <p>The data repo is the single source of truth for conjectures, strategies, contributions, certificates, and expositions. Create a new git repository with this directory structure:</p>
+<pre><code>your-data-repo/
+├── conjectures/     ← conjecture JSON files
+├── contributions/   ← proof packages (created by contributors)
+├── certificates/    ← review certificates (created by certifiers)
+├── expositions/     ← proof explanations (created by expositors)
+└── strategies/      ← proving strategy markdown files</code></pre>
+                <p>See <code>examples/data-repo/</code> in the Proof@Home source tree for a working template.</p>
+            </div>
+        </div>
+
+        <div class="workflow-step" style="margin-bottom: 1rem;">
+            <div class="workflow-number">2</div>
+            <div class="workflow-content">
+                <h3>Host it on a git forge</h3>
+                <p>Push your data repo to GitHub, GitLab, or keep it as a local bare repository. The server will clone and pull from this remote.</p>
+<pre><code># GitHub
+make setup-github
+
+# GitLab
+make setup-gitlab</code></pre>
+            </div>
+        </div>
+
+        <div class="workflow-step" style="margin-bottom: 1rem;">
+            <div class="workflow-number">3</div>
+            <div class="workflow-content">
+                <h3>Configure environment variables</h3>
+                <p>Set these environment variables before starting the server:</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Variable</th>
+                            <th>Required</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>GIT_DATA_REPO_URL</code></td>
+                            <td>Yes</td>
+                            <td>Remote URL or local path of the data repo</td>
+                        </tr>
+                        <tr>
+                            <td><code>GIT_DATA_REPO_PATH</code></td>
+                            <td>No</td>
+                            <td>Local clone path (default: <code>./data</code>)</td>
+                        </tr>
+                        <tr>
+                            <td><code>GIT_FORGE_TYPE</code></td>
+                            <td>Yes</td>
+                            <td><code>github</code>, <code>gitlab</code>, or <code>local</code></td>
+                        </tr>
+                        <tr>
+                            <td><code>GIT_FORGE_TOKEN</code></td>
+                            <td>For GitHub/GitLab</td>
+                            <td>API token for creating PRs</td>
+                        </tr>
+                        <tr>
+                            <td><code>GIT_FORGE_PROJECT</code></td>
+                            <td>For GitHub/GitLab</td>
+                            <td><code>owner/repo</code> (GitHub) or project ID (GitLab)</td>
+                        </tr>
+                        <tr>
+                            <td><code>WEBHOOK_SECRET</code></td>
+                            <td>Recommended</td>
+                            <td>HMAC secret for webhook verification</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="workflow-step" style="margin-bottom: 1rem;">
+            <div class="workflow-number">4</div>
+            <div class="workflow-content">
+                <h3>Seed conjectures</h3>
+                <p>Add conjecture JSON files to the <code>conjectures/</code> directory. Each file defines one challenge:</p>
+<pre><code>{
+  "id": "my-conjecture-001",
+  "title": "Sum of two primes",
+  "description": "Prove that every even integer greater than 2 ...",
+  "difficulty": "medium",
+  "prover": "lean4",
+  "status": "open"
+}</code></pre>
+                <p>The server loads all files from <code>conjectures/</code> on startup.</p>
+            </div>
+        </div>
+
+        <div class="workflow-step" style="margin-bottom: 1rem;">
+            <div class="workflow-number">5</div>
+            <div class="workflow-content">
+                <h3>Add strategies</h3>
+                <p>Strategy files live in <code>strategies/</code> and use TOML frontmatter delimited by <code>+++</code>:</p>
+<pre><code>+++
+name = "induction-on-nat"
+kind = "tactic"
+prover = "lean4"
+description = "Structural induction on natural numbers"
++++
+
+## Strategy
+
+Use `induction n` to split into base case and
+inductive step. Simplify with `simp` and `omega`.</code></pre>
+            </div>
+        </div>
+
+        <div class="workflow-step" style="margin-bottom: 1rem;">
+            <div class="workflow-number">6</div>
+            <div class="workflow-content">
+                <h3>Deploy &amp; configure webhook</h3>
+                <p>Deploy the server (for example with Fly.io):</p>
+<pre><code>fly deploy</code></pre>
+                <p>Then configure your git forge to send a webhook on push to <code>main</code>:</p>
+                <ul style="font-size:0.875rem;color:var(--text-secondary);margin:0.5rem 0">
+                    <li>URL: <code>https://your-instance.fly.dev/webhooks/git</code></li>
+                    <li>Content type: <code>application/json</code></li>
+                    <li>Secret: your <code>WEBHOOK_SECRET</code> value</li>
+                </ul>
+                <p>The server will auto-sync whenever you push to the data repo.</p>
+            </div>
+        </div>
+
+        <div class="workflow-step" style="margin-bottom: 1rem;">
+            <div class="workflow-number">7</div>
+            <div class="workflow-content">
+                <h3>Verify</h3>
+                <p>Visit the web UI and confirm that data appears on each page:</p>
+                <div class="workflow-actions">
+                    <a href="/conjectures.html" class="btn btn-secondary">Conjectures</a>
+                    <a href="/strategies.html" class="btn btn-secondary">Strategies</a>
+                    <a href="/certificates.html" class="btn btn-secondary">Certificates</a>
+                    <a href="/expositions.html" class="btn btn-secondary">Expositions</a>
+                    <a href="/nft-gallery.html" class="btn btn-secondary">NFT Gallery</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="/shared.js"></script>
+</body>
+</html>

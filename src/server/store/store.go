@@ -14,5 +14,7 @@ type Store interface {
 	ListCertificates() []data.Certificate
 	ListStrategies() []data.Strategy
 	GetStrategy(name string) (data.Strategy, bool)
+	ListExpositions() []data.Exposition
+	GetExposition(id string) (data.Exposition, bool)
 	RebuildFromDir(repoPath string) error
 }

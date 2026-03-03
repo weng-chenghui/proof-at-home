@@ -612,8 +612,8 @@ func TestCommands_List(t *testing.T) {
 		Description string `json:"description"`
 	}
 	getJSON(t, "/strategies", &commands)
-	if got := len(commands); got != 4 {
-		t.Errorf("len(commands) = %d, want 4", got)
+	if got := len(commands); got != 5 {
+		t.Errorf("len(commands) = %d, want 5", got)
 	}
 }
 
@@ -880,6 +880,99 @@ func TestCertifierFlow(t *testing.T) {
 	}
 	if !certFound {
 		t.Errorf("certificate %s not found in GET /certificates", certID)
+	}
+}
+
+func TestExpositionFlow(t *testing.T) {
+	expoID := fmt.Sprintf("test-expo-%d", time.Now().UnixNano())
+
+	// 1. POST /expositions → 201 + commit_sha
+	body := map[string]any{
+		"exposition_id":   expoID,
+		"author_username": "expo-author",
+		"contribution_id": "a1111111-1111-1111-1111-111111111111",
+		"conjecture_id":   "prob_001",
+		"prover":          "rocq",
+		"proof_script":    "Proof. auto. Qed.",
+		"exposition_text":  "This proof uses the auto tactic to automatically discharge the goal.",
+		"cost_usd":        0.03,
+		"strategy_used":   "parse-proof",
+	}
+	status, resp := postJSON(t, "/expositions", body)
+	if status != http.StatusCreated {
+		t.Fatalf("POST /expositions: status %d, body %v", status, resp)
+	}
+	if _, ok := resp["commit_sha"]; !ok {
+		t.Error("response missing commit_sha")
+	}
+
+	// 2. POST /expositions/{id}/seal → 201 + pr_url
+	nft := map[string]any{
+		"name":        "Proof@Home Exposition — expo-author",
+		"description": "AI-generated proof exposition.",
+		"attributes": []map[string]any{
+			{"trait_type": "Author Username", "value": "expo-author"},
+			{"trait_type": "Exposition ID", "value": expoID},
+			{"trait_type": "Conjecture ID", "value": "prob_001"},
+			{"trait_type": "Prover", "value": "rocq"},
+			{"trait_type": "AI Cost (USD)", "value": "0.0300"},
+			{"trait_type": "Strategy Used", "value": "parse-proof"},
+		},
+	}
+	status, resp = postJSON(t, fmt.Sprintf("/expositions/%s/seal", expoID), nft)
+	if status != http.StatusCreated {
+		t.Fatalf("POST /expositions/{id}/seal: status %d, body %v", status, resp)
+	}
+	if _, ok := resp["pr_url"]; !ok {
+		t.Error("response missing pr_url")
+	}
+
+	// 3. GET /expositions → verify expoID in list
+	var expositions []struct {
+		ExpositionID   string `json:"exposition_id"`
+		AuthorUsername string `json:"author_username"`
+		ConjectureID   string `json:"conjecture_id"`
+		Prover         string `json:"prover"`
+		StrategyUsed   string `json:"strategy_used"`
+	}
+	getJSON(t, "/expositions", &expositions)
+	var found bool
+	for _, e := range expositions {
+		if e.ExpositionID == expoID {
+			found = true
+			if e.AuthorUsername != "expo-author" {
+				t.Errorf("author_username = %q, want %q", e.AuthorUsername, "expo-author")
+			}
+			if e.ConjectureID != "prob_001" {
+				t.Errorf("conjecture_id = %q, want %q", e.ConjectureID, "prob_001")
+			}
+			if e.Prover != "rocq" {
+				t.Errorf("prover = %q, want %q", e.Prover, "rocq")
+			}
+			break
+		}
+	}
+	if !found {
+		t.Errorf("exposition %s not found in GET /expositions", expoID)
+	}
+
+	// 4. GET /expositions/{id} → verify fields match
+	var expo struct {
+		ExpositionID   string  `json:"exposition_id"`
+		AuthorUsername string  `json:"author_username"`
+		ExpositionText string  `json:"exposition_text"`
+		CostUSD        float64 `json:"cost_usd"`
+		StrategyUsed   string  `json:"strategy_used"`
+	}
+	getJSON(t, fmt.Sprintf("/expositions/%s", expoID), &expo)
+	if expo.ExpositionID != expoID {
+		t.Errorf("exposition_id = %q, want %q", expo.ExpositionID, expoID)
+	}
+	if expo.ExpositionText == "" {
+		t.Error("exposition_text is empty")
+	}
+	if expo.CostUSD != 0.03 {
+		t.Errorf("cost_usd = %f, want 0.03", expo.CostUSD)
 	}
 }
 

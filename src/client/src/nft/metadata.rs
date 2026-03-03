@@ -208,6 +208,84 @@ pub fn generate_submitter_nft_metadata(info: &ConjectureSubmitterInfo) -> Value 
     })
 }
 
+// ── Exposition NFT metadata ──
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, JsonSchema)]
+pub struct ExpositionInfo {
+    pub author_username: String,
+    pub exposition_id: String,
+    pub conjecture_id: String,
+    pub contribution_id: String,
+    /// The proof assistant software (e.g. "rocq", "lean4") — not the human.
+    pub prover: String,
+    pub cost_usd: f64,
+    pub strategy_used: String,
+    pub git_commit: String,
+    pub git_repository: String,
+    pub public_key: String,
+    pub commit_signature: String,
+}
+
+/// Generate OpenSea-compatible NFT metadata JSON for an exposition
+#[allow(dead_code)]
+pub fn generate_exposition_nft_metadata(info: &ExpositionInfo) -> Value {
+    let date = Utc::now().format("%Y-%m-%d").to_string();
+
+    json!({
+        "name": format!("Proof@Home Exposition — {} — {}", info.author_username, date),
+        "description": "AI-generated proof exposition: a human-readable explanation of a formal proof.",
+        "external_url": "",
+        "image": "",
+        "attributes": [
+            {
+                "trait_type": "Author Username",
+                "value": info.author_username
+            },
+            {
+                "trait_type": "Exposition ID",
+                "value": info.exposition_id
+            },
+            {
+                "trait_type": "Conjecture ID",
+                "value": info.conjecture_id
+            },
+            {
+                "trait_type": "Contribution ID",
+                "value": info.contribution_id
+            },
+            {
+                "trait_type": "Prover",
+                "value": info.prover
+            },
+            {
+                "trait_type": "AI Cost (USD)",
+                "value": format!("{:.4}", info.cost_usd)
+            },
+            {
+                "trait_type": "Strategy Used",
+                "value": info.strategy_used
+            },
+            {
+                "trait_type": "Git Commit",
+                "value": info.git_commit
+            },
+            {
+                "trait_type": "Git Repository",
+                "value": info.git_repository
+            },
+            {
+                "trait_type": "Public Key",
+                "value": info.public_key
+            },
+            {
+                "trait_type": "Commit Signature",
+                "value": info.commit_signature
+            }
+        ]
+    })
+}
+
 // ── Schema-only structs mirroring the NFT JSON output shape ──
 // Used by gen-schemas binary; not constructed in the main binary.
 

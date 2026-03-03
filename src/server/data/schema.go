@@ -93,3 +93,18 @@ type ContributionRanking struct {
 	Rank                      int     `json:"rank"`
 	OverallScore              float64 `json:"overall_score"`
 }
+
+// ── Exposition types ──
+
+type Exposition struct {
+	ExpositionID   string      `json:"exposition_id"`
+	AuthorUsername string      `json:"author_username"`
+	ContributionID string      `json:"contribution_id,omitempty"`
+	ConjectureID   string      `json:"conjecture_id,omitempty"`
+	Prover         string      `json:"prover,omitempty"`
+	ProofScript    string      `json:"proof_script"`
+	ExpositionText string      `json:"exposition_text"`
+	CostUSD        float64     `json:"cost_usd"`
+	StrategyUsed   string      `json:"strategy_used,omitempty"`
+	NFTMetadata    interface{} `json:"nft_metadata"`
+}

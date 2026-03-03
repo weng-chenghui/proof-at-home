@@ -345,6 +345,68 @@ func (gs *GitStore) SealConjecturePackage(batchID string, nftMetadata any) (stri
 	return prURL, nil
 }
 
+// ── Exposition operations ──
+
+// AddExposition creates a branch and commits the exposition summary.
+func (gs *GitStore) AddExposition(ex data.Exposition) (string, error) {
+	gs.mu.Lock()
+	defer gs.mu.Unlock()
+
+	branch := fmt.Sprintf("expo/%s", ex.ExpositionID)
+	dir := filepath.Join("expositions", ex.ExpositionID)
+
+	if err := gs.createBranch(branch); err != nil {
+		return "", err
+	}
+
+	if err := gs.writeJSON(filepath.Join(dir, "summary.json"), ex); err != nil {
+		return "", err
+	}
+
+	if err := gs.commitAndPush(branch, fmt.Sprintf("Add exposition %s", ex.ExpositionID)); err != nil {
+		return "", err
+	}
+
+	sha, err := gs.getHeadSHA()
+	if err != nil {
+		return "", err
+	}
+
+	return sha, nil
+}
+
+// SealExposition writes nft_metadata.json, commits, pushes, and creates a PR.
+func (gs *GitStore) SealExposition(id string, nftMetadata any) (string, error) {
+	gs.mu.Lock()
+	defer gs.mu.Unlock()
+
+	branch := fmt.Sprintf("expo/%s", id)
+
+	if err := gs.checkoutBranch(branch); err != nil {
+		return "", err
+	}
+
+	dir := filepath.Join("expositions", id)
+	if err := gs.writeJSON(filepath.Join(dir, "nft_metadata.json"), nftMetadata); err != nil {
+		return "", err
+	}
+
+	if err := gs.commitAndPush(branch, fmt.Sprintf("Seal exposition %s with NFT metadata", id)); err != nil {
+		return "", err
+	}
+
+	prURL, err := gs.forge.CreatePR(
+		branch, "main",
+		fmt.Sprintf("Exposition: %s", id),
+		fmt.Sprintf("Sealed exposition `%s` with NFT metadata.", id),
+	)
+	if err != nil {
+		return "", fmt.Errorf("creating PR: %w", err)
+	}
+
+	return prURL, nil
+}
+
 // ── Cache rebuild ──
 
 // PullAndRebuild pulls latest main and calls the rebuild function.

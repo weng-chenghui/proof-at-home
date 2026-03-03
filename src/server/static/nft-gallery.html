@@ -51,6 +51,7 @@
         }
         .badge-contribution { background: var(--accent-subtle); color: var(--accent); }
         .badge-review { background: var(--yellow-subtle); color: var(--yellow); }
+        .badge-exposition { background: #e0f2f1; color: #00796b; }
         .badge-published { background: var(--green-subtle); color: var(--green); }
         .badge-draft { background: var(--code-bg); color: var(--text-muted); }
         .nft-card-stats {
@@ -73,17 +74,6 @@
         .nft-card-footer a {
             font-size: 0.75rem;
         }
-        .empty-state {
-            text-align: center;
-            padding: 3rem 1rem;
-            color: var(--text-muted);
-        }
-        .empty-state h2 {
-            font-size: 1.15rem;
-            color: var(--text-secondary);
-            margin-bottom: 0.5rem;
-        }
-        .empty-state p { margin-bottom: 1.25rem; font-size: 0.9rem; }
     </style>
 </head>
 <body>
@@ -96,13 +86,15 @@
             <button class="active" onclick="filterTab('all', this)">All</button>
             <button onclick="filterTab('contribution', this)">Contributions</button>
             <button onclick="filterTab('certificate', this)">Certificates</button>
+            <button onclick="filterTab('exposition', this)">Expositions</button>
         </div>
 
         <div id="msg" class="msg" style="display:none"></div>
         <div id="gallery" class="nft-grid"></div>
         <div id="empty" class="empty-state" style="display:none">
             <h2>No records yet</h2>
-            <p>Use the CLI to submit contributions and certificates.</p>
+            <p>NFT metadata is generated when contributions and certificates are sealed.</p>
+            <a href="/guide-admin.html" class="btn">Setup Guide</a>
         </div>
     </div>
     <script src="/shared.js"></script>
@@ -129,9 +121,12 @@
             empty.style.display = 'none';
 
             gallery.innerHTML = filtered.map(c => {
-                const typeBadge = c.type === 'contribution'
-                    ? '<span class="badge badge-type badge-contribution">Contribution</span>'
-                    : '<span class="badge badge-type badge-review">Certificate</span>';
+                const typeBadgeMap = {
+                    contribution: '<span class="badge badge-type badge-contribution">Contribution</span>',
+                    certificate: '<span class="badge badge-type badge-review">Certificate</span>',
+                    exposition: '<span class="badge badge-type badge-exposition">Exposition</span>'
+                };
+                const typeBadge = typeBadgeMap[c.type] || typeBadgeMap.contribution;
                 const statusBadge = c.published
                     ? '<span class="badge badge-type badge-published">Published</span>'
                     : '<span class="badge badge-type badge-draft">Draft</span>';
@@ -145,6 +140,15 @@
                     if (proved !== null) stats += `<span><strong>${proved}</strong>/${attempted || '?'} conjectures proved</span>`;
                     if (cost) stats += `<span>$${cost} donated</span>`;
                     if (assistant) stats += `<span>${escapeHtml(assistant)}</span>`;
+                } else if (c.type === 'exposition') {
+                    const conjId = getAttr(c.nft, 'Conjecture ID');
+                    const prover = getAttr(c.nft, 'Prover');
+                    const cost = getAttr(c.nft, 'AI Cost (USD)');
+                    const strategy = getAttr(c.nft, 'Strategy Used');
+                    if (conjId) stats += `<span>Conjecture: <strong>${escapeHtml(conjId)}</strong></span>`;
+                    if (prover) stats += `<span>${escapeHtml(prover)}</span>`;
+                    if (cost) stats += `<span>$${cost}</span>`;
+                    if (strategy) stats += `<span>${escapeHtml(strategy)}</span>`;
                 } else {
                     const pkgs = getAttr(c.nft, 'Packages Certified');
                     const conjectures = getAttr(c.nft, 'Conjectures Compared');
@@ -190,9 +194,10 @@
 
         async function load() {
             try {
-                const [contributions, certificates] = await Promise.all([
+                const [contributions, certificates, expositions] = await Promise.all([
                     api('GET', '/contributions').catch(() => []),
-                    api('GET', '/certificates').catch(() => [])
+                    api('GET', '/certificates').catch(() => []),
+                    api('GET', '/expositions').catch(() => [])
                 ]);
 
                 allCards = [];
@@ -217,6 +222,19 @@
                         type: 'certificate',
                         name: (nft && nft.name) || `Certificate ${r.certificate_id || ''}`,
                         username: r.certifier_username || getAttr(nft, 'Certifier') || 'Unknown',
+                        nft: nft,
+                        published: !!archiveCid,
+                        ipfs_cid: archiveCid
+                    });
+                });
+
+                (expositions || []).forEach(e => {
+                    const nft = e.nft_metadata;
+                    const archiveCid = getAttr(nft, 'Archive IPFS CID');
+                    allCards.push({
+                        type: 'exposition',
+                        name: (nft && nft.name) || `Exposition ${e.exposition_id || ''}`,
+                        username: e.author_username || getAttr(nft, 'Author Username') || 'Unknown',
                         nft: nft,
                         published: !!archiveCid,
                         ipfs_cid: archiveCid
