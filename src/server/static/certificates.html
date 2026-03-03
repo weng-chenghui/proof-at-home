@@ -29,14 +29,29 @@
             </thead>
             <tbody id="tbody"></tbody>
         </table>
+        <div id="empty" class="empty-state" style="display:none">
+            <h2>No contribution reviews yet</h2>
+            <p>Reviews appear after contributors submit proof packages.</p>
+            <a href="/guide-admin.html" class="btn">Setup Guide</a>
+        </div>
     </div>
     <script src="/shared.js"></script>
     <script>
         async function load() {
             try {
                 const packages = await api('GET', '/contribution-reviews');
+                const table = document.querySelector('table');
+                const empty = document.getElementById('empty');
+                const rows = (packages || []);
+                if (rows.length === 0) {
+                    table.style.display = 'none';
+                    empty.style.display = 'block';
+                } else {
+                    table.style.display = '';
+                    empty.style.display = 'none';
+                }
                 const tbody = document.getElementById('tbody');
-                tbody.innerHTML = (packages || []).map(p => `
+                tbody.innerHTML = rows.map(p => `
                     <tr>
                         <td>${escapeHtml(p.contributor_username)}</td>
                         <td>${escapeHtml(p.contributor_contribution_id)}</td>

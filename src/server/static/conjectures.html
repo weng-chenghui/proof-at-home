@@ -40,6 +40,11 @@
             </thead>
             <tbody id="tbody"></tbody>
         </table>
+        <div id="empty" class="empty-state" style="display:none">
+            <h2>No conjectures yet</h2>
+            <p>Conjectures are loaded from the data repository. Set up and connect a git repo to get started.</p>
+            <a href="/guide-admin.html" class="btn">Setup Guide</a>
+        </div>
     </div>
     <script src="/shared.js"></script>
     <script>
@@ -73,6 +78,15 @@
                 (!diff || p.difficulty === diff) &&
                 (!asst || p.prover === asst)
             );
+            const table = document.querySelector('table');
+            const empty = document.getElementById('empty');
+            if (filtered.length === 0) {
+                table.style.display = 'none';
+                empty.style.display = 'block';
+            } else {
+                table.style.display = '';
+                empty.style.display = 'none';
+            }
             const tbody = document.getElementById('tbody');
             tbody.innerHTML = filtered.map(p => `
                 <tr>
