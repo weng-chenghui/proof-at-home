@@ -135,6 +135,7 @@ async fn seal_contribution(
         public_key,
         commit_signature,
         proof_mode: proof_mode.to_string(),
+        based_on_contribution_id: None,
     });
 
     let nft_path = contribution_dir.join("nft_metadata.json");
