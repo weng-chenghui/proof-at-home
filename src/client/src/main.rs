@@ -6,6 +6,7 @@ mod commands;
 mod config;
 mod ipfs;
 mod nft;
+mod proof_tree;
 mod prover;
 mod server_client;
 mod signing;
@@ -207,6 +208,12 @@ enum ProofAction {
         /// Use a specific parse strategy (by name)
         #[arg(long = "by")]
         by: Option<String>,
+        /// Output format: text (default) or tree (interactive HTML proof tree)
+        #[arg(long, default_value = "text")]
+        format: String,
+        /// Output file path for tree format (default: proof-tree.html)
+        #[arg(long, short)]
+        output: Option<String>,
     },
 }
 
@@ -393,12 +400,16 @@ async fn main() {
                 contribution,
                 conjecture,
                 by,
+                format,
+                output,
             } => {
                 commands::proof::cmd_parse(
                     proof_file.as_deref(),
                     contribution.as_deref(),
                     conjecture.as_deref(),
                     by.as_deref(),
+                    &format,
+                    output.as_deref(),
                 )
                 .await
             }

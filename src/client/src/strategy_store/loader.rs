@@ -11,6 +11,7 @@ const BUILTIN_ROCQ: &str = include_str!("builtins/prove-coq-lemma.md");
 const BUILTIN_CERTIFY_COMPARE: &str = include_str!("builtins/certify-compare.md");
 const BUILTIN_CERTIFY_ROLLUP: &str = include_str!("builtins/certify-rollup.md");
 const BUILTIN_PARSE: &str = include_str!("builtins/parse-proof.md");
+const BUILTIN_PARSE_TREE: &str = include_str!("builtins/parse-proof-tree.md");
 
 const ALL_BUILTINS: &[&str] = &[
     BUILTIN_LEAN,
@@ -18,6 +19,7 @@ const ALL_BUILTINS: &[&str] = &[
     BUILTIN_CERTIFY_COMPARE,
     BUILTIN_CERTIFY_ROLLUP,
     BUILTIN_PARSE,
+    BUILTIN_PARSE_TREE,
 ];
 
 /// A loaded strategy ready for rendering.

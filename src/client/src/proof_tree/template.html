@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{TITLE}} — Proof Tree</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: #0c0e14;
+    color: #c9d1d9;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+  }
+  #header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+    background: linear-gradient(180deg, #0c0e14 60%, transparent);
+    padding: 16px 24px 32px;
+    pointer-events: none;
+  }
+  #header > * { pointer-events: auto; }
+  h1 { font-size: 16px; font-weight: 600; color: #e6edf3; }
+  .subtitle { font-size: 12px; color: #7d8590; margin-top: 2px; }
+  .controls {
+    position: fixed; bottom: 16px; right: 16px; z-index: 10;
+    display: flex; gap: 6px;
+  }
+  .controls button {
+    background: #161b22; border: 1px solid #30363d; border-radius: 6px;
+    color: #c9d1d9; padding: 6px 12px; font-size: 12px; cursor: pointer;
+    transition: background 0.15s;
+  }
+  .controls button:hover { background: #21262d; }
+  .legend {
+    position: fixed; bottom: 16px; left: 16px; z-index: 10;
+    font-size: 11px; color: #7d8590;
+    display: flex; gap: 16px; align-items: center;
+  }
+  .legend-item { display: flex; align-items: center; gap: 4px; }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  svg { width: 100%; height: 100%; }
+  .link { fill: none; stroke: #30363d; stroke-width: 1.5px; }
+  .node { cursor: pointer; }
+  .node-rect {
+    rx: 8; ry: 8;
+    stroke-width: 1.5px;
+    transition: filter 0.15s;
+  }
+  .node:hover .node-rect { filter: brightness(1.2); }
+  .node-tactic {
+    font-size: 13px; font-weight: 600; font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  }
+  .node-goal { font-size: 11px; }
+  .node-annotation { font-size: 10px; fill: #7d8590; font-style: italic; }
+  .node-toggle {
+    font-size: 10px; font-weight: 700;
+    fill: #7d8590; cursor: pointer;
+  }
+
+  /* Tooltip */
+  .tooltip {
+    position: fixed; z-index: 100;
+    background: #1c2128; border: 1px solid #30363d; border-radius: 8px;
+    padding: 12px 16px; max-width: 420px;
+    font-size: 12px; line-height: 1.5;
+    pointer-events: none; opacity: 0;
+    transition: opacity 0.15s;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+  .tooltip.visible { opacity: 1; }
+  .tooltip-label { color: #7d8590; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .tooltip-math { color: #e6edf3; margin-bottom: 8px; overflow-x: auto; }
+  .tooltip-annotation { color: #7d8590; font-style: italic; }
+
+  /* KaTeX overrides for dark theme */
+  .katex { color: #e6edf3; font-size: 0.95em; }
+</style>
+</head>
+<body>
+<div id="header">
+  <h1>{{TITLE}}</h1>
+  <div class="subtitle">Interactive proof tree · {{PROVER}} · Click nodes to expand/collapse</div>
+</div>
+<div class="controls">
+  <button onclick="expandAll()">Expand All</button>
+  <button onclick="collapseAll()">Collapse</button>
+  <button onclick="resetZoom()">Reset View</button>
+</div>
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:#58a6ff"></div> Goal / Root</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#7ee787"></div> Tactic</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#d2a8ff"></div> QED (Solved)</div>
+</div>
+<div class="tooltip" id="tooltip"></div>
+<svg id="tree-svg"></svg>
+
+<script>
+// Proof tree data injected at build time
+const PROOF_TREE = {{PROOF_TREE_JSON}};
+
+const root = PROOF_TREE.root;
+const margin = { top: 80, right: 60, bottom: 60, left: 60 };
+
+const svg = d3.select('#tree-svg');
+const width = window.innerWidth;
+const height = window.innerHeight;
+
+const g = svg.append('g');
+
+// Zoom behavior
+const zoom = d3.zoom()
+  .scaleExtent([0.1, 4])
+  .on('zoom', (event) => g.attr('transform', event.transform));
+svg.call(zoom);
+
+// Color scheme
+function nodeColor(d) {
+  if (d.data.tactic === 'Goal') return { fill: '#0d2137', stroke: '#58a6ff' };
+  if (d.data.goal_after === '\\text{QED}' || d.data.children?.length === 0)
+    return { fill: '#0d2d1a', stroke: '#7ee787' };
+  return { fill: '#1a1433', stroke: '#d2a8ff' };
+}
+
+// Build D3 hierarchy
+const hierarchy = d3.hierarchy(root, d => d.children);
+hierarchy.x0 = height / 2;
+hierarchy.y0 = 0;
+
+// Initially collapse all children beyond depth 2
+hierarchy.descendants().forEach(d => {
+  if (d.depth > 1 && d.children) {
+    d._children = d.children;
+    d.children = null;
+  }
+});
+
+const nodeWidth = 220;
+const nodeHeight = 64;
+
+const tooltip = document.getElementById('tooltip');
+
+function update(source) {
+  const tree = d3.tree().nodeSize([nodeHeight + 24, nodeWidth + 60]);
+  tree(hierarchy);
+
+  const nodes = hierarchy.descendants();
+  const links = hierarchy.links();
+
+  const transition = g.transition().duration(400);
+
+  // --- Links ---
+  const link = g.selectAll('.link').data(links, d => d.target.data.id);
+
+  link.enter()
+    .append('path')
+    .attr('class', 'link')
+    .attr('d', () => linkPath({x: source.x0, y: source.y0}, {x: source.x0, y: source.y0}))
+    .merge(link)
+    .transition(transition)
+    .attr('d', d => linkPath(d.source, d.target));
+
+  link.exit().transition(transition)
+    .attr('d', () => linkPath(source, source))
+    .remove();
+
+  // --- Nodes ---
+  const node = g.selectAll('.node').data(nodes, d => d.data.id);
+
+  const nodeEnter = node.enter()
+    .append('g')
+    .attr('class', 'node')
+    .attr('transform', `translate(${source.y0 || 0},${source.x0 || 0})`)
+    .on('click', (event, d) => {
+      if (d.children) {
+        d._children = d.children;
+        d.children = null;
+      } else if (d._children) {
+        d.children = d._children;
+        d._children = null;
+      }
+      update(d);
+    })
+    .on('mouseenter', (event, d) => showTooltip(event, d))
+    .on('mouseleave', () => hideTooltip());
+
+  nodeEnter.append('rect')
+    .attr('class', 'node-rect')
+    .attr('x', -nodeWidth / 2)
+    .attr('y', -nodeHeight / 2)
+    .attr('width', nodeWidth)
+    .attr('height', nodeHeight)
+    .attr('fill', d => nodeColor(d).fill)
+    .attr('stroke', d => nodeColor(d).stroke);
+
+  nodeEnter.append('text')
+    .attr('class', 'node-tactic')
+    .attr('text-anchor', 'middle')
+    .attr('dy', '-0.6em')
+    .attr('fill', d => nodeColor(d).stroke)
+    .text(d => truncate(d.data.tactic, 28));
+
+  nodeEnter.append('text')
+    .attr('class', 'node-annotation')
+    .attr('text-anchor', 'middle')
+    .attr('dy', '1.2em')
+    .text(d => truncate(d.data.annotation || '', 36));
+
+  // Collapse/expand indicator
+  nodeEnter.append('text')
+    .attr('class', 'node-toggle')
+    .attr('text-anchor', 'middle')
+    .attr('dy', '2.6em')
+    .text(d => toggleLabel(d));
+
+  // Update positions
+  const nodeUpdate = nodeEnter.merge(node);
+
+  nodeUpdate.transition(transition)
+    .attr('transform', d => `translate(${d.y},${d.x})`);
+
+  nodeUpdate.select('.node-toggle').text(d => toggleLabel(d));
+
+  // Remove exiting nodes
+  node.exit().transition(transition)
+    .attr('transform', `translate(${source.y},${source.x})`)
+    .remove();
+
+  // Stash old positions
+  nodes.forEach(d => { d.x0 = d.x; d.y0 = d.y; });
+}
+
+function linkPath(s, t) {
+  return `M${s.y},${s.x}C${(s.y + t.y) / 2},${s.x} ${(s.y + t.y) / 2},${t.x} ${t.y},${t.x}`;
+}
+
+function truncate(str, max) {
+  return str.length > max ? str.slice(0, max - 1) + '…' : str;
+}
+
+function toggleLabel(d) {
+  if (d._children) return `▸ ${d._children.length} hidden`;
+  if (d.children && d.children.length > 0) return `▾ ${d.children.length} children`;
+  return '';
+}
+
+function showTooltip(event, d) {
+  let html = '';
+  html += `<div class="tooltip-label">Tactic</div>`;
+  html += `<div style="color:#e6edf3;font-weight:600;margin-bottom:8px;font-family:monospace">${escapeHtml(d.data.tactic)}</div>`;
+  html += `<div class="tooltip-label">Goal before</div>`;
+  html += `<div class="tooltip-math" id="tt-before"></div>`;
+  html += `<div class="tooltip-label">Goal after</div>`;
+  html += `<div class="tooltip-math" id="tt-after"></div>`;
+  if (d.data.annotation) {
+    html += `<div class="tooltip-annotation">${escapeHtml(d.data.annotation)}</div>`;
+  }
+  tooltip.innerHTML = html;
+  tooltip.classList.add('visible');
+
+  // Position
+  const tx = Math.min(event.clientX + 12, window.innerWidth - 440);
+  const ty = Math.min(event.clientY + 12, window.innerHeight - 200);
+  tooltip.style.left = tx + 'px';
+  tooltip.style.top = ty + 'px';
+
+  // Render KaTeX
+  try { katex.render(d.data.goal_before || '', document.getElementById('tt-before'), { throwOnError: false, displayMode: false }); } catch(e) { document.getElementById('tt-before').textContent = d.data.goal_before || ''; }
+  try { katex.render(d.data.goal_after || '', document.getElementById('tt-after'), { throwOnError: false, displayMode: false }); } catch(e) { document.getElementById('tt-after').textContent = d.data.goal_after || ''; }
+}
+
+function hideTooltip() {
+  tooltip.classList.remove('visible');
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function expandAll() {
+  hierarchy.descendants().forEach(d => {
+    if (d._children) { d.children = d._children; d._children = null; }
+  });
+  update(hierarchy);
+  resetZoom();
+}
+
+function collapseAll() {
+  hierarchy.descendants().forEach(d => {
+    if (d.depth > 0 && d.children) { d._children = d.children; d.children = null; }
+  });
+  update(hierarchy);
+  resetZoom();
+}
+
+function resetZoom() {
+  const nodes = hierarchy.descendants();
+  if (nodes.length === 0) return;
+  const xs = nodes.filter(d => d.x !== undefined).map(d => d.x);
+  const ys = nodes.filter(d => d.y !== undefined).map(d => d.y);
+  const minX = Math.min(...xs) - nodeHeight;
+  const maxX = Math.max(...xs) + nodeHeight;
+  const minY = Math.min(...ys) - nodeWidth;
+  const maxY = Math.max(...ys) + nodeWidth;
+
+  const dx = maxX - minX;
+  const dy = maxY - minY;
+  const scale = Math.min(0.9 * width / (dy || 1), 0.9 * height / (dx || 1), 1.5);
+  const tx = width / 2 - scale * (minY + maxY) / 2;
+  const ty = height / 2 - scale * (minX + maxX) / 2;
+
+  svg.transition().duration(500)
+    .call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
+}
+
+// Initial render
+update(hierarchy);
+requestAnimationFrame(() => resetZoom());
+
+// Handle window resize
+window.addEventListener('resize', () => {
+  resetZoom();
+});
+</script>
+</body>
+</html>

@@ -1,8 +1,9 @@
 use anyhow::{Context, Result};
 use colored::Colorize;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::config::Config;
+use crate::proof_tree;
 use crate::server_client::api::ServerClient;
 use crate::strategy_store::loader::{self, ParseStrategyVars};
 
@@ -61,6 +62,8 @@ pub async fn cmd_parse(
     contribution_id: Option<&str>,
     conjecture_id: Option<&str>,
     strategy_name: Option<&str>,
+    format: &str,
+    output: Option<&str>,
 ) -> Result<()> {
     let cfg = Config::load_or_default();
 
@@ -104,49 +107,104 @@ pub async fn cmd_parse(
         );
     };
 
-    // 2. Load strategy
+    // 2. Load strategy (auto-select based on format)
     let strategy = if let Some(name) = strategy_name {
         loader::load_strategy(name)?
     } else {
-        loader::auto_select_by_kind("parse")
-            .context("No parse strategy found. Ensure the parse-proof builtin is available.")?
+        let kind = match format {
+            "tree" => "parse-tree",
+            _ => "parse",
+        };
+        loader::auto_select_by_kind(kind).with_context(|| {
+            format!(
+                "No strategy found for kind '{}'. Ensure builtins are available.",
+                kind
+            )
+        })?
     };
 
     // 3. Render prompt
     let vars = ParseStrategyVars {
         proof_script: proof_script.clone(),
-        conjecture_title: conj_title,
+        conjecture_title: conj_title.clone(),
         lemma_statement: lemma_stmt,
         prover: prover.clone(),
     };
     let prompt = loader::render_parse_strategy(&strategy, &vars);
 
     // 4. Call AI provider
-    println!("{}", "Generating exposition...".cyan());
+    let progress_msg = match format {
+        "tree" => "Generating proof tree...",
+        _ => "Generating exposition...",
+    };
+    println!("{}", progress_msg.cyan());
     let provider = crate::ai::create_provider(&cfg)?;
     let model = cfg.model();
-    let ai_response = provider.complete(&prompt, &model, 4096).await?;
+    let max_tokens: u32 = if format == "tree" { 8192 } else { 4096 };
+    let ai_response = provider.complete(&prompt, &model, max_tokens).await?;
     let cost = ai_response.cost_usd;
-    let explanation = ai_response.text.trim().to_string();
+    let response_text = ai_response.text.trim().to_string();
 
-    // 5. Print colored explanation
-    println!();
-    println!("{}", "═".repeat(60).dimmed());
-    println!("{}", " Proof Exposition".bold());
-    println!("{}", "═".repeat(60).dimmed());
-    println!();
-    println!("{}", explanation);
-    println!();
-    println!("{}", "─".repeat(60).dimmed());
-    println!(
-        "  Strategy: {}  |  Cost: ${:.4}  |  Prover: {}",
-        strategy.meta.name.cyan(),
-        cost,
-        prover.yellow()
-    );
-    println!("{}", "─".repeat(60).dimmed());
+    // 5. Output based on format
+    match format {
+        "tree" => {
+            let default_name = format!("{}-proof-tree.html", sanitize_filename(&conj_title));
+            let output_path = PathBuf::from(output.unwrap_or(&default_name));
+
+            proof_tree::build_from_response(&response_text, &output_path)?;
+
+            println!();
+            println!("{}", "═".repeat(60).dimmed());
+            println!("{}", " Proof Tree Generated".bold());
+            println!("{}", "═".repeat(60).dimmed());
+            println!();
+            println!("  Output: {}", output_path.display().to_string().green());
+            println!("  Open in browser to view the interactive proof tree.");
+            println!();
+            println!("{}", "─".repeat(60).dimmed());
+            println!(
+                "  Strategy: {}  |  Cost: ${:.4}  |  Prover: {}",
+                strategy.meta.name.cyan(),
+                cost,
+                prover.yellow()
+            );
+            println!("{}", "─".repeat(60).dimmed());
+        }
+        _ => {
+            // Default text format
+            println!();
+            println!("{}", "═".repeat(60).dimmed());
+            println!("{}", " Proof Exposition".bold());
+            println!("{}", "═".repeat(60).dimmed());
+            println!();
+            println!("{}", response_text);
+            println!();
+            println!("{}", "─".repeat(60).dimmed());
+            println!(
+                "  Strategy: {}  |  Cost: ${:.4}  |  Prover: {}",
+                strategy.meta.name.cyan(),
+                cost,
+                prover.yellow()
+            );
+            println!("{}", "─".repeat(60).dimmed());
+        }
+    }
 
     Ok(())
+}
+
+/// Sanitize a string for use as a filename.
+fn sanitize_filename(name: &str) -> String {
+    name.chars()
+        .map(|c| {
+            if c.is_alphanumeric() || c == '-' || c == '_' {
+                c
+            } else {
+                '-'
+            }
+        })
+        .collect::<String>()
+        .to_lowercase()
 }
 
 #[cfg(test)]
