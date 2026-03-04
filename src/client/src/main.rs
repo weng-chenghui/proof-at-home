@@ -154,20 +154,6 @@ enum ConjectureAction {
         #[arg(long, default_value = "prompt")]
         format: String,
     },
-    /// Visualize a conjecture's mathematical objects as interactive D3.js/SVG
-    Visualize {
-        /// Conjecture ID
-        id: String,
-        /// Mathematical domain for specialized strategy (e.g. group-theory, information-theory)
-        #[arg(long)]
-        domain: Option<String>,
-        /// Use a specific visualization strategy (by name)
-        #[arg(long = "by")]
-        by: Option<String>,
-        /// Output file path (default: <title>-viz.html)
-        #[arg(long, short)]
-        output: Option<String>,
-    },
 }
 
 // ── Contribution ──
@@ -470,20 +456,6 @@ async fn main() {
             }
             ConjectureAction::Export { id, format } => {
                 commands::conjecture::cmd_export(&id, &format).await
-            }
-            ConjectureAction::Visualize {
-                id,
-                domain,
-                by,
-                output,
-            } => {
-                commands::conjecture::cmd_visualize(
-                    &id,
-                    domain.as_deref(),
-                    by.as_deref(),
-                    output.as_deref(),
-                )
-                .await
             }
         },
         Resource::Contribution { action } => match action {

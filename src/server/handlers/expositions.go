@@ -35,13 +35,37 @@ func (h *ExpositionHandler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 // Submit creates an exposition via GitStore. POST /expositions
+// Also accepts visualization-format payloads (with viz_json field) for backward compatibility.
 func (h *ExpositionHandler) Submit(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	var exposition data.Exposition
-	if err := json.NewDecoder(r.Body).Decode(&exposition); err != nil {
+	// Decode into a generic map first to detect viz-format submissions
+	var raw map[string]json.RawMessage
+	if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
 		http.Error(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
 		return
+	}
+
+	// Re-encode and decode into Exposition struct
+	rawBytes, _ := json.Marshal(raw)
+	var exposition data.Exposition
+	if err := json.Unmarshal(rawBytes, &exposition); err != nil {
+		http.Error(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
+		return
+	}
+
+	// Handle visualization-format: use visualization_id as exposition_id, viz_json as exposition_text
+	if _, hasVizJSON := raw["viz_json"]; hasVizJSON {
+		if exposition.ExpositionID == "" {
+			if vizIDRaw, ok := raw["visualization_id"]; ok {
+				var vizID string
+				json.Unmarshal(vizIDRaw, &vizID)
+				exposition.ExpositionID = vizID
+			}
+		}
+		if exposition.ExpositionText == "" {
+			exposition.ExpositionText = string(raw["viz_json"])
+		}
 	}
 
 	commitSHA, err := h.GitStore.AddExposition(exposition)

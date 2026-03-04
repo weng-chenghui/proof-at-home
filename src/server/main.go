@@ -90,7 +90,6 @@ func main() {
 	conjectureWriteHandler := &handlers.ConjectureWriteHandler{GitStore: gs}
 	strategyHandler := &handlers.StrategyHandler{Store: lite}
 	expositionHandler := &handlers.ExpositionHandler{Store: lite, GitStore: gs}
-	visualizationHandler := &handlers.VisualizationHandler{Store: lite, GitStore: gs}
 	webhookHandler := &handlers.WebhookHandler{
 		GitStore:  gs,
 		RebuildFn: lite.RebuildFromDir,
@@ -130,8 +129,6 @@ func main() {
 	r.Get("/contributions/{contributionID}/archive", certificateHandler.DownloadArchive)
 	r.Get("/expositions", expositionHandler.List)
 	r.Get("/expositions/{id}", expositionHandler.Get)
-	r.Get("/visualizations", visualizationHandler.List)
-	r.Get("/visualizations/{id}", visualizationHandler.Get)
 
 	// Pool URL endpoint (returns the data repo git URL for CLI cloning)
 	r.Get("/api/pool-url", func(w http.ResponseWriter, r *http.Request) {
@@ -162,8 +159,6 @@ func main() {
 		r.Post("/certificates/{id}/seal", certificateHandler.SealCertificate)
 		r.Post("/expositions", expositionHandler.Submit)
 		r.Post("/expositions/{id}/seal", expositionHandler.SealExposition)
-		r.Post("/visualizations", visualizationHandler.Submit)
-		r.Post("/visualizations/{id}/seal", visualizationHandler.SealVisualization)
 	})
 
 	// Serve embedded static files

@@ -69,17 +69,17 @@
                     <div id="viz-section"></div>
                 `;
 
-                // Fetch visualizations for this conjecture
+                // Fetch expositions for this conjecture
                 try {
-                    const allVizs = await api('GET', '/visualizations');
-                    const vizs = (allVizs || []).filter(v => v.conjecture_id === id);
-                    if (vizs.length > 0) {
+                    const allExpos = await api('GET', '/expositions');
+                    const expos = (allExpos || []).filter(e => e.conjecture_id === id);
+                    if (expos.length > 0) {
                         document.getElementById('viz-section').innerHTML = `
-                            <h2>Visualizations</h2>
-                            <ul>${vizs.map(v => `<li><a href="/visualization.html?id=${encodeURIComponent(v.visualization_id)}">${escapeHtml(v.title || v.visualization_id)}</a> — ${escapeHtml(v.domain || '')} (${escapeHtml(v.author_username || '')})</li>`).join('')}</ul>
+                            <h2>Expositions</h2>
+                            <ul>${expos.map(e => `<li><a href="/exposition.html?id=${encodeURIComponent(e.exposition_id)}">${escapeHtml(e.title || e.exposition_id)}</a> — ${escapeHtml(e.domain || '')} (${escapeHtml(e.author_username || '')})</li>`).join('')}</ul>
                         `;
                     }
-                } catch (e) { /* ignore — visualizations are optional */ }
+                } catch (e) { /* ignore — expositions are optional */ }
             } catch (e) {
                 showMsg('msg', 'Failed to load conjecture: ' + (e.error || e.message || 'not found'), true);
             }

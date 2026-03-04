@@ -78,6 +78,25 @@ pub async fn cmd_create(
         strategy_name.unwrap_or("exposition-default").to_string()
     };
 
+    // Extract title, domain, summary from the JSON response if present
+    let viz_json: serde_json::Value = serde_json::from_str(&viz_json_str)
+        .unwrap_or(serde_json::Value::Object(serde_json::Map::new()));
+    let expo_title = viz_json
+        .get("title")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    let expo_summary = viz_json
+        .get("summary")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    let expo_domain = viz_json
+        .get("domain")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+
     let submit_req = SubmitExpositionRequest {
         exposition_id: expo_id.clone(),
         author_username: cfg.identity.username.clone(),
@@ -88,6 +107,9 @@ pub async fn cmd_create(
         exposition_text: viz_json_str,
         cost_usd: cost,
         strategy_used: strategy_used.clone(),
+        domain: expo_domain,
+        title: expo_title,
+        summary: expo_summary,
     };
 
     print!("Submitting exposition to server... ");

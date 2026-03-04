@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Visualization Detail — Proof@Home</title>
+    <title>Exposition Detail — Proof@Home</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -55,7 +55,7 @@
 <body>
     <nav id="navbar"></nav>
     <div class="container">
-        <p><a href="/visualizations.html">&larr; Back to Visualizations</a></p>
+        <p><a href="/expositions.html">&larr; Back to Expositions</a></p>
         <div id="msg" class="msg" style="display:none"></div>
         <div id="content"></div>
     </div>
@@ -65,67 +65,80 @@
         async function load() {
             const id = new URLSearchParams(window.location.search).get('id');
             if (!id) {
-                showMsg('msg', 'No visualization ID specified.', true);
+                showMsg('msg', 'No exposition ID specified.', true);
                 return;
             }
             try {
-                const v = await api('GET', '/visualizations/' + encodeURIComponent(id));
-                document.title = (v.title || v.visualization_id) + ' — Proof@Home';
+                const e = await api('GET', '/expositions/' + encodeURIComponent(id));
+                document.title = (e.title || e.exposition_id) + ' — Proof@Home';
 
-                const vizData = typeof v.viz_json === 'string' ? JSON.parse(v.viz_json) : (v.viz_json || {});
+                const vizData = typeof e.exposition_text === 'string' ? (function() { try { return JSON.parse(e.exposition_text); } catch { return {}; } })() : (e.exposition_text || {});
                 const vizs = vizData.visualizations || vizData.panels || [];
 
                 let metaHtml = `<dl class="viz-meta">
-                    <dt>Author:</dt><dd>${escapeHtml(v.author_username || '')}</dd>
-                    <dt>Conjecture:</dt><dd><a href="/conjecture.html?id=${encodeURIComponent(v.conjecture_id)}">${escapeHtml(v.conjecture_id || '')}</a></dd>
-                    <dt>Domain:</dt><dd>${escapeHtml(v.domain || '')}</dd>
-                    <dt>Cost:</dt><dd>$${(v.cost_usd || 0).toFixed(4)}</dd>
-                    <dt>Strategy:</dt><dd>${escapeHtml(v.strategy_used || '')}</dd>
+                    <dt>Author:</dt><dd>${escapeHtml(e.author_username || '')}</dd>
+                    ${e.conjecture_id ? `<dt>Conjecture:</dt><dd><a href="/conjecture.html?id=${encodeURIComponent(e.conjecture_id)}">${escapeHtml(e.conjecture_id)}</a></dd>` : ''}
+                    ${e.contribution_id ? `<dt>Contribution:</dt><dd>${escapeHtml(e.contribution_id)}</dd>` : ''}
+                    ${e.domain ? `<dt>Domain:</dt><dd>${escapeHtml(e.domain)}</dd>` : ''}
+                    <dt>Cost:</dt><dd>$${(e.cost_usd || 0).toFixed(4)}</dd>
+                    <dt>Strategy:</dt><dd>${escapeHtml(e.strategy_used || '')}</dd>
                 </dl>`;
 
-                let summaryHtml = vizData.summary ? `<p class="viz-summary">${escapeHtml(vizData.summary)}</p>` : '';
+                let summaryHtml = (e.summary || vizData.summary) ? `<p class="viz-summary">${escapeHtml(e.summary || vizData.summary)}</p>` : '';
 
                 const useArticleLayout = vizs.some(v => v.type === 'text');
                 let tabsHtml = '';
                 let panelsHtml = '';
 
-                if (useArticleLayout) {
-                    vizs.forEach((viz, i) => {
-                        if (viz.type === 'text') {
-                            panelsHtml += `<div class="article-section" id="viz-${i}"></div>`;
-                        } else {
-                            panelsHtml += `<div class="article-section">
+                if (vizs.length > 0) {
+                    if (useArticleLayout) {
+                        vizs.forEach((viz, i) => {
+                            if (viz.type === 'text') {
+                                panelsHtml += `<div class="article-section" id="viz-${i}"></div>`;
+                            } else {
+                                panelsHtml += `<div class="article-section">
+                                    <div class="panel-title">${escapeHtml(viz.title || '')}</div>
+                                    <div class="panel-desc">${escapeHtml(viz.description || '')}</div>
+                                    <div class="viz-container" id="viz-${i}"></div>
+                                </div>`;
+                            }
+                        });
+                    } else {
+                        tabsHtml = '<div class="tabs" id="viz-tabs">';
+                        vizs.forEach((viz, i) => {
+                            tabsHtml += `<button class="tab${i === 0 ? ' active' : ''}" onclick="switchVizTab(${i})">${escapeHtml(viz.title || 'Panel ' + (i + 1))}</button>`;
+                            panelsHtml += `<div class="panel${i === 0 ? ' active' : ''}" id="panel-${i}">
                                 <div class="panel-title">${escapeHtml(viz.title || '')}</div>
                                 <div class="panel-desc">${escapeHtml(viz.description || '')}</div>
                                 <div class="viz-container" id="viz-${i}"></div>
                             </div>`;
-                        }
-                    });
+                        });
+                        tabsHtml += '</div>';
+                    }
+                }
+
+                // Fallback for plain text exposition (no visualizations array)
+                let bodyHtml = '';
+                if (vizs.length > 0) {
+                    bodyHtml = tabsHtml + panelsHtml;
+                } else if (e.exposition_text) {
+                    bodyHtml = `<div class="viz-text-block"><pre style="white-space:pre-wrap;font-family:inherit">${escapeHtml(e.exposition_text)}</pre></div>`;
                 } else {
-                    tabsHtml = '<div class="tabs" id="viz-tabs">';
-                    vizs.forEach((viz, i) => {
-                        tabsHtml += `<button class="tab${i === 0 ? ' active' : ''}" onclick="switchVizTab(${i})">${escapeHtml(viz.title || 'Visualization ' + (i + 1))}</button>`;
-                        panelsHtml += `<div class="panel${i === 0 ? ' active' : ''}" id="panel-${i}">
-                            <div class="panel-title">${escapeHtml(viz.title || '')}</div>
-                            <div class="panel-desc">${escapeHtml(viz.description || '')}</div>
-                            <div class="viz-container" id="viz-${i}"></div>
-                        </div>`;
-                    });
-                    tabsHtml += '</div>';
+                    bodyHtml = '<p class="text-secondary">No exposition content available.</p>';
                 }
 
                 document.getElementById('content').innerHTML = `
-                    <h1>${escapeHtml(v.title || v.visualization_id)}</h1>
+                    <h1>${escapeHtml(e.title || e.exposition_id)}</h1>
                     ${metaHtml}
                     ${summaryHtml}
-                    ${vizs.length > 0 ? tabsHtml + panelsHtml : '<p class="text-secondary">No visualization data available.</p>'}
+                    ${bodyHtml}
                 `;
 
                 // Render each visualization
                 vizs.forEach((viz, i) => {
                     const container = document.getElementById(`viz-${i}`);
+                    if (!container) return;
                     try {
-                        // Support both viz.data (standard) and inline properties
                         const vizPayload = viz.data || viz;
                         switch (viz.type) {
                             case 'text': renderText(container, vizPayload); break;
@@ -134,14 +147,14 @@
                             case 'region_diagram':
                             case 'region_containment': renderRegion(container, vizPayload, i); break;
                             case 'table': renderTable(container, vizPayload); break;
-                            default: container.innerHTML = `<p style="padding:24px;color:var(--text-secondary)">Unknown visualization type: ${escapeHtml(viz.type)}</p>`;
+                            default: container.innerHTML = `<p style="padding:24px;color:var(--text-secondary)">Unknown type: ${escapeHtml(viz.type)}</p>`;
                         }
-                    } catch (e) {
-                        container.innerHTML = `<p style="padding:24px;color:var(--danger)">Error rendering: ${escapeHtml(e.message)}</p>`;
+                    } catch (err) {
+                        container.innerHTML = `<p style="padding:24px;color:var(--danger)">Error rendering: ${escapeHtml(err.message)}</p>`;
                     }
                 });
-            } catch (e) {
-                showMsg('msg', 'Failed to load visualization: ' + (e.error || e.message || 'not found'), true);
+            } catch (err) {
+                showMsg('msg', 'Failed to load exposition: ' + (err.error || err.message || 'not found'), true);
             }
         }
 

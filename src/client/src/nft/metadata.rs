@@ -260,48 +260,6 @@ pub fn generate_exposition_nft_metadata(info: &ExpositionInfo) -> Value {
     })
 }
 
-// ── Visualization NFT metadata ──
-
-#[derive(Debug, Serialize, JsonSchema)]
-pub struct VisualizationInfo {
-    pub author_username: String,
-    pub visualization_id: String,
-    pub conjecture_id: String,
-    pub domain: String,
-    pub cost_usd: f64,
-    pub strategy_used: String,
-    pub git_commit: String,
-    pub git_repository: String,
-    pub public_key: String,
-    pub commit_signature: String,
-}
-
-/// Generate OpenSea-compatible NFT metadata JSON for a visualization
-pub fn generate_visualization_nft_metadata(info: &VisualizationInfo) -> Value {
-    let date = Utc::now().format("%Y-%m-%d").to_string();
-
-    json!({
-        "name": format!("Proof@Home Visualization — {} — {}", info.author_username, date),
-        "description": "AI-generated conjecture visualization: interactive D3.js diagrams illustrating mathematical structures.",
-        "external_url": "",
-        "image": "",
-        "attributes": [
-            {"trait_type": "Author Username", "value": info.author_username},
-            {"trait_type": "Visualization ID", "value": info.visualization_id},
-            {"trait_type": "Conjecture ID", "value": info.conjecture_id},
-            {"trait_type": "Domain", "value": info.domain},
-            {"trait_type": "AI Cost (USD)", "value": format!("{:.4}", info.cost_usd)},
-            {"trait_type": "Strategy Used", "value": info.strategy_used},
-            {"trait_type": "Git Commit", "value": info.git_commit},
-            {"trait_type": "Git Repository", "value": info.git_repository},
-            {"trait_type": "Public Key", "value": info.public_key},
-            {"trait_type": "Commit Signature", "value": info.commit_signature},
-            {"trait_type": "Role", "value": "Visualizer"},
-            {"trait_type": "Date", "value": date}
-        ]
-    })
-}
-
 // ── Schema-only structs mirroring the NFT JSON output shape ──
 // Used by gen-schemas binary; not constructed in the main binary.
 

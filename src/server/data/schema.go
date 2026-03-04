@@ -107,19 +107,7 @@ type Exposition struct {
 	CostUSD        float64     `json:"cost_usd"`
 	StrategyUsed   string      `json:"strategy_used,omitempty"`
 	NFTMetadata    interface{} `json:"nft_metadata"`
-}
-
-// ── Visualization types ──
-
-type Visualization struct {
-	VisualizationID string          `json:"visualization_id"`
-	AuthorUsername  string          `json:"author_username"`
-	ConjectureID    string          `json:"conjecture_id"`
-	Domain          string          `json:"domain,omitempty"`
-	Title           string          `json:"title"`
-	Summary         string          `json:"summary"`
-	VizJSON         json.RawMessage `json:"viz_json"`
-	CostUSD         float64         `json:"cost_usd"`
-	StrategyUsed    string          `json:"strategy_used,omitempty"`
-	NFTMetadata     interface{}     `json:"nft_metadata"`
+	Domain         string      `json:"domain,omitempty"`
+	Title          string      `json:"title,omitempty"`
+	Summary        string      `json:"summary,omitempty"`
 }

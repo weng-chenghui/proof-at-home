@@ -20,11 +20,11 @@
             <thead>
                 <tr>
                     <th>Exposition ID</th>
+                    <th>Title</th>
                     <th>Author</th>
                     <th>Conjecture</th>
-                    <th>Prover</th>
+                    <th>Domain</th>
                     <th>Strategy</th>
-                    <th>Method</th>
                 </tr>
             </thead>
             <tbody id="tbody"></tbody>
@@ -53,21 +53,14 @@
                 table.style.display = '';
                 empty.style.display = 'none';
 
-                const inferMethod = (s) => {
-                    if (!s) return '';
-                    if (s === 'pair-proved') return 'pair-proved';
-                    if (s === 'manual') return 'manual';
-                    return 'api-assisted';
-                };
-
                 tbody.innerHTML = expositions.map(e => `
                     <tr>
                         <td><a href="/exposition.html?id=${encodeURIComponent(e.exposition_id)}">${escapeHtml(e.exposition_id || '')}</a></td>
+                        <td>${escapeHtml(e.title || '')}</td>
                         <td>${escapeHtml(e.author_username || '')}</td>
                         <td>${escapeHtml(e.conjecture_id || '')}</td>
-                        <td>${escapeHtml(e.prover || '')}</td>
+                        <td>${escapeHtml(e.domain || '')}</td>
                         <td>${escapeHtml(e.strategy_used || '')}</td>
-                        <td>${escapeHtml(inferMethod(e.strategy_used))}</td>
                     </tr>
                 `).join('');
             } catch (e) {

@@ -205,21 +205,6 @@ pub struct CertifyStrategyVars {
     pub package_rankings: String,
 }
 
-/// Variables available for substitution in visualize strategy templates.
-pub struct VisualizeStrategyVars {
-    pub conjecture_arguments: String,
-}
-
-/// Render a visualize strategy body by substituting variables.
-pub fn render_visualize_strategy(
-    strategy: &LoadedStrategy,
-    vars: &VisualizeStrategyVars,
-) -> String {
-    strategy
-        .body
-        .replace("$CONJECTURE_ARGUMENTS", &vars.conjecture_arguments)
-}
-
 /// Variables available for substitution in exposition strategy templates.
 pub struct ExpositionStrategyVars {
     pub resource_arguments: String,
@@ -431,17 +416,5 @@ mod tests {
     fn test_auto_select_visualize_info_theory() {
         let cmd = auto_select_by_kind("visualize-information-theory").unwrap();
         assert_eq!(cmd.meta.name, "visualize-information-theory");
-    }
-
-    #[test]
-    fn test_render_visualize_strategy() {
-        let strategy = load_strategy("visualize-default").unwrap();
-        let vars = VisualizeStrategyVars {
-            conjecture_arguments: "**Title:** Test\n**Prover:** lean4".into(),
-        };
-        let rendered = render_visualize_strategy(&strategy, &vars);
-        assert!(rendered.contains("**Title:** Test"));
-        assert!(rendered.contains("**Prover:** lean4"));
-        assert!(!rendered.contains("$CONJECTURE_ARGUMENTS"));
     }
 }
