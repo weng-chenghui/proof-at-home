@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How It Works — Proof@Home</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/shared.css">
+    <style>
+        .vision-hero {
+            text-align: center;
+            padding: 3.5rem 0 2.5rem;
+        }
+        .vision-hero h1 {
+            font-size: 2.25rem;
+            letter-spacing: -0.04em;
+            margin-bottom: 0.75rem;
+        }
+        .vision-hero p {
+            color: var(--text-secondary);
+            font-size: 1.05rem;
+            max-width: 560px;
+            margin: 0 auto;
+            line-height: 1.7;
+        }
+
+        .paths-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin: 2rem 0 0;
+        }
+        .path-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem 1.25rem;
+            display: flex;
+            flex-direction: column;
+            transition: box-shadow var(--transition), border-color var(--transition);
+        }
+        .path-card:hover {
+            box-shadow: var(--shadow-md);
+            border-color: var(--accent);
+        }
+        .path-card-icon {
+            font-size: 1.75rem;
+            margin-bottom: 0.75rem;
+        }
+        .path-card h3 {
+            margin: 0 0 0.35rem;
+            font-size: 1rem;
+            font-weight: 650;
+            letter-spacing: -0.01em;
+        }
+        .path-card p {
+            margin: 0 0 1rem;
+            font-size: 0.825rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            flex: 1;
+        }
+        .path-cmd {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0.5rem 0.75rem;
+            font-family: "JetBrains Mono", "SF Mono", "Fira Code", Menlo, Consolas, monospace;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            white-space: pre-line;
+        }
+
+        .converge-row {
+            grid-column: 1 / -1;
+            background: var(--accent-subtle);
+            border: 2px solid var(--accent);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            text-align: center;
+        }
+        .converge-row h3 {
+            margin: 0 0 0.35rem;
+            font-size: 1.05rem;
+            font-weight: 650;
+            color: var(--accent);
+        }
+        .converge-row p {
+            margin: 0;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+        .converge-arrow {
+            grid-column: 1 / -1;
+            text-align: center;
+            font-size: 1.5rem;
+            color: var(--text-muted);
+            padding: 0.25rem 0;
+        }
+
+        .nft-meaning {
+            margin: 3rem 0 2rem;
+            padding: 2rem 1.5rem;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+        }
+        .nft-meaning h2 {
+            margin: 0 0 0.75rem;
+            font-size: 1.15rem;
+        }
+        .nft-meaning p {
+            margin: 0 0 0.75rem;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+        .nft-meaning p:last-child { margin-bottom: 0; }
+
+        .roles-summary {
+            margin: 2rem 0;
+        }
+        .roles-summary h2 {
+            margin: 0 0 0.75rem;
+        }
+        .roles-summary p {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            line-height: 1.7;
+            margin: 0 0 1rem;
+        }
+
+        @media (max-width: 768px) {
+            .paths-grid { grid-template-columns: 1fr; }
+            .vision-hero h1 { font-size: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+    <nav id="navbar"></nav>
+
+    <div class="container container-wide">
+        <div class="vision-hero">
+            <h1>Every contribution deserves credit.</h1>
+            <p>Whether you write proofs by hand, pair with an AI assistant, or donate compute for fully automated proving — your work is permanently credited.</p>
+        </div>
+    </div>
+
+    <div class="container container-wide">
+        <h2 style="text-align:center;margin-bottom:0.5rem;">Three ways to prove, one standard of credit</h2>
+        <p style="text-align:center;color:var(--text-secondary);font-size:0.9rem;margin-bottom:0;">Pick the path that fits your skills and tools. Every path produces the same permanent credit.</p>
+
+        <div class="paths-grid">
+            <div class="path-card">
+                <div class="path-card-icon">&#9997;&#65039;</div>
+                <h3>By Hand</h3>
+                <p>Write a formal proof in Lean or Rocq yourself. No API key, no budget, no AI — just your knowledge and a compiler.</p>
+                <div class="path-cmd">pah proof submit prob_001 proof.lean</div>
+            </div>
+
+            <div class="path-card">
+                <div class="path-card-icon">&#128101;</div>
+                <h3>Pair with AI</h3>
+                <p>Export a conjecture and solve it interactively with your AI coding assistant — Claude Code, Cursor, Copilot, or Windsurf. No API key needed.</p>
+                <div class="path-cmd">pah conjecture export prob_001
+# ... prove with your assistant ...
+pah proof submit prob_001 proof.lean \
+  --method pair-proved</div>
+            </div>
+
+            <div class="path-card">
+                <div class="path-card-icon">&#9889;</div>
+                <h3>Fully Automated</h3>
+                <p>Set a budget and let the CLI drive an LLM to generate and verify proofs automatically. You donate compute; the system does the rest.</p>
+                <div class="path-cmd">pah contribution run</div>
+            </div>
+
+            <div class="converge-arrow">&#8595; &#8595; &#8595;</div>
+
+            <div class="converge-row">
+                <h3>Compiler verifies. You get credited.</h3>
+                <p>Every proof is checked by the Lean or Rocq compiler. Then it's sealed with a permanent NFT — a verifiable record of who contributed, how, and when. Same credit. Same NFT. Your method is recorded, your contribution is equal.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="nft-meaning">
+            <h2>What the NFT means</h2>
+            <p>The NFT is not about ownership — proofs are public domain (CC0). The NFT is a permanent receipt: <em>"This theorem was formalized because of your work."</em></p>
+            <p>Think of it like a donor's name on a university building. The building is public. The name records who made it possible. Your NFT records your contribution, your proof method, and a cryptographic signature — pinned to IPFS, mintable on-chain.</p>
+        </div>
+
+        <div class="roles-summary">
+            <h2>More than proving</h2>
+            <p>Proving is just one way to contribute. You can also <strong>certify</strong> others' proofs, <strong>author</strong> new conjectures, write <strong>expositions</strong> that explain proofs, or <strong>collaborate</strong> by improving existing work. Every role earns its own NFT credit.</p>
+            <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+                <a href="/" class="btn btn-secondary">See all roles</a>
+                <a href="/getting-started.html" class="btn">Get started</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="install-band">
+        <div class="install-band-inner">
+            <div>
+                <h2>Start in one command</h2>
+                <p>Install the CLI and prove your first conjecture</p>
+            </div>
+            <div class="install-band-code">
+                <code id="install-cmd">curl -fsSL https://pah.fly.dev/install.sh | sh</code>
+                <button onclick="copyInstall(this)">Copy</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/shared.js"></script>
+    <script>
+    function copyInstall(btn) {
+        const cmd = document.getElementById('install-cmd').textContent;
+        navigator.clipboard.writeText(cmd).then(() => {
+            btn.textContent = '\u2713';
+            setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
+        });
+    }
+    </script>
+</body>
+</html>

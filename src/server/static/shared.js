@@ -102,6 +102,7 @@ function initNav() {
     nav.innerHTML = `
         <a class="nav-brand" href="/">Proof@Home</a>
         <div class="nav-links">
+            <a href="/how-it-works.html">How It Works</a>
             <a href="/getting-started.html">Getting Started</a>
             <a href="/conjectures.html">Conjectures</a>
             <a href="/certificates.html">Certificates</a>
