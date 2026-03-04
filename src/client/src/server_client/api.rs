@@ -126,6 +126,24 @@ impl ServerClient {
         Ok(resp.status == "ok")
     }
 
+    /// Fetch a PocketBase user record by ID (for extracting username/email during login).
+    pub async fn get_pocketbase_user(&self, user_id: &str) -> Result<serde_json::Value> {
+        let url = format!(
+            "{}/api/collections/users/records/{}",
+            self.base_url, user_id
+        );
+        let resp: serde_json::Value = self
+            .client
+            .get(&url)
+            .header("Authorization", &self.auth_token)
+            .send()
+            .await
+            .context("Failed to fetch user record")?
+            .json()
+            .await?;
+        Ok(resp)
+    }
+
     pub async fn fetch_conjectures(&self) -> Result<Vec<Conjecture>> {
         let conjectures: Vec<Conjecture> = self
             .client

@@ -1,3 +1,5 @@
+use std::io::IsTerminal;
+
 use anyhow::{Context, Result};
 use colored::Colorize;
 use dialoguer::{Input, Password};
@@ -34,7 +36,17 @@ pub async fn cmd_login() -> Result<()> {
         prompt_server_url()?
     };
 
-    let token: String = Password::new().with_prompt("Auth token").interact()?;
+    let token: String = if let Ok(t) = std::env::var("PAH_AUTH_TOKEN") {
+        println!("Auth token: {} (from PAH_AUTH_TOKEN)", "(set)".green());
+        t
+    } else if std::io::stdin().is_terminal() {
+        Password::new().with_prompt("Auth token").interact()?
+    } else {
+        // Non-interactive: read from stdin
+        let mut line = String::new();
+        std::io::stdin().read_line(&mut line)?;
+        line
+    };
 
     let token = token.trim().to_string();
     if token.is_empty() {
@@ -50,20 +62,38 @@ pub async fn cmd_login() -> Result<()> {
     let payload: serde_json::Value =
         serde_json::from_str(&payload_json).context("Failed to parse token payload as JSON")?;
 
-    let username = payload
+    let mut username = payload
         .get("username")
         .or_else(|| payload.get("nickname"))
         .or_else(|| payload.get("email"))
         .or_else(|| payload.get("sub"))
+        .or_else(|| payload.get("id"))
         .and_then(|v| v.as_str())
         .unwrap_or("")
         .to_string();
 
-    let email = payload
+    let mut email = payload
         .get("email")
         .and_then(|v| v.as_str())
         .unwrap_or("")
         .to_string();
+
+    // PocketBase JWTs only embed `id` — fetch the user record for username/email.
+    if let Some(user_id) = payload.get("id").and_then(|v| v.as_str()) {
+        let client = ServerClient::new(&server_url, &token);
+        if let Ok(user) = client.get_pocketbase_user(user_id).await {
+            if let Some(u) = user.get("username").and_then(|v| v.as_str()) {
+                if !u.is_empty() {
+                    username = u.to_string();
+                }
+            }
+            if let Some(e) = user.get("email").and_then(|v| v.as_str()) {
+                if !e.is_empty() {
+                    email = e.to_string();
+                }
+            }
+        }
+    }
 
     if !username.is_empty() {
         println!("  Logged in as: {}", username.green().bold());
@@ -152,9 +182,12 @@ pub fn cmd_logout() -> Result<()> {
 // ── Helpers ──
 
 fn prompt_server_url() -> Result<String> {
+    if !std::io::stdin().is_terminal() {
+        return Ok("https://pah.fly.dev".to_string());
+    }
     let url: String = Input::new()
         .with_prompt("Server URL")
-        .default("http://localhost:8080".to_string())
+        .default("https://pah.fly.dev".to_string())
         .interact_text()?;
     Ok(url)
 }
