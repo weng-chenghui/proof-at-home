@@ -652,6 +652,9 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 			CostUSD        float64 `json:"cost_usd"`
 			StrategyUsed   string  `json:"strategy_used,omitempty"`
 			NFTMetadata    any     `json:"nft_metadata"`
+			Domain         string  `json:"domain,omitempty"`
+			Title          string  `json:"title,omitempty"`
+			Summary        string  `json:"summary,omitempty"`
 		}
 
 		entries := make([]expositionEntry, 0, len(records))
@@ -666,6 +669,9 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 				CostUSD:        r.GetFloat("cost_usd"),
 				StrategyUsed:   r.GetString("strategy_used"),
 				NFTMetadata:    r.Get("nft_metadata"),
+				Domain:         r.GetString("domain"),
+				Title:          r.GetString("title"),
+				Summary:        r.GetString("summary"),
 			})
 		}
 		return e.JSON(http.StatusOK, entries)
@@ -692,6 +698,9 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 			"cost_usd":        record.GetFloat("cost_usd"),
 			"strategy_used":   record.GetString("strategy_used"),
 			"nft_metadata":    record.Get("nft_metadata"),
+			"domain":          record.GetString("domain"),
+			"title":           record.GetString("title"),
+			"summary":         record.GetString("summary"),
 		}
 		return e.JSON(http.StatusOK, result)
 	})
@@ -724,107 +733,6 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 		}
 
 		prURL, err := gs.SealExposition(id, nftMetadata)
-		if err != nil {
-			return e.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to seal: " + err.Error()})
-		}
-
-		return e.JSON(http.StatusCreated, map[string]string{
-			"pr_url": prURL,
-			"status": "pending",
-		})
-	})
-
-	// GET /visualizations — list visualizations
-	se.Router.GET("/visualizations", func(e *core.RequestEvent) error {
-		records, err := app.FindAllRecords("visualizations")
-		if err != nil {
-			return e.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
-		}
-
-		type visualizationEntry struct {
-			VisualizationID string  `json:"visualization_id"`
-			AuthorUsername  string  `json:"author_username"`
-			ConjectureID    string  `json:"conjecture_id,omitempty"`
-			Domain          string  `json:"domain,omitempty"`
-			Title           string  `json:"title"`
-			Summary         string  `json:"summary"`
-			VizJSON         any     `json:"viz_json"`
-			CostUSD         float64 `json:"cost_usd"`
-			StrategyUsed    string  `json:"strategy_used,omitempty"`
-			NFTMetadata     any     `json:"nft_metadata"`
-		}
-
-		entries := make([]visualizationEntry, 0, len(records))
-		for _, r := range records {
-			entries = append(entries, visualizationEntry{
-				VisualizationID: r.GetString("visualization_id"),
-				AuthorUsername:  r.GetString("author_username"),
-				ConjectureID:    r.GetString("conjecture_id"),
-				Domain:          r.GetString("domain"),
-				Title:           r.GetString("title"),
-				Summary:         r.GetString("summary"),
-				VizJSON:         r.Get("viz_json"),
-				CostUSD:         r.GetFloat("cost_usd"),
-				StrategyUsed:    r.GetString("strategy_used"),
-				NFTMetadata:     r.Get("nft_metadata"),
-			})
-		}
-		return e.JSON(http.StatusOK, entries)
-	})
-
-	// GET /visualizations/{id} — get specific visualization
-	se.Router.GET("/visualizations/{id}", func(e *core.RequestEvent) error {
-		id := e.Request.PathValue("id")
-		record, err := app.FindFirstRecordByFilter("visualizations", "visualization_id = {:vid}", map[string]any{
-			"vid": id,
-		})
-		if err != nil {
-			return e.JSON(http.StatusNotFound, map[string]string{"error": "not found"})
-		}
-
-		result := map[string]any{
-			"visualization_id": record.GetString("visualization_id"),
-			"author_username":  record.GetString("author_username"),
-			"conjecture_id":    record.GetString("conjecture_id"),
-			"domain":           record.GetString("domain"),
-			"title":            record.GetString("title"),
-			"summary":          record.GetString("summary"),
-			"viz_json":         record.Get("viz_json"),
-			"cost_usd":         record.GetFloat("cost_usd"),
-			"strategy_used":    record.GetString("strategy_used"),
-			"nft_metadata":     record.Get("nft_metadata"),
-		}
-		return e.JSON(http.StatusOK, result)
-	})
-
-	// POST /visualizations — submit visualization via GitStore
-	se.Router.POST("/visualizations", func(e *core.RequestEvent) error {
-		var viz data.Visualization
-		if err := json.NewDecoder(e.Request.Body).Decode(&viz); err != nil {
-			return e.JSON(http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
-		}
-
-		commitSHA, err := gs.AddVisualization(viz)
-		if err != nil {
-			return e.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to create visualization: " + err.Error()})
-		}
-
-		return e.JSON(http.StatusCreated, map[string]string{
-			"commit_sha": commitSHA,
-			"status":     "accepted",
-		})
-	})
-
-	// POST /visualizations/{id}/seal — seal visualization, create PR
-	se.Router.POST("/visualizations/{id}/seal", func(e *core.RequestEvent) error {
-		id := e.Request.PathValue("id")
-
-		var nftMetadata any
-		if err := json.NewDecoder(e.Request.Body).Decode(&nftMetadata); err != nil {
-			return e.JSON(http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
-		}
-
-		prURL, err := gs.SealVisualization(id, nftMetadata)
 		if err != nil {
 			return e.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to seal: " + err.Error()})
 		}
@@ -1032,7 +940,7 @@ func rebuildFromGit(app core.App) error {
 	repoPath := gs.RepoPath()
 
 	// Clear existing records
-	for _, collName := range []string{"proofs", "certificates", "contributions", "conjectures", "strategies", "expositions", "visualizations"} {
+	for _, collName := range []string{"proofs", "certificates", "contributions", "conjectures", "strategies", "expositions"} {
 		records, err := app.FindAllRecords(collName)
 		if err != nil {
 			continue
@@ -1262,6 +1170,9 @@ func rebuildFromGit(app core.App) error {
 				record.Set("cost_usd", ex.CostUSD)
 				record.Set("strategy_used", ex.StrategyUsed)
 				record.Set("nft_metadata", ex.NFTMetadata)
+				record.Set("domain", ex.Domain)
+				record.Set("title", ex.Title)
+				record.Set("summary", ex.Summary)
 				if err := app.Save(record); err != nil {
 					slog.Error("Rebuild: failed to save exposition", "id", ex.ExpositionID, "error", err)
 				}
@@ -1269,11 +1180,11 @@ func rebuildFromGit(app core.App) error {
 		}
 	}
 
-	// Walk visualizations/*/summary.json
+	// Walk visualizations/*/summary.json — migrate into expositions
 	visualizationsDir := filepath.Join(repoPath, "visualizations")
 	if entries, err := os.ReadDir(visualizationsDir); err == nil {
-		vizCollection, _ := app.FindCollectionByNameOrId("visualizations")
-		if vizCollection != nil {
+		vizExpoCollection, _ := app.FindCollectionByNameOrId("expositions")
+		if vizExpoCollection != nil {
 			for _, entry := range entries {
 				if !entry.IsDir() {
 					continue
@@ -1283,24 +1194,25 @@ func rebuildFromGit(app core.App) error {
 				if err != nil {
 					continue
 				}
-				var viz data.Visualization
-				if err := json.Unmarshal(raw, &viz); err != nil {
+				var parsed map[string]any
+				if err := json.Unmarshal(raw, &parsed); err != nil {
 					continue
 				}
 
-				record := core.NewRecord(vizCollection)
-				record.Set("visualization_id", viz.VisualizationID)
-				record.Set("author_username", viz.AuthorUsername)
-				record.Set("conjecture_id", viz.ConjectureID)
-				record.Set("domain", viz.Domain)
-				record.Set("title", viz.Title)
-				record.Set("summary", viz.Summary)
-				record.Set("viz_json", viz.VizJSON)
-				record.Set("cost_usd", viz.CostUSD)
-				record.Set("strategy_used", viz.StrategyUsed)
-				record.Set("nft_metadata", viz.NFTMetadata)
+				record := core.NewRecord(vizExpoCollection)
+				record.Set("exposition_id", parsed["visualization_id"])
+				record.Set("author_username", parsed["author_username"])
+				record.Set("conjecture_id", parsed["conjecture_id"])
+				record.Set("domain", parsed["domain"])
+				record.Set("title", parsed["title"])
+				record.Set("summary", parsed["summary"])
+				record.Set("exposition_text", parsed["viz_json"])
+				record.Set("cost_usd", parsed["cost_usd"])
+				record.Set("strategy_used", parsed["strategy_used"])
+				record.Set("nft_metadata", parsed["nft_metadata"])
 				if err := app.Save(record); err != nil {
-					slog.Error("Rebuild: failed to save visualization", "id", viz.VisualizationID, "error", err)
+					vizID, _ := parsed["visualization_id"].(string)
+					slog.Error("Rebuild: failed to save migrated visualization", "id", vizID, "error", err)
 				}
 			}
 		}
