@@ -24,13 +24,14 @@
                     <th>Conjecture</th>
                     <th>Prover</th>
                     <th>Strategy</th>
+                    <th>Method</th>
                 </tr>
             </thead>
             <tbody id="tbody"></tbody>
         </table>
         <div id="empty" class="empty-state" style="display:none">
             <h2>No expositions yet</h2>
-            <p>Expositions are created with <code>pah proof parse</code>. Try explaining a proof to get started.</p>
+            <p>Expositions are created with <code>pah exposition create --for=&lt;id&gt;</code>. Try explaining a conjecture to get started.</p>
             <a href="/guide-exposition.html" class="btn">Expositor Guide</a>
         </div>
     </div>
@@ -52,13 +53,21 @@
                 table.style.display = '';
                 empty.style.display = 'none';
 
+                const inferMethod = (s) => {
+                    if (!s) return '';
+                    if (s === 'pair-proved') return 'pair-proved';
+                    if (s === 'manual') return 'manual';
+                    return 'api-assisted';
+                };
+
                 tbody.innerHTML = expositions.map(e => `
                     <tr>
-                        <td>${escapeHtml(e.exposition_id || '')}</td>
+                        <td><a href="/exposition.html?id=${encodeURIComponent(e.exposition_id)}">${escapeHtml(e.exposition_id || '')}</a></td>
                         <td>${escapeHtml(e.author_username || '')}</td>
                         <td>${escapeHtml(e.conjecture_id || '')}</td>
                         <td>${escapeHtml(e.prover || '')}</td>
                         <td>${escapeHtml(e.strategy_used || '')}</td>
+                        <td>${escapeHtml(inferMethod(e.strategy_used))}</td>
                     </tr>
                 `).join('');
             } catch (e) {

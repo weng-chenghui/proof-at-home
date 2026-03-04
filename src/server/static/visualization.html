@@ -46,6 +46,10 @@
         .viz-table tr:hover td { background: var(--code-bg); }
         .viz-table caption { caption-side: bottom; padding: 8px; font-size: 11px; color: var(--text-secondary); font-style: italic; }
         .katex { font-size: 0.95em; }
+        .viz-text-block { line-height: 1.7; font-size: 15px; max-width: 720px; margin: 0 auto; padding: 24px; }
+        .viz-text-block p { margin-bottom: 1em; }
+        .article-section { padding: 1.5rem 0; border-bottom: 1px solid var(--border); }
+        .article-section:last-child { border-bottom: none; }
     </style>
 </head>
 <body>
@@ -81,17 +85,34 @@
 
                 let summaryHtml = vizData.summary ? `<p class="viz-summary">${escapeHtml(vizData.summary)}</p>` : '';
 
-                let tabsHtml = '<div class="tabs" id="viz-tabs">';
+                const useArticleLayout = vizs.some(v => v.type === 'text');
+                let tabsHtml = '';
                 let panelsHtml = '';
-                vizs.forEach((viz, i) => {
-                    tabsHtml += `<button class="tab${i === 0 ? ' active' : ''}" onclick="switchVizTab(${i})">${escapeHtml(viz.title || 'Visualization ' + (i + 1))}</button>`;
-                    panelsHtml += `<div class="panel${i === 0 ? ' active' : ''}" id="panel-${i}">
-                        <div class="panel-title">${escapeHtml(viz.title || '')}</div>
-                        <div class="panel-desc">${escapeHtml(viz.description || '')}</div>
-                        <div class="viz-container" id="viz-${i}"></div>
-                    </div>`;
-                });
-                tabsHtml += '</div>';
+
+                if (useArticleLayout) {
+                    vizs.forEach((viz, i) => {
+                        if (viz.type === 'text') {
+                            panelsHtml += `<div class="article-section" id="viz-${i}"></div>`;
+                        } else {
+                            panelsHtml += `<div class="article-section">
+                                <div class="panel-title">${escapeHtml(viz.title || '')}</div>
+                                <div class="panel-desc">${escapeHtml(viz.description || '')}</div>
+                                <div class="viz-container" id="viz-${i}"></div>
+                            </div>`;
+                        }
+                    });
+                } else {
+                    tabsHtml = '<div class="tabs" id="viz-tabs">';
+                    vizs.forEach((viz, i) => {
+                        tabsHtml += `<button class="tab${i === 0 ? ' active' : ''}" onclick="switchVizTab(${i})">${escapeHtml(viz.title || 'Visualization ' + (i + 1))}</button>`;
+                        panelsHtml += `<div class="panel${i === 0 ? ' active' : ''}" id="panel-${i}">
+                            <div class="panel-title">${escapeHtml(viz.title || '')}</div>
+                            <div class="panel-desc">${escapeHtml(viz.description || '')}</div>
+                            <div class="viz-container" id="viz-${i}"></div>
+                        </div>`;
+                    });
+                    tabsHtml += '</div>';
+                }
 
                 document.getElementById('content').innerHTML = `
                     <h1>${escapeHtml(v.title || v.visualization_id)}</h1>
@@ -107,6 +128,7 @@
                         // Support both viz.data (standard) and inline properties
                         const vizPayload = viz.data || viz;
                         switch (viz.type) {
+                            case 'text': renderText(container, vizPayload); break;
                             case 'generic_graph': renderGraph(container, vizPayload, i); break;
                             case 'commutative_diagram': renderCD(container, vizPayload, i); break;
                             case 'region_diagram':

@@ -766,7 +766,7 @@ async fn seal_submitter_nft(
     Ok(())
 }
 
-fn sign_if_possible(cfg: &Config, commit_sha: &str) -> (String, String) {
+pub(crate) fn sign_if_possible(cfg: &Config, commit_sha: &str) -> (String, String) {
     match Config::signing_key_path()
         .ok()
         .filter(|p| p.exists())

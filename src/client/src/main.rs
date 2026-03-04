@@ -82,6 +82,11 @@ enum Resource {
         #[command(subcommand)]
         action: PoolAction,
     },
+    /// Create and manage expositions (mixed text+visual explanations)
+    Exposition {
+        #[command(subcommand)]
+        action: ExpositionAction,
+    },
 }
 
 // ── Conjecture ──
@@ -360,6 +365,49 @@ enum ProviderAction {
     Quota,
 }
 
+// ── Exposition ──
+
+#[derive(Subcommand)]
+enum ExpositionAction {
+    /// Create an exposition for a resource (conjecture, contribution, certificate)
+    Create {
+        /// Resource ID (auto-detected: prob_xxx=conjecture, contrib_xxx=contribution, cert_xxx=certificate)
+        #[arg(long)]
+        r#for: String,
+        /// Mathematical domain for specialized strategy
+        #[arg(long)]
+        domain: Option<String>,
+        /// Use a specific strategy (by name)
+        #[arg(long = "by")]
+        by: Option<String>,
+        /// Output file path
+        #[arg(long, short)]
+        output: Option<String>,
+        /// Read pre-generated exposition JSON from stdin (for pair provers)
+        #[arg(long)]
+        stdin: bool,
+        /// Creation method: api-assisted (default), pair-proved, manual
+        #[arg(long, default_value = "api-assisted")]
+        method: String,
+    },
+    /// Export the exposition prompt for use with an AI coding assistant
+    Export {
+        /// Resource ID
+        #[arg(long)]
+        r#for: String,
+        /// Mathematical domain for specialized strategy
+        #[arg(long)]
+        domain: Option<String>,
+    },
+    /// List expositions
+    List,
+    /// Get an exposition by ID
+    Get {
+        /// Exposition ID
+        id: String,
+    },
+}
+
 // ── Pool ──
 
 #[derive(Subcommand)]
@@ -529,6 +577,31 @@ async fn main() {
             PoolAction::Pull => commands::pool::cmd_pull().await,
             PoolAction::Push => commands::pool::cmd_push().await,
             PoolAction::Status => commands::pool::cmd_status().await,
+        },
+        Resource::Exposition { action } => match action {
+            ExpositionAction::Create {
+                r#for,
+                domain,
+                by,
+                output,
+                stdin,
+                method,
+            } => {
+                commands::exposition::cmd_create(
+                    &r#for,
+                    domain.as_deref(),
+                    by.as_deref(),
+                    output.as_deref(),
+                    stdin,
+                    &method,
+                )
+                .await
+            }
+            ExpositionAction::Export { r#for, domain } => {
+                commands::exposition::cmd_export(&r#for, domain.as_deref()).await
+            }
+            ExpositionAction::List => commands::exposition::cmd_list().await,
+            ExpositionAction::Get { id } => commands::exposition::cmd_get(&id).await,
         },
     };
 

@@ -90,6 +90,14 @@
     color: #7d8590; font-style: italic;
   }
 
+  /* Text block styles */
+  .viz-text-block { line-height: 1.7; font-size: 15px; max-width: 720px; margin: 0 auto; padding: 24px; color: #c9d1d9; }
+  .viz-text-block p { margin-bottom: 1em; }
+
+  /* Article layout (stacked, no tabs) */
+  .article-section { padding: 24px; border-bottom: 1px solid #21262d; }
+  .article-section:last-child { border-bottom: none; }
+
   /* KaTeX overrides for dark theme */
   .katex { color: #e6edf3; font-size: 0.95em; }
 </style>
@@ -116,25 +124,46 @@ const tabsEl = document.getElementById('tabs');
 const panelsEl = document.getElementById('panels');
 const vizs = VIZ_DATA.visualizations || VIZ_DATA.panels || [];
 
-vizs.forEach((viz, i) => {
-  // Tab
-  const tab = document.createElement('button');
-  tab.className = 'tab' + (i === 0 ? ' active' : '');
-  tab.textContent = viz.title || `Visualization ${i + 1}`;
-  tab.onclick = () => switchTab(i);
-  tabsEl.appendChild(tab);
+// Use article layout (stacked, no tabs) when any section has type 'text'
+const useArticleLayout = vizs.some(v => v.type === 'text');
 
-  // Panel
-  const panel = document.createElement('div');
-  panel.className = 'panel' + (i === 0 ? ' active' : '');
-  panel.id = `panel-${i}`;
-  panel.innerHTML = `
-    <div class="panel-title">${escapeHtml(viz.title || '')}</div>
-    <div class="panel-desc">${escapeHtml(viz.description || '')}</div>
-    <div class="viz-container" id="viz-${i}"></div>
-  `;
-  panelsEl.appendChild(panel);
-});
+if (useArticleLayout) {
+  tabsEl.style.display = 'none';
+  vizs.forEach((viz, i) => {
+    const section = document.createElement('div');
+    section.className = 'article-section';
+    if (viz.type === 'text') {
+      section.id = `viz-${i}`;
+    } else {
+      section.innerHTML = `
+        <div class="panel-title">${escapeHtml(viz.title || '')}</div>
+        <div class="panel-desc">${escapeHtml(viz.description || '')}</div>
+        <div class="viz-container" id="viz-${i}"></div>
+      `;
+    }
+    panelsEl.appendChild(section);
+  });
+} else {
+  vizs.forEach((viz, i) => {
+    // Tab
+    const tab = document.createElement('button');
+    tab.className = 'tab' + (i === 0 ? ' active' : '');
+    tab.textContent = viz.title || `Visualization ${i + 1}`;
+    tab.onclick = () => switchTab(i);
+    tabsEl.appendChild(tab);
+
+    // Panel
+    const panel = document.createElement('div');
+    panel.className = 'panel' + (i === 0 ? ' active' : '');
+    panel.id = `panel-${i}`;
+    panel.innerHTML = `
+      <div class="panel-title">${escapeHtml(viz.title || '')}</div>
+      <div class="panel-desc">${escapeHtml(viz.description || '')}</div>
+      <div class="viz-container" id="viz-${i}"></div>
+    `;
+    panelsEl.appendChild(panel);
+  });
+}
 
 function switchTab(idx) {
   document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', i === idx));
@@ -147,6 +176,7 @@ vizs.forEach((viz, i) => {
   try {
     const vizPayload = viz.data || viz;
     switch (viz.type) {
+      case 'text': renderText(container, vizPayload); break;
       case 'generic_graph': renderGraph(container, vizPayload, i); break;
       case 'commutative_diagram': renderCD(container, vizPayload, i); break;
       case 'region_diagram':
@@ -160,6 +190,22 @@ vizs.forEach((viz, i) => {
 });
 
 // ── Renderers ──
+
+function renderText(container, data) {
+  const content = data.content || '';
+  const div = document.createElement('div');
+  div.className = 'viz-text-block';
+  content.split('\n\n').forEach(para => {
+    if (!para.trim()) return;
+    const p = document.createElement('p');
+    p.innerHTML = para.replace(/\$([^$]+)\$/g, (_, tex) => {
+      try { return katex.renderToString(tex, { throwOnError: false }); }
+      catch(e) { return tex; }
+    });
+    div.appendChild(p);
+  });
+  container.appendChild(div);
+}
 
 function renderGraph(container, data, idx) {
   const width = container.clientWidth || 800;

@@ -186,7 +186,6 @@ pub fn generate_submitter_nft_metadata(info: &ConjectureSubmitterInfo) -> Value 
 
 // ── Exposition NFT metadata ──
 
-#[allow(dead_code)]
 #[derive(Debug, Serialize, JsonSchema)]
 pub struct ExpositionInfo {
     pub author_username: String,
@@ -204,7 +203,6 @@ pub struct ExpositionInfo {
 }
 
 /// Generate OpenSea-compatible NFT metadata JSON for an exposition
-#[allow(dead_code)]
 pub fn generate_exposition_nft_metadata(info: &ExpositionInfo) -> Value {
     let date = Utc::now().format("%Y-%m-%d").to_string();
 

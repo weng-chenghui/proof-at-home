@@ -74,6 +74,8 @@ pah auth login           # Paste token from web UI</code></pre>
 # ... prove with your AI assistant ...
 pah proof submit prob_001 proof.lean --method pair-proved</code></pre>
                 <p style="margin-top: 0.75rem; font-size: 0.85rem;">The CLI fetches open conjectures, generates or accepts a formal proof, compiles it with <code>rocq c</code> or <code>lean</code> to verify correctness, submits the results, and archives everything with a SHA-256 hash.</p>
+                <p style="margin-top: 0.75rem;">After proving, create an exposition to explain your proof:</p>
+<pre><code>pah exposition create --for=prob_001</code></pre>
             </div>
         </div>
 

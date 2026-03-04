@@ -2,6 +2,7 @@ pub mod auth;
 pub mod certificate;
 pub mod conjecture;
 pub mod contribution;
+pub mod exposition;
 pub mod pool;
 pub mod proof;
 pub mod provider;

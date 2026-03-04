@@ -83,6 +83,21 @@ pah tools check</code></pre>
         <div class="workflow-step" style="margin-bottom: 1rem;">
             <div class="workflow-number">7</div>
             <div class="workflow-content">
+                <h3>Create expositions too</h3>
+                <p>Pair provers can also create rich expositions with text, math, and visualizations:</p>
+<pre><code># Export the exposition prompt
+pah exposition export --for=prob_001 | pbcopy
+
+# Paste into your AI assistant, iterate until the JSON output is correct...
+
+# Submit the result
+pbpaste | pah exposition create --for=prob_001 --stdin --method pair-proved</code></pre>
+            </div>
+        </div>
+
+        <div class="workflow-step" style="margin-bottom: 1rem;">
+            <div class="workflow-number">8</div>
+            <div class="workflow-content">
                 <h3>View your NFT credit</h3>
                 <p>Your submission is sealed with NFT metadata that records you as a Pair Prover. Browse the gallery to see it.</p>
                 <div class="workflow-actions">

@@ -215,6 +215,22 @@ function renderTable(container, data) {
   });
 }
 
+function renderText(container, data) {
+  const content = data.content || '';
+  const div = document.createElement('div');
+  div.className = 'viz-text-block';
+  content.split('\n\n').forEach(para => {
+    if (!para.trim()) return;
+    const p = document.createElement('p');
+    p.innerHTML = para.replace(/\$([^$]+)\$/g, (_, tex) => {
+      try { return katex.renderToString(tex, { throwOnError: false }); }
+      catch(e) { return tex; }
+    });
+    div.appendChild(p);
+  });
+  container.appendChild(div);
+}
+
 function renderKaTeX(el, text) {
   if (!text) return;
   // KaTeX outputs HTML which doesn't render inside SVG <text> elements.

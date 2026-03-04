@@ -16,6 +16,7 @@ const BUILTIN_VISUALIZE_DEFAULT: &str = include_str!("builtins/visualize-default
 const BUILTIN_VISUALIZE_GROUP_THEORY: &str = include_str!("builtins/visualize-group-theory.md");
 const BUILTIN_VISUALIZE_INFO_THEORY: &str =
     include_str!("builtins/visualize-information-theory.md");
+const BUILTIN_EXPOSITION_DEFAULT: &str = include_str!("builtins/exposition-default.md");
 
 const ALL_BUILTINS: &[&str] = &[
     BUILTIN_LEAN,
@@ -27,6 +28,7 @@ const ALL_BUILTINS: &[&str] = &[
     BUILTIN_VISUALIZE_DEFAULT,
     BUILTIN_VISUALIZE_GROUP_THEORY,
     BUILTIN_VISUALIZE_INFO_THEORY,
+    BUILTIN_EXPOSITION_DEFAULT,
 ];
 
 /// A loaded strategy ready for rendering.
@@ -216,6 +218,90 @@ pub fn render_visualize_strategy(
     strategy
         .body
         .replace("$CONJECTURE_ARGUMENTS", &vars.conjecture_arguments)
+}
+
+/// Variables available for substitution in exposition strategy templates.
+pub struct ExpositionStrategyVars {
+    pub resource_arguments: String,
+}
+
+/// Render an exposition strategy body by substituting variables.
+pub fn render_exposition_strategy(
+    strategy: &LoadedStrategy,
+    vars: &ExpositionStrategyVars,
+) -> String {
+    strategy
+        .body
+        .replace("$RESOURCE_ARGUMENTS", &vars.resource_arguments)
+}
+
+/// Build a resource arguments block from a conjecture (for exposition).
+pub fn build_resource_arguments_for_conjecture(conjecture: &Conjecture) -> String {
+    let mut parts = Vec::new();
+    parts.push("**Resource type:** Conjecture".to_string());
+    parts.push(format!("**Title:** {}", conjecture.title));
+    parts.push(format!("**Prover:** {}", conjecture.prover));
+    parts.push(format!("**Difficulty:** {}", conjecture.difficulty));
+
+    if !conjecture.preamble.is_empty() {
+        parts.push(format!(
+            "\n**Preamble (imports/setup):**\n```\n{}\n```",
+            conjecture.preamble
+        ));
+    }
+
+    parts.push(format!(
+        "\n**Lemma to prove:**\n```\n{}\n```",
+        conjecture.lemma_statement
+    ));
+
+    if !conjecture.hints.is_empty() {
+        let hints = conjecture
+            .hints
+            .iter()
+            .map(|h| format!("- {}", h))
+            .collect::<Vec<_>>()
+            .join("\n");
+        parts.push(format!("\n**Hints:**\n{}", hints));
+    }
+
+    if !conjecture.skeleton.is_empty() {
+        parts.push(format!(
+            "\n**Skeleton (if provided):**\n```\n{}\n```",
+            conjecture.skeleton
+        ));
+    }
+
+    parts.join("\n")
+}
+
+/// Build a resource arguments block from a contribution.
+pub fn build_resource_arguments_for_contribution(
+    contribution: &crate::server_client::api::Contribution,
+    proofs: &[crate::server_client::api::Proof],
+) -> String {
+    let mut parts = Vec::new();
+    parts.push("**Resource type:** Contribution".to_string());
+    parts.push(format!(
+        "**Contribution ID:** {}",
+        contribution.contribution_id
+    ));
+    parts.push(format!("**Author:** {}", contribution.username));
+    parts.push(format!(
+        "**Conjectures proved/attempted:** {}/{}",
+        contribution.conjectures_proved, contribution.conjectures_attempted
+    ));
+    parts.push(format!("**Cost:** ${:.4}", contribution.total_cost_usd));
+    parts.push(format!("**Status:** {}", contribution.proof_status));
+
+    for proof in proofs {
+        parts.push(format!(
+            "\n### Proof for {}\n**Success:** {}\n```\n{}\n```",
+            proof.conjecture_id, proof.success, proof.proof_script
+        ));
+    }
+
+    parts.join("\n")
 }
 
 /// Build the $ARGUMENTS block from conjecture data.

@@ -559,6 +559,113 @@ struct PoolUrlResponse {
     git_url: String,
 }
 
+// ── Exposition endpoints ──
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SubmitExpositionRequest {
+    pub exposition_id: String,
+    pub author_username: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub contribution_id: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub conjecture_id: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub prover: String,
+    pub proof_script: String,
+    pub exposition_text: String,
+    pub cost_usd: f64,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub strategy_used: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[allow(dead_code)]
+pub struct ExpositionRecord {
+    pub exposition_id: String,
+    pub author_username: String,
+    pub exposition_text: String,
+    pub cost_usd: f64,
+    #[serde(default)]
+    pub conjecture_id: String,
+    #[serde(default)]
+    pub contribution_id: String,
+    #[serde(default)]
+    pub prover: String,
+    #[serde(default)]
+    pub strategy_used: String,
+}
+
+impl ServerClient {
+    /// Submit an exposition to the server. Returns commit SHA.
+    pub async fn submit_exposition(
+        &self,
+        req: &SubmitExpositionRequest,
+    ) -> Result<FinalizeResponse> {
+        let resp = self
+            .authed(self.client.post(format!("{}/expositions", self.base_url)))
+            .json(req)
+            .send()
+            .await
+            .context("Failed to submit exposition")?;
+        if !resp.status().is_success() {
+            let body = resp.text().await.unwrap_or_default();
+            anyhow::bail!("Server returned error: {}", body);
+        }
+        let result: FinalizeResponse = resp.json().await?;
+        Ok(result)
+    }
+
+    /// Seal an exposition with NFT metadata. Creates a PR in the data repo.
+    pub async fn seal_exposition(
+        &self,
+        exposition_id: &str,
+        nft_metadata: &serde_json::Value,
+    ) -> Result<SealResponse> {
+        let resp = self
+            .authed(self.client.post(format!(
+                "{}/expositions/{}/seal",
+                self.base_url, exposition_id
+            )))
+            .json(nft_metadata)
+            .send()
+            .await
+            .context("Failed to seal exposition")?;
+        if !resp.status().is_success() {
+            let body = resp.text().await.unwrap_or_default();
+            anyhow::bail!("Server returned error: {}", body);
+        }
+        let result: SealResponse = resp.json().await?;
+        Ok(result)
+    }
+
+    /// Fetch all expositions from the server.
+    pub async fn fetch_expositions(&self) -> Result<Vec<ExpositionRecord>> {
+        let items: Vec<ExpositionRecord> = self
+            .authed(self.client.get(format!("{}/expositions", self.base_url)))
+            .send()
+            .await
+            .context("Failed to fetch expositions")?
+            .json()
+            .await?;
+        Ok(items)
+    }
+
+    /// Fetch a single exposition by ID.
+    pub async fn fetch_exposition(&self, id: &str) -> Result<ExpositionRecord> {
+        let item: ExpositionRecord = self
+            .authed(
+                self.client
+                    .get(format!("{}/expositions/{}", self.base_url, id)),
+            )
+            .send()
+            .await
+            .context("Failed to fetch exposition")?
+            .json()
+            .await?;
+        Ok(item)
+    }
+}
+
 // ── Visualization endpoints ──
 
 #[derive(Debug, Serialize, Deserialize)]
