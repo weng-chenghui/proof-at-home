@@ -28,7 +28,7 @@ pub fn clone_pool(pool_dir: &Path, git_url: &str, identity: &Identity) -> Result
     Ok(())
 }
 
-/// Fetch + rebase from origin/main.
+/// Fetch + rebase from origin's default branch.
 pub fn pull_pool(pool_dir: &Path) -> Result<()> {
     require_pool_dir(pool_dir)?;
 
@@ -42,8 +42,25 @@ pub fn pull_pool(pool_dir: &Path) -> Result<()> {
         bail!("git fetch failed");
     }
 
+    // Detect origin's default branch (e.g. origin/main or origin/master)
+    let head_ref = Command::new("git")
+        .args(["symbolic-ref", "refs/remotes/origin/HEAD"])
+        .current_dir(pool_dir)
+        .output()
+        .ok()
+        .and_then(|o| {
+            if o.status.success() {
+                let s = String::from_utf8_lossy(&o.stdout).trim().to_string();
+                // "refs/remotes/origin/main" -> "origin/main"
+                s.strip_prefix("refs/remotes/").map(|b| b.to_string())
+            } else {
+                None
+            }
+        })
+        .unwrap_or_else(|| "origin/main".to_string());
+
     let rebase = Command::new("git")
-        .args(["rebase", "origin/main"])
+        .args(["rebase", &head_ref])
         .current_dir(pool_dir)
         .output()
         .context("Failed to run git rebase")?;
@@ -204,7 +221,7 @@ mod tests {
     fn create_bare_remote() -> TempDir {
         let dir = TempDir::new().unwrap();
         let status = Command::new("git")
-            .args(["init", "--bare"])
+            .args(["init", "--bare", "--initial-branch=main"])
             .current_dir(dir.path())
             .output()
             .unwrap();
