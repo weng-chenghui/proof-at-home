@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualizations — Proof@Home</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/shared.css">
+</head>
+<body>
+    <nav id="navbar"></nav>
+    <div class="container">
+        <h1>Visualizations</h1>
+        <p class="text-secondary" style="margin-bottom:1.5rem;font-size:0.9rem">Interactive D3.js visualizations of conjectures. Each visualization illustrates mathematical structures with graphs, diagrams, and tables.</p>
+
+        <div id="msg" class="msg" style="display:none"></div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Visualization ID</th>
+                    <th>Author</th>
+                    <th>Conjecture</th>
+                    <th>Domain</th>
+                    <th>Strategy</th>
+                </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+        </table>
+        <div id="empty" class="empty-state" style="display:none">
+            <h2>No visualizations yet</h2>
+            <p>Visualizations are created with <code>pah conjecture visualize &lt;id&gt;</code>. Try visualizing a conjecture to get started.</p>
+        </div>
+    </div>
+    <script src="/shared.js"></script>
+    <script>
+        async function load() {
+            try {
+                const visualizations = await api('GET', '/visualizations');
+                const table = document.querySelector('table');
+                const empty = document.getElementById('empty');
+                const tbody = document.getElementById('tbody');
+
+                if (!visualizations || visualizations.length === 0) {
+                    table.style.display = 'none';
+                    empty.style.display = 'block';
+                    return;
+                }
+
+                table.style.display = '';
+                empty.style.display = 'none';
+
+                tbody.innerHTML = visualizations.map(v => `
+                    <tr>
+                        <td><a href="/visualization.html?id=${encodeURIComponent(v.visualization_id)}">${escapeHtml(v.visualization_id || '')}</a></td>
+                        <td>${escapeHtml(v.author_username || '')}</td>
+                        <td><a href="/conjecture.html?id=${encodeURIComponent(v.conjecture_id)}">${escapeHtml(v.conjecture_id || '')}</a></td>
+                        <td>${escapeHtml(v.domain || '')}</td>
+                        <td>${escapeHtml(v.strategy_used || '')}</td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                showMsg('msg', 'Failed to load visualizations: ' + (e.error || e.message || 'unknown error'), true);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', load);
+    </script>
+</body>
+</html>

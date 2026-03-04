@@ -734,6 +734,107 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 		})
 	})
 
+	// GET /visualizations — list visualizations
+	se.Router.GET("/visualizations", func(e *core.RequestEvent) error {
+		records, err := app.FindAllRecords("visualizations")
+		if err != nil {
+			return e.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		}
+
+		type visualizationEntry struct {
+			VisualizationID string  `json:"visualization_id"`
+			AuthorUsername  string  `json:"author_username"`
+			ConjectureID    string  `json:"conjecture_id,omitempty"`
+			Domain          string  `json:"domain,omitempty"`
+			Title           string  `json:"title"`
+			Summary         string  `json:"summary"`
+			VizJSON         any     `json:"viz_json"`
+			CostUSD         float64 `json:"cost_usd"`
+			StrategyUsed    string  `json:"strategy_used,omitempty"`
+			NFTMetadata     any     `json:"nft_metadata"`
+		}
+
+		entries := make([]visualizationEntry, 0, len(records))
+		for _, r := range records {
+			entries = append(entries, visualizationEntry{
+				VisualizationID: r.GetString("visualization_id"),
+				AuthorUsername:  r.GetString("author_username"),
+				ConjectureID:    r.GetString("conjecture_id"),
+				Domain:          r.GetString("domain"),
+				Title:           r.GetString("title"),
+				Summary:         r.GetString("summary"),
+				VizJSON:         r.Get("viz_json"),
+				CostUSD:         r.GetFloat("cost_usd"),
+				StrategyUsed:    r.GetString("strategy_used"),
+				NFTMetadata:     r.Get("nft_metadata"),
+			})
+		}
+		return e.JSON(http.StatusOK, entries)
+	})
+
+	// GET /visualizations/{id} — get specific visualization
+	se.Router.GET("/visualizations/{id}", func(e *core.RequestEvent) error {
+		id := e.Request.PathValue("id")
+		record, err := app.FindFirstRecordByFilter("visualizations", "visualization_id = {:vid}", map[string]any{
+			"vid": id,
+		})
+		if err != nil {
+			return e.JSON(http.StatusNotFound, map[string]string{"error": "not found"})
+		}
+
+		result := map[string]any{
+			"visualization_id": record.GetString("visualization_id"),
+			"author_username":  record.GetString("author_username"),
+			"conjecture_id":    record.GetString("conjecture_id"),
+			"domain":           record.GetString("domain"),
+			"title":            record.GetString("title"),
+			"summary":          record.GetString("summary"),
+			"viz_json":         record.Get("viz_json"),
+			"cost_usd":         record.GetFloat("cost_usd"),
+			"strategy_used":    record.GetString("strategy_used"),
+			"nft_metadata":     record.Get("nft_metadata"),
+		}
+		return e.JSON(http.StatusOK, result)
+	})
+
+	// POST /visualizations — submit visualization via GitStore
+	se.Router.POST("/visualizations", func(e *core.RequestEvent) error {
+		var viz data.Visualization
+		if err := json.NewDecoder(e.Request.Body).Decode(&viz); err != nil {
+			return e.JSON(http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
+		}
+
+		commitSHA, err := gs.AddVisualization(viz)
+		if err != nil {
+			return e.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to create visualization: " + err.Error()})
+		}
+
+		return e.JSON(http.StatusCreated, map[string]string{
+			"commit_sha": commitSHA,
+			"status":     "accepted",
+		})
+	})
+
+	// POST /visualizations/{id}/seal — seal visualization, create PR
+	se.Router.POST("/visualizations/{id}/seal", func(e *core.RequestEvent) error {
+		id := e.Request.PathValue("id")
+
+		var nftMetadata any
+		if err := json.NewDecoder(e.Request.Body).Decode(&nftMetadata); err != nil {
+			return e.JSON(http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
+		}
+
+		prURL, err := gs.SealVisualization(id, nftMetadata)
+		if err != nil {
+			return e.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to seal: " + err.Error()})
+		}
+
+		return e.JSON(http.StatusCreated, map[string]string{
+			"pr_url": prURL,
+			"status": "pending",
+		})
+	})
+
 	// POST /conjectures — submit conjecture package (tar.gz or git URL)
 	se.Router.POST("/conjectures", func(e *core.RequestEvent) error {
 		ct := e.Request.Header.Get("Content-Type")
@@ -931,7 +1032,7 @@ func rebuildFromGit(app core.App) error {
 	repoPath := gs.RepoPath()
 
 	// Clear existing records
-	for _, collName := range []string{"proofs", "certificates", "contributions", "conjectures", "strategies", "expositions"} {
+	for _, collName := range []string{"proofs", "certificates", "contributions", "conjectures", "strategies", "expositions", "visualizations"} {
 		records, err := app.FindAllRecords(collName)
 		if err != nil {
 			continue
@@ -1163,6 +1264,43 @@ func rebuildFromGit(app core.App) error {
 				record.Set("nft_metadata", ex.NFTMetadata)
 				if err := app.Save(record); err != nil {
 					slog.Error("Rebuild: failed to save exposition", "id", ex.ExpositionID, "error", err)
+				}
+			}
+		}
+	}
+
+	// Walk visualizations/*/summary.json
+	visualizationsDir := filepath.Join(repoPath, "visualizations")
+	if entries, err := os.ReadDir(visualizationsDir); err == nil {
+		vizCollection, _ := app.FindCollectionByNameOrId("visualizations")
+		if vizCollection != nil {
+			for _, entry := range entries {
+				if !entry.IsDir() {
+					continue
+				}
+				summaryPath := filepath.Join(visualizationsDir, entry.Name(), "summary.json")
+				raw, err := os.ReadFile(summaryPath)
+				if err != nil {
+					continue
+				}
+				var viz data.Visualization
+				if err := json.Unmarshal(raw, &viz); err != nil {
+					continue
+				}
+
+				record := core.NewRecord(vizCollection)
+				record.Set("visualization_id", viz.VisualizationID)
+				record.Set("author_username", viz.AuthorUsername)
+				record.Set("conjecture_id", viz.ConjectureID)
+				record.Set("domain", viz.Domain)
+				record.Set("title", viz.Title)
+				record.Set("summary", viz.Summary)
+				record.Set("viz_json", viz.VizJSON)
+				record.Set("cost_usd", viz.CostUSD)
+				record.Set("strategy_used", viz.StrategyUsed)
+				record.Set("nft_metadata", viz.NFTMetadata)
+				if err := app.Save(record); err != nil {
+					slog.Error("Rebuild: failed to save visualization", "id", viz.VisualizationID, "error", err)
 				}
 			}
 		}

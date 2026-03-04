@@ -540,3 +540,67 @@ impl ServerClient {
 struct PoolUrlResponse {
     git_url: String,
 }
+
+// ── Visualization endpoints ──
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SubmitVisualizationRequest {
+    pub visualization_id: String,
+    pub author_username: String,
+    pub conjecture_id: String,
+    #[serde(default)]
+    pub domain: String,
+    pub title: String,
+    pub summary: String,
+    pub viz_json: serde_json::Value,
+    pub cost_usd: f64,
+    #[serde(default)]
+    pub strategy_used: String,
+}
+
+impl ServerClient {
+    /// Submit a visualization to the server. Returns commit SHA.
+    pub async fn submit_visualization(
+        &self,
+        viz: &SubmitVisualizationRequest,
+    ) -> Result<FinalizeResponse> {
+        let resp = self
+            .authed(
+                self.client
+                    .post(format!("{}/visualizations", self.base_url)),
+            )
+            .json(viz)
+            .send()
+            .await
+            .context("Failed to submit visualization")?;
+        if !resp.status().is_success() {
+            let body = resp.text().await.unwrap_or_default();
+            anyhow::bail!("Server returned error: {}", body);
+        }
+        let result: FinalizeResponse = resp.json().await?;
+        Ok(result)
+    }
+
+    /// Seal a visualization with NFT metadata. Creates a PR in the data repo.
+    pub async fn seal_visualization(
+        &self,
+        visualization_id: &str,
+        nft_metadata: &serde_json::Value,
+    ) -> Result<SealResponse> {
+        let resp = self
+            .authed(self.client.post(format!(
+                "{}/visualizations/{}/seal",
+                self.base_url, visualization_id
+            )))
+            .json(nft_metadata)
+            .send()
+            .await
+            .context("Failed to seal visualization")?;
+        if !resp.status().is_success() {
+            let body = resp.text().await.unwrap_or_default();
+            anyhow::bail!("Server returned error: {}", body);
+        }
+        let result: SealResponse = resp.json().await?;
+        Ok(result)
+    }
+}

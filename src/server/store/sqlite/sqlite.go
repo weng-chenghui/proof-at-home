@@ -22,6 +22,9 @@ var migrationSQL string
 //go:embed migrations/002_expositions.sql
 var migration002SQL string
 
+//go:embed migrations/003_visualizations.sql
+var migration003SQL string
+
 type SQLiteStore struct {
 	db *sql.DB
 }
@@ -50,6 +53,10 @@ func (s *SQLiteStore) Migrate() error {
 	_, err = s.db.Exec(migration002SQL)
 	if err != nil {
 		return fmt.Errorf("running migration 002: %w", err)
+	}
+	_, err = s.db.Exec(migration003SQL)
+	if err != nil {
+		return fmt.Errorf("running migration 003: %w", err)
 	}
 	slog.Info("SQLite migration completed")
 	return nil
@@ -602,6 +609,102 @@ func (s *SQLiteStore) AddExposition(e data.Exposition) {
 	}
 }
 
+// ListVisualizations returns all visualizations.
+func (s *SQLiteStore) ListVisualizations() []data.Visualization {
+	rows, err := s.db.Query(
+		`SELECT visualization_id, author_username, conjecture_id, domain,
+		 title, summary, viz_json, cost_usd, strategy_used, nft_metadata
+		 FROM visualizations ORDER BY created_at DESC`)
+	if err != nil {
+		slog.Error("ListVisualizations query failed", "error", err)
+		return nil
+	}
+	defer rows.Close()
+
+	var results []data.Visualization
+	for rows.Next() {
+		var v data.Visualization
+		var vizJSON, nftJSON sql.NullString
+		if err := rows.Scan(&v.VisualizationID, &v.AuthorUsername, &v.ConjectureID, &v.Domain,
+			&v.Title, &v.Summary, &vizJSON, &v.CostUSD, &v.StrategyUsed, &nftJSON); err != nil {
+			slog.Error("ListVisualizations scan failed", "error", err)
+			continue
+		}
+		if vizJSON.Valid {
+			v.VizJSON = json.RawMessage(vizJSON.String)
+		}
+		if nftJSON.Valid {
+			json.Unmarshal([]byte(nftJSON.String), &v.NFTMetadata)
+		}
+		results = append(results, v)
+	}
+	return results
+}
+
+// GetVisualization returns a visualization by ID.
+func (s *SQLiteStore) GetVisualization(id string) (data.Visualization, bool) {
+	var v data.Visualization
+	var vizJSON, nftJSON sql.NullString
+
+	err := s.db.QueryRow(
+		`SELECT visualization_id, author_username, conjecture_id, domain,
+		 title, summary, viz_json, cost_usd, strategy_used, nft_metadata
+		 FROM visualizations WHERE visualization_id = ?`, id,
+	).Scan(&v.VisualizationID, &v.AuthorUsername, &v.ConjectureID, &v.Domain,
+		&v.Title, &v.Summary, &vizJSON, &v.CostUSD, &v.StrategyUsed, &nftJSON)
+
+	if err == sql.ErrNoRows {
+		return data.Visualization{}, false
+	}
+	if err != nil {
+		slog.Error("GetVisualization query failed", "error", err, "id", id)
+		return data.Visualization{}, false
+	}
+	if vizJSON.Valid {
+		v.VizJSON = json.RawMessage(vizJSON.String)
+	}
+	if nftJSON.Valid {
+		json.Unmarshal([]byte(nftJSON.String), &v.NFTMetadata)
+	}
+	return v, true
+}
+
+// AddVisualization inserts or updates a visualization.
+func (s *SQLiteStore) AddVisualization(v data.Visualization) {
+	var nftJSON *string
+	if v.NFTMetadata != nil {
+		b, _ := json.Marshal(v.NFTMetadata)
+		n := string(b)
+		nftJSON = &n
+	}
+	var vizJSONStr *string
+	if v.VizJSON != nil {
+		n := string(v.VizJSON)
+		vizJSONStr = &n
+	}
+
+	_, err := s.db.Exec(
+		`INSERT INTO visualizations (visualization_id, author_username, conjecture_id, domain,
+		 title, summary, viz_json, cost_usd, strategy_used, nft_metadata)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		 ON CONFLICT (visualization_id) DO UPDATE SET
+		   author_username = excluded.author_username,
+		   conjecture_id = excluded.conjecture_id,
+		   domain = excluded.domain,
+		   title = excluded.title,
+		   summary = excluded.summary,
+		   viz_json = excluded.viz_json,
+		   cost_usd = excluded.cost_usd,
+		   strategy_used = excluded.strategy_used,
+		   nft_metadata = excluded.nft_metadata`,
+		v.VisualizationID, v.AuthorUsername, v.ConjectureID, v.Domain,
+		v.Title, v.Summary, vizJSONStr, v.CostUSD, v.StrategyUsed, nftJSON,
+	)
+	if err != nil {
+		slog.Error("AddVisualization insert failed", "error", err, "id", v.VisualizationID)
+	}
+}
+
 // parseCommandFile parses a .md command file with TOML frontmatter (between +++ delimiters).
 func parseCommandFile(raw []byte) (data.Strategy, error) {
 	content := string(raw)
@@ -662,7 +765,7 @@ func (s *SQLiteStore) RebuildFromDir(repoPath string) error {
 	defer tx.Rollback()
 
 	// Clear all tables
-	tables := []string{"proofs", "certificates", "contributions", "conjectures", "strategies", "expositions"}
+	tables := []string{"proofs", "certificates", "contributions", "conjectures", "strategies", "expositions", "visualizations"}
 	for _, table := range tables {
 		if _, err := tx.Exec("DELETE FROM " + table); err != nil {
 			return fmt.Errorf("clearing %s: %w", table, err)
@@ -912,6 +1015,47 @@ func (s *SQLiteStore) RebuildFromDir(repoPath string) error {
 			)
 			if err != nil {
 				slog.Error("RebuildFromDir: failed to insert exposition", "id", e.ExpositionID, "error", err)
+			}
+		}
+	}
+
+	// Walk visualizations/*/summary.json
+	visualizationsDir := filepath.Join(repoPath, "visualizations")
+	if entries, err := os.ReadDir(visualizationsDir); err == nil {
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				continue
+			}
+			summaryPath := filepath.Join(visualizationsDir, entry.Name(), "summary.json")
+			raw, err := os.ReadFile(summaryPath)
+			if err != nil {
+				continue
+			}
+			var v data.Visualization
+			if err := json.Unmarshal(raw, &v); err != nil {
+				continue
+			}
+			var nftJSON *string
+			if v.NFTMetadata != nil {
+				b, _ := json.Marshal(v.NFTMetadata)
+				n := string(b)
+				nftJSON = &n
+			}
+			var vizJSONStr *string
+			if v.VizJSON != nil {
+				n := string(v.VizJSON)
+				vizJSONStr = &n
+			}
+			_, err = tx.Exec(
+				`INSERT INTO visualizations (visualization_id, author_username, conjecture_id, domain,
+				 title, summary, viz_json, cost_usd, strategy_used, nft_metadata)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				 ON CONFLICT (visualization_id) DO NOTHING`,
+				v.VisualizationID, v.AuthorUsername, v.ConjectureID, v.Domain,
+				v.Title, v.Summary, vizJSONStr, v.CostUSD, v.StrategyUsed, nftJSON,
+			)
+			if err != nil {
+				slog.Error("RebuildFromDir: failed to insert visualization", "id", v.VisualizationID, "error", err)
 			}
 		}
 	}

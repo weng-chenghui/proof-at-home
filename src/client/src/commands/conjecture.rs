@@ -5,9 +5,13 @@ use std::io::BufRead;
 use std::path::Path;
 
 use crate::config::Config;
-use crate::nft::metadata::{generate_submitter_nft_metadata, ConjectureSubmitterInfo};
+use crate::nft::metadata::{
+    generate_submitter_nft_metadata, generate_visualization_nft_metadata, ConjectureSubmitterInfo,
+    VisualizationInfo,
+};
 use crate::server_client::api::{
     Conjecture, ConjectureCreateResponse, Dependencies, LeanDeps, ServerClient,
+    SubmitVisualizationRequest,
 };
 use crate::signing;
 
@@ -460,6 +464,182 @@ pub async fn cmd_generate(
     cmd_import(jsonl_path, difficulty, dry_run, output_dir).await
 }
 
+pub async fn cmd_visualize(
+    id: &str,
+    domain: Option<&str>,
+    strategy_name: Option<&str>,
+    output: Option<&str>,
+) -> Result<()> {
+    let cfg = Config::load_or_default();
+    cfg.require_login()?;
+    let client = ServerClient::new(&cfg.server_url(), &cfg.api.auth_token);
+
+    // 1. Fetch conjecture
+    let conjecture = client.fetch_conjecture(id).await?;
+    println!("{} Visualizing: {}", "→".blue(), conjecture.title.bold());
+
+    // 2. Select strategy: --by name > --domain kind > default
+    let strategy = if let Some(name) = strategy_name {
+        crate::strategy_store::loader::load_strategy(name)?
+    } else {
+        let kind = match domain {
+            Some(d) => format!("visualize-{}", d),
+            None => "visualize".to_string(),
+        };
+        crate::strategy_store::loader::auto_select_by_kind(&kind).with_context(|| {
+            format!(
+                "No visualization strategy found for kind '{}'. Available domains: group-theory, information-theory (or omit --domain for auto-detect).",
+                kind
+            )
+        })?
+    };
+
+    // 3. Render prompt
+    let conjecture_arguments = crate::strategy_store::loader::build_arguments_block(&conjecture);
+    let vars = crate::strategy_store::loader::VisualizeStrategyVars {
+        conjecture_arguments,
+    };
+    let prompt = crate::strategy_store::loader::render_visualize_strategy(&strategy, &vars);
+
+    // 4. Call AI provider
+    println!("{}", "Generating visualization...".cyan());
+    let provider = crate::ai::create_provider(&cfg)?;
+    let model = cfg.model();
+    let ai_response = provider.complete(&prompt, &model, 8192).await?;
+    let cost = ai_response.cost_usd;
+    let response_text = ai_response.text.trim().to_string();
+
+    // 5. Extract JSON → generate HTML → write file
+    let default_name = format!("{}-viz.html", sanitize_filename(&conjecture.title));
+    let output_path = std::path::PathBuf::from(output.unwrap_or(&default_name));
+
+    let viz_json_str = crate::conjecture_viz::build_from_response(&response_text, &output_path)?;
+
+    // 6. Auto-submit visualization to server
+    let viz_id = format!(
+        "viz-{}-{}",
+        id,
+        uuid::Uuid::new_v4()
+            .to_string()
+            .split('-')
+            .next()
+            .unwrap_or("0000")
+    );
+    let viz_json: serde_json::Value = serde_json::from_str(&viz_json_str)
+        .unwrap_or(serde_json::Value::Object(serde_json::Map::new()));
+
+    let viz_title = viz_json
+        .get("title")
+        .and_then(|v| v.as_str())
+        .unwrap_or("Visualization")
+        .to_string();
+    let viz_summary = viz_json
+        .get("summary")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    let viz_domain = viz_json
+        .get("domain")
+        .and_then(|v| v.as_str())
+        .unwrap_or(&strategy.meta.kind)
+        .to_string();
+
+    let submit_req = SubmitVisualizationRequest {
+        visualization_id: viz_id.clone(),
+        author_username: cfg.identity.username.clone(),
+        conjecture_id: id.to_string(),
+        domain: viz_domain.clone(),
+        title: viz_title,
+        summary: viz_summary,
+        viz_json,
+        cost_usd: cost,
+        strategy_used: strategy.meta.name.clone(),
+    };
+
+    print!("Submitting visualization to server... ");
+    let commit_sha = match client.submit_visualization(&submit_req).await {
+        Ok(resp) => {
+            println!("{}", "OK".green());
+            println!("  Commit: {}", resp.commit_sha.cyan());
+            resp.commit_sha
+        }
+        Err(e) => {
+            println!("{}", "FAILED".red());
+            eprintln!("{}: Could not submit to server: {}", "Warning".yellow(), e);
+            String::new()
+        }
+    };
+
+    // 7. Sign and seal with NFT metadata
+    if !commit_sha.is_empty() {
+        let (public_key, commit_signature) = sign_if_possible(&cfg, &commit_sha);
+
+        let nft_info = VisualizationInfo {
+            author_username: cfg.identity.username.clone(),
+            visualization_id: viz_id.clone(),
+            conjecture_id: id.to_string(),
+            domain: viz_domain,
+            cost_usd: cost,
+            strategy_used: strategy.meta.name.clone(),
+            git_commit: commit_sha,
+            git_repository: cfg.server_url(),
+            public_key,
+            commit_signature,
+        };
+
+        let nft_metadata = generate_visualization_nft_metadata(&nft_info);
+
+        print!("Sealing visualization (creating PR)... ");
+        match client.seal_visualization(&viz_id, &nft_metadata).await {
+            Ok(seal_resp) => {
+                println!("{}", "OK".green());
+                if !seal_resp.pr_url.is_empty() {
+                    println!("  PR: {}", seal_resp.pr_url.cyan());
+                }
+            }
+            Err(e) => {
+                println!("{}", "FAILED".red());
+                eprintln!("{}: Could not seal on server: {}", "Warning".yellow(), e);
+            }
+        }
+    }
+
+    // 8. Print summary
+    println!();
+    println!("{}", "═".repeat(60).dimmed());
+    println!("{}", " Conjecture Visualization Generated".bold());
+    println!("{}", "═".repeat(60).dimmed());
+    println!();
+    println!("  Output: {}", output_path.display().to_string().green());
+    println!("  Viz ID: {}", viz_id.cyan());
+    println!("  Open in browser to view the interactive visualization.");
+    println!();
+    println!("{}", "─".repeat(60).dimmed());
+    println!(
+        "  Strategy: {}  |  Cost: ${:.4}  |  Domain: {}",
+        strategy.meta.name.cyan(),
+        cost,
+        strategy.meta.kind.yellow()
+    );
+    println!("{}", "─".repeat(60).dimmed());
+
+    Ok(())
+}
+
+/// Sanitize a string for use as a filename.
+fn sanitize_filename(name: &str) -> String {
+    name.chars()
+        .map(|c| {
+            if c.is_alphanumeric() || c == '-' || c == '_' {
+                c
+            } else {
+                '-'
+            }
+        })
+        .collect::<String>()
+        .to_lowercase()
+}
+
 // ── Helpers ──
 
 async fn seal_submitter_nft(
@@ -679,5 +859,13 @@ mod tests {
         assert!(skel.contains(":= by"));
         assert!(skel.contains("sorry"));
         assert!(!skel.contains("rfl"));
+    }
+
+    #[test]
+    fn test_sanitize_filename() {
+        assert_eq!(sanitize_filename("Hello World!"), "hello-world-");
+        assert_eq!(sanitize_filename("add_comm (n m)"), "add_comm--n-m-");
+        assert_eq!(sanitize_filename("Test-123"), "test-123");
+        assert_eq!(sanitize_filename(""), "");
     }
 }

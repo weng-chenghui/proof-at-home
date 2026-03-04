@@ -4,6 +4,7 @@ mod budget;
 mod certifier;
 mod commands;
 mod config;
+mod conjecture_viz;
 mod ipfs;
 mod nft;
 mod proof_tree;
@@ -139,6 +140,20 @@ enum ConjectureAction {
         /// Output directory for converted files (default: temp dir)
         #[arg(long)]
         output_dir: Option<String>,
+    },
+    /// Visualize a conjecture's mathematical objects as interactive D3.js/SVG
+    Visualize {
+        /// Conjecture ID
+        id: String,
+        /// Mathematical domain for specialized strategy (e.g. group-theory, information-theory)
+        #[arg(long)]
+        domain: Option<String>,
+        /// Use a specific visualization strategy (by name)
+        #[arg(long = "by")]
+        by: Option<String>,
+        /// Output file path (default: <title>-viz.html)
+        #[arg(long, short)]
+        output: Option<String>,
     },
 }
 
@@ -388,6 +403,20 @@ async fn main() {
                     &difficulty,
                     dry_run,
                     output_dir.as_deref(),
+                )
+                .await
+            }
+            ConjectureAction::Visualize {
+                id,
+                domain,
+                by,
+                output,
+            } => {
+                commands::conjecture::cmd_visualize(
+                    &id,
+                    domain.as_deref(),
+                    by.as_deref(),
+                    output.as_deref(),
                 )
                 .await
             }

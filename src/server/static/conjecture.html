@@ -66,7 +66,20 @@
                             <pre><code>${escapeHtml(JSON.stringify(p.dependencies, null, 2))}</code></pre>
                         </details>
                     ` : ''}
+                    <div id="viz-section"></div>
                 `;
+
+                // Fetch visualizations for this conjecture
+                try {
+                    const allVizs = await api('GET', '/visualizations');
+                    const vizs = (allVizs || []).filter(v => v.conjecture_id === id);
+                    if (vizs.length > 0) {
+                        document.getElementById('viz-section').innerHTML = `
+                            <h2>Visualizations</h2>
+                            <ul>${vizs.map(v => `<li><a href="/visualization.html?id=${encodeURIComponent(v.visualization_id)}">${escapeHtml(v.title || v.visualization_id)}</a> — ${escapeHtml(v.domain || '')} (${escapeHtml(v.author_username || '')})</li>`).join('')}</ul>
+                        `;
+                    }
+                } catch (e) { /* ignore — visualizations are optional */ }
             } catch (e) {
                 showMsg('msg', 'Failed to load conjecture: ' + (e.error || e.message || 'not found'), true);
             }

@@ -12,6 +12,10 @@ const BUILTIN_CERTIFY_COMPARE: &str = include_str!("builtins/certify-compare.md"
 const BUILTIN_CERTIFY_ROLLUP: &str = include_str!("builtins/certify-rollup.md");
 const BUILTIN_PARSE: &str = include_str!("builtins/parse-proof.md");
 const BUILTIN_PARSE_TREE: &str = include_str!("builtins/parse-proof-tree.md");
+const BUILTIN_VISUALIZE_DEFAULT: &str = include_str!("builtins/visualize-default.md");
+const BUILTIN_VISUALIZE_GROUP_THEORY: &str = include_str!("builtins/visualize-group-theory.md");
+const BUILTIN_VISUALIZE_INFO_THEORY: &str =
+    include_str!("builtins/visualize-information-theory.md");
 
 const ALL_BUILTINS: &[&str] = &[
     BUILTIN_LEAN,
@@ -20,6 +24,9 @@ const ALL_BUILTINS: &[&str] = &[
     BUILTIN_CERTIFY_ROLLUP,
     BUILTIN_PARSE,
     BUILTIN_PARSE_TREE,
+    BUILTIN_VISUALIZE_DEFAULT,
+    BUILTIN_VISUALIZE_GROUP_THEORY,
+    BUILTIN_VISUALIZE_INFO_THEORY,
 ];
 
 /// A loaded strategy ready for rendering.
@@ -196,8 +203,23 @@ pub struct CertifyStrategyVars {
     pub package_rankings: String,
 }
 
+/// Variables available for substitution in visualize strategy templates.
+pub struct VisualizeStrategyVars {
+    pub conjecture_arguments: String,
+}
+
+/// Render a visualize strategy body by substituting variables.
+pub fn render_visualize_strategy(
+    strategy: &LoadedStrategy,
+    vars: &VisualizeStrategyVars,
+) -> String {
+    strategy
+        .body
+        .replace("$CONJECTURE_ARGUMENTS", &vars.conjecture_arguments)
+}
+
 /// Build the $ARGUMENTS block from conjecture data.
-fn build_arguments_block(conjecture: &Conjecture) -> String {
+pub fn build_arguments_block(conjecture: &Conjecture) -> String {
     let mut parts = Vec::new();
 
     parts.push(format!("**Title:** {}", conjecture.title));
@@ -304,5 +326,36 @@ mod tests {
         assert!(!rendered.contains("$CONJECTURE_TITLE"));
         assert!(!rendered.contains("$LEMMA_STATEMENT"));
         assert!(!rendered.contains("$PROVER"));
+    }
+
+    #[test]
+    fn test_auto_select_visualize_default() {
+        let cmd = auto_select_by_kind("visualize").unwrap();
+        assert_eq!(cmd.meta.name, "visualize-default");
+        assert_eq!(cmd.meta.kind, "visualize");
+    }
+
+    #[test]
+    fn test_auto_select_visualize_group_theory() {
+        let cmd = auto_select_by_kind("visualize-group-theory").unwrap();
+        assert_eq!(cmd.meta.name, "visualize-group-theory");
+    }
+
+    #[test]
+    fn test_auto_select_visualize_info_theory() {
+        let cmd = auto_select_by_kind("visualize-information-theory").unwrap();
+        assert_eq!(cmd.meta.name, "visualize-information-theory");
+    }
+
+    #[test]
+    fn test_render_visualize_strategy() {
+        let strategy = load_strategy("visualize-default").unwrap();
+        let vars = VisualizeStrategyVars {
+            conjecture_arguments: "**Title:** Test\n**Prover:** lean4".into(),
+        };
+        let rendered = render_visualize_strategy(&strategy, &vars);
+        assert!(rendered.contains("**Title:** Test"));
+        assert!(rendered.contains("**Prover:** lean4"));
+        assert!(!rendered.contains("$CONJECTURE_ARGUMENTS"));
     }
 }
