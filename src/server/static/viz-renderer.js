@@ -217,6 +217,12 @@ function renderTable(container, data) {
 
 function renderKaTeX(el, text) {
   if (!text) return;
+  // KaTeX outputs HTML which doesn't render inside SVG <text> elements.
+  // For SVG context, use textContent directly. Only use KaTeX for HTML elements.
+  if (el instanceof SVGElement) {
+    el.textContent = text;
+    return;
+  }
   try {
     katex.render(text, el, { throwOnError: false, displayMode: false });
   } catch (e) {

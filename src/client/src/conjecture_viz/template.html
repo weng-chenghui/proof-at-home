@@ -377,6 +377,10 @@ function renderTable(container, data) {
 
 function renderKaTeX(el, text) {
   if (!text) return;
+  if (el instanceof SVGElement) {
+    el.textContent = text;
+    return;
+  }
   try {
     katex.render(text, el, { throwOnError: false, displayMode: false });
   } catch (e) {
