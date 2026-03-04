@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use colored::Colorize;
 use serde::Deserialize;
 use std::io::BufRead;
@@ -220,6 +220,80 @@ pub async fn cmd_get(id: &str) -> Result<()> {
     }
     if !c.skeleton.is_empty() {
         println!("\nSkeleton:\n{}", c.skeleton);
+    }
+
+    Ok(())
+}
+
+pub async fn cmd_export(id: &str, format: &str) -> Result<()> {
+    let valid_formats = ["prompt", "json", "source"];
+    if !valid_formats.contains(&format) {
+        bail!(
+            "Invalid format '{}'. Must be one of: {}",
+            format,
+            valid_formats.join(", ")
+        );
+    }
+
+    let cfg = Config::load_or_default();
+    cfg.require_login()?;
+    let client = ServerClient::new(&cfg.server_url(), &cfg.api.auth_token);
+    let c = client.fetch_conjecture(id).await?;
+
+    match format {
+        "json" => {
+            println!("{}", serde_json::to_string_pretty(&c)?);
+        }
+        "source" => {
+            if !c.preamble.is_empty() {
+                println!("{}", c.preamble);
+                println!();
+            }
+            println!("{}", c.skeleton);
+        }
+        _ => {
+            // "prompt" format
+            println!("# Conjecture: {}", c.title);
+            println!(
+                "# Difficulty: {} | Prover: {} | ID: {}",
+                c.difficulty, c.prover, c.id
+            );
+            println!();
+            if !c.preamble.is_empty() {
+                println!("## Preamble");
+                println!("```");
+                println!("{}", c.preamble);
+                println!("```");
+                println!();
+            }
+            if !c.lemma_statement.is_empty() {
+                println!("## Lemma Statement");
+                println!("```");
+                println!("{}", c.lemma_statement);
+                println!("```");
+                println!();
+            }
+            if !c.skeleton.is_empty() {
+                println!("## Skeleton (replace sorry/Admitted with a real proof)");
+                println!("```");
+                println!("{}", c.skeleton);
+                println!("```");
+                println!();
+            }
+            if !c.hints.is_empty() {
+                println!("## Hints");
+                for h in &c.hints {
+                    println!("- {}", h);
+                }
+                println!();
+            }
+            println!("---");
+            println!(
+                "Write a complete proof replacing sorry/Admitted. Must compile with {}.",
+                c.prover
+            );
+            println!("Return only the complete file content.");
+        }
     }
 
     Ok(())

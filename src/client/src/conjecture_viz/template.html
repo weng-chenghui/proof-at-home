@@ -1,7 +1,165 @@
-// viz-renderer.js — Shared D3/KaTeX visualization renderers for Proof@Home
-// Extracted from conjecture_viz/template.html for reuse on the web UI.
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{TITLE}} — Conjecture Visualization</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: #0c0e14;
+    color: #c9d1d9;
+    min-height: 100vh;
+  }
+  #header {
+    background: #0c0e14;
+    padding: 16px 24px;
+    border-bottom: 1px solid #21262d;
+  }
+  h1 { font-size: 16px; font-weight: 600; color: #e6edf3; }
+  .subtitle { font-size: 12px; color: #7d8590; margin-top: 2px; }
+  .summary { font-size: 13px; color: #c9d1d9; margin-top: 8px; line-height: 1.5; }
 
-const VIZ_COLORS = ['#58a6ff', '#7ee787', '#d2a8ff', '#f0883e', '#f778ba', '#79c0ff', '#56d364', '#e3b341'];
+  /* Tabs */
+  .tabs {
+    display: flex; gap: 0; border-bottom: 1px solid #21262d;
+    background: #0c0e14; padding: 0 24px;
+  }
+  .tab {
+    padding: 10px 16px; font-size: 13px; color: #7d8590;
+    cursor: pointer; border-bottom: 2px solid transparent;
+    transition: color 0.15s, border-color 0.15s;
+    background: none; border-top: none; border-left: none; border-right: none;
+    font-family: inherit;
+  }
+  .tab:hover { color: #c9d1d9; }
+  .tab.active { color: #e6edf3; border-bottom-color: #58a6ff; }
+
+  /* Panels */
+  .panel { display: none; padding: 24px; }
+  .panel.active { display: block; }
+  .panel-title { font-size: 15px; font-weight: 600; color: #e6edf3; margin-bottom: 4px; }
+  .panel-desc { font-size: 12px; color: #7d8590; margin-bottom: 16px; line-height: 1.5; }
+
+  /* Visualization containers */
+  .viz-container {
+    background: #161b22; border: 1px solid #21262d; border-radius: 8px;
+    overflow: hidden; min-height: 400px; position: relative;
+  }
+  .viz-container svg { width: 100%; height: 500px; }
+
+  /* Graph styles */
+  .graph-link { stroke: #30363d; stroke-width: 1.5px; }
+  .graph-link-directed { marker-end: url(#arrowhead); }
+  .graph-node-circle { stroke-width: 2px; cursor: pointer; transition: filter 0.15s; }
+  .graph-node-circle:hover { filter: brightness(1.3); }
+  .graph-node-label { font-size: 11px; fill: #e6edf3; text-anchor: middle; pointer-events: none; }
+  .graph-edge-label { font-size: 10px; fill: #7d8590; text-anchor: middle; }
+
+  /* Commutative diagram styles */
+  .cd-object { font-size: 14px; fill: #e6edf3; text-anchor: middle; dominant-baseline: middle; }
+  .cd-arrow { stroke: #58a6ff; stroke-width: 1.5px; fill: none; marker-end: url(#cd-arrowhead); }
+  .cd-arrow-dashed { stroke-dasharray: 5,3; }
+  .cd-arrow-double { stroke-width: 2.5px; }
+  .cd-arrow-label { font-size: 11px; fill: #d2a8ff; text-anchor: middle; }
+
+  /* Region diagram styles */
+  .region-circle { fill-opacity: 0.15; stroke-width: 2px; }
+  .region-label { font-size: 13px; fill: #e6edf3; text-anchor: middle; dominant-baseline: middle; font-weight: 600; }
+  .region-annotation { font-size: 11px; fill: #c9d1d9; text-anchor: middle; dominant-baseline: middle; }
+
+  /* Table styles */
+  .viz-table {
+    width: 100%; border-collapse: collapse; font-size: 13px;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  }
+  .viz-table th {
+    background: #1c2128; color: #e6edf3; padding: 8px 12px;
+    border: 1px solid #30363d; font-weight: 600; text-align: center;
+  }
+  .viz-table td {
+    padding: 8px 12px; border: 1px solid #21262d; text-align: center; color: #c9d1d9;
+  }
+  .viz-table tr:hover td { background: #1c2128; }
+  .viz-table caption {
+    caption-side: bottom; padding: 8px; font-size: 11px;
+    color: #7d8590; font-style: italic;
+  }
+
+  /* KaTeX overrides for dark theme */
+  .katex { color: #e6edf3; font-size: 0.95em; }
+</style>
+</head>
+<body>
+<div id="header">
+  <h1>{{TITLE}}</h1>
+  <div class="subtitle">Mathematical visualization · {{DOMAIN}}</div>
+  <div class="summary" id="summary"></div>
+</div>
+<div class="tabs" id="tabs"></div>
+<div id="panels"></div>
+
+<script>
+const VIZ_DATA = {{VIZ_JSON}};
+
+const COLORS = ['#58a6ff', '#7ee787', '#d2a8ff', '#f0883e', '#f778ba', '#79c0ff', '#56d364', '#e3b341'];
+
+// Set summary
+document.getElementById('summary').textContent = VIZ_DATA.summary || '';
+
+// Build tabs and panels
+const tabsEl = document.getElementById('tabs');
+const panelsEl = document.getElementById('panels');
+const vizs = VIZ_DATA.visualizations || VIZ_DATA.panels || [];
+
+vizs.forEach((viz, i) => {
+  // Tab
+  const tab = document.createElement('button');
+  tab.className = 'tab' + (i === 0 ? ' active' : '');
+  tab.textContent = viz.title || `Visualization ${i + 1}`;
+  tab.onclick = () => switchTab(i);
+  tabsEl.appendChild(tab);
+
+  // Panel
+  const panel = document.createElement('div');
+  panel.className = 'panel' + (i === 0 ? ' active' : '');
+  panel.id = `panel-${i}`;
+  panel.innerHTML = `
+    <div class="panel-title">${escapeHtml(viz.title || '')}</div>
+    <div class="panel-desc">${escapeHtml(viz.description || '')}</div>
+    <div class="viz-container" id="viz-${i}"></div>
+  `;
+  panelsEl.appendChild(panel);
+});
+
+function switchTab(idx) {
+  document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', i === idx));
+  document.querySelectorAll('.panel').forEach((p, i) => p.classList.toggle('active', i === idx));
+}
+
+// Render each visualization
+vizs.forEach((viz, i) => {
+  const container = document.getElementById(`viz-${i}`);
+  try {
+    const vizPayload = viz.data || viz;
+    switch (viz.type) {
+      case 'generic_graph': renderGraph(container, vizPayload, i); break;
+      case 'commutative_diagram': renderCD(container, vizPayload, i); break;
+      case 'region_diagram':
+      case 'region_containment': renderRegion(container, vizPayload, i); break;
+      case 'table': renderTable(container, vizPayload); break;
+      default: container.innerHTML = `<p style="padding:24px;color:#7d8590">Unknown visualization type: ${escapeHtml(viz.type)}</p>`;
+    }
+  } catch (e) {
+    container.innerHTML = `<p style="padding:24px;color:#f85149">Error rendering: ${escapeHtml(e.message)}</p>`;
+  }
+});
+
+// ── Renderers ──
 
 function renderGraph(container, data, idx) {
   const width = container.clientWidth || 800;
@@ -10,10 +168,11 @@ function renderGraph(container, data, idx) {
   const edges = (data.edges || []).map(e => ({ ...e }));
 
   const groups = [...new Set(nodes.map(n => n.group || 'default'))];
-  const colorScale = d3.scaleOrdinal().domain(groups).range(VIZ_COLORS);
+  const colorScale = d3.scaleOrdinal().domain(groups).range(COLORS);
 
   const svg = d3.select(container).append('svg').attr('viewBox', `0 0 ${width} ${height}`);
 
+  // Arrowhead marker
   svg.append('defs').append('marker')
     .attr('id', `arrowhead-${idx}`).attr('viewBox', '0 -5 10 10')
     .attr('refX', 20).attr('refY', 0).attr('markerWidth', 6).attr('markerHeight', 6)
@@ -21,6 +180,8 @@ function renderGraph(container, data, idx) {
     .append('path').attr('d', 'M0,-5L10,0L0,5').attr('fill', '#58a6ff');
 
   const g = svg.append('g');
+
+  // Zoom
   svg.call(d3.zoom().scaleExtent([0.2, 4]).on('zoom', e => g.attr('transform', e.transform)));
 
   const simulation = d3.forceSimulation(nodes)
@@ -62,7 +223,6 @@ function renderGraph(container, data, idx) {
 }
 
 function renderCD(container, data, idx) {
-  // Support both formats: {objects, morphisms} with col/row, or {nodes, edges} with x/y
   const objects = data.objects || data.nodes || [];
   const morphisms = data.morphisms || data.edges || [];
 
@@ -89,6 +249,7 @@ function renderCD(container, data, idx) {
     pos[o.id] = { x, y };
   });
 
+  // Draw morphisms (arrows)
   morphisms.forEach(m => {
     const s = pos[m.source], t = pos[m.target];
     if (!s || !t) return;
@@ -116,6 +277,7 @@ function renderCD(container, data, idx) {
     }
   });
 
+  // Draw objects
   objects.forEach(o => {
     const p = pos[o.id];
     const text = svg.append('text').attr('class', 'cd-object').attr('x', p.x).attr('y', p.y);
@@ -129,11 +291,9 @@ function renderRegion(container, data) {
 
   const svg = d3.select(container).append('svg').attr('viewBox', '0 0 500 500');
 
-  // Check if regions use flat format (cx/cy/r) or hierarchical format (children)
   const isHierarchical = regions.length > 0 && regions[0].children && !regions[0].cx;
 
   if (isHierarchical) {
-    // Flatten hierarchical regions into nested circles
     const flat = [];
     let idx = 0;
     function flatten(items, depth, cx, cy, maxR) {
@@ -151,27 +311,24 @@ function renderRegion(container, data) {
       });
     }
     flatten(regions, 0, 250, 250, 200);
-
-    flat.sort((a, b) => a.depth - b.depth); // draw outer first
+    flat.sort((a, b) => a.depth - b.depth);
     flat.forEach((r) => {
-      const color = r.color || VIZ_COLORS[r.index % VIZ_COLORS.length];
+      const color = r.color || COLORS[r.index % COLORS.length];
       svg.append('circle')
         .attr('class', 'region-circle')
         .attr('cx', r.cx).attr('cy', r.cy).attr('r', r.r)
         .attr('fill', color).attr('stroke', color);
-
       const labelEl = svg.append('text').attr('class', 'region-label')
         .attr('x', r.cx).attr('y', r.cy - r.r * 0.6);
       renderKaTeX(labelEl.node(), r.label);
     });
   } else {
     regions.forEach((r, i) => {
-      const color = r.color || VIZ_COLORS[i % VIZ_COLORS.length];
+      const color = r.color || COLORS[i % COLORS.length];
       svg.append('circle')
         .attr('class', 'region-circle')
         .attr('cx', r.cx).attr('cy', r.cy).attr('r', r.r)
         .attr('fill', color).attr('stroke', color);
-
       const labelEl = svg.append('text').attr('class', 'region-label')
         .attr('x', r.cx).attr('y', r.cy);
       renderKaTeX(labelEl.node(), r.label || r.id);
@@ -191,20 +348,21 @@ function renderTable(container, data) {
   const caption = data.caption || '';
 
   let html = '<table class="viz-table">';
-  if (caption) html += `<caption>${vizEscapeHtml(caption)}</caption>`;
+  if (caption) html += `<caption>${escapeHtml(caption)}</caption>`;
   html += '<thead><tr>';
-  headers.forEach(h => { html += `<th>${vizEscapeHtml(h)}</th>`; });
+  headers.forEach(h => { html += `<th>${escapeHtml(h)}</th>`; });
   html += '</tr></thead><tbody>';
   rows.forEach(row => {
     html += '<tr>';
     (Array.isArray(row) ? row : []).forEach(cell => {
-      html += `<td>${vizEscapeHtml(String(cell))}</td>`;
+      html += `<td>${escapeHtml(String(cell))}</td>`;
     });
     html += '</tr>';
   });
   html += '</tbody></table>';
   container.innerHTML = html;
 
+  // Render KaTeX in table cells
   container.querySelectorAll('th, td').forEach(el => {
     const text = el.textContent;
     if (text.includes('\\') || text.includes('_') || text.includes('^')) {
@@ -215,6 +373,8 @@ function renderTable(container, data) {
   });
 }
 
+// ── Utilities ──
+
 function renderKaTeX(el, text) {
   if (!text) return;
   try {
@@ -224,8 +384,11 @@ function renderKaTeX(el, text) {
   }
 }
 
-function vizEscapeHtml(str) {
+function escapeHtml(str) {
   const div = document.createElement('div');
   div.textContent = str;
   return div.innerHTML;
 }
+</script>
+</body>
+</html>

@@ -511,22 +511,50 @@ pub async fn run_prove_submit(
     conjecture_id: Option<&str>,
     proof_file: Option<&str>,
     dir: Option<&str>,
+    stdin: bool,
+    method: &str,
 ) -> Result<()> {
+    let valid_methods = ["manual", "pair-proved", "api-assisted"];
+    if !valid_methods.contains(&method) {
+        bail!(
+            "Invalid method '{}'. Must be one of: {}",
+            method,
+            valid_methods.join(", ")
+        );
+    }
+
     let config = Config::load_or_default();
     config.require_login()?;
 
-    // Resolve input: single file or directory of proof files
+    // Resolve input: single file, stdin, or directory of proof files
     let mut proof_inputs: Vec<(String, PathBuf)> = Vec::new();
 
-    match (conjecture_id, proof_file, dir) {
-        (Some(id), Some(file), None) => {
+    match (conjecture_id, proof_file, dir, stdin) {
+        (Some(id), _, _, true) => {
+            // Read proof from stdin, write to temp file
+            use std::io::Read;
+            let mut proof_content = String::new();
+            std::io::stdin()
+                .read_to_string(&mut proof_content)
+                .context("Failed to read proof from stdin")?;
+            if proof_content.trim().is_empty() {
+                bail!("No proof content received from stdin");
+            }
+            // Determine extension from conjecture (will be refined after fetch)
+            let tmp_dir = std::env::temp_dir().join("pah-stdin");
+            std::fs::create_dir_all(&tmp_dir)?;
+            let tmp_file = tmp_dir.join(format!("{}.lean", id));
+            std::fs::write(&tmp_file, &proof_content)?;
+            proof_inputs.push((id.to_string(), tmp_file));
+        }
+        (Some(id), Some(file), None, false) => {
             let path = PathBuf::from(file);
             if !path.exists() {
                 bail!("Proof file not found: {}", path.display());
             }
             proof_inputs.push((id.to_string(), path));
         }
-        (None, None, Some(dir_path)) => {
+        (None, None, Some(dir_path), false) => {
             let dir = PathBuf::from(dir_path);
             if !dir.is_dir() {
                 bail!("Not a directory: {}", dir.display());
@@ -552,9 +580,14 @@ pub async fn run_prove_submit(
             }
             proof_inputs.sort_by(|a, b| a.0.cmp(&b.0));
         }
+        (None, None, None, true) => {
+            bail!(
+                "--stdin requires a conjecture ID. Usage: pah proof submit <conjecture-id> --stdin"
+            );
+        }
         _ => {
             bail!(
-                "Usage: prove submit <conjecture-id> <proof-file>\n       prove submit --dir <directory>"
+                "Usage: pah proof submit <conjecture-id> <proof-file>\n       pah proof submit <conjecture-id> --stdin\n       pah proof submit --dir <directory>"
             );
         }
     }
@@ -564,8 +597,14 @@ pub async fn run_prove_submit(
     std::fs::create_dir_all(&contribution_dir)?;
     std::fs::create_dir_all(&config.prover.scratch_dir)?;
 
+    let mode_label = match method {
+        "pair-proved" => "Pair Prover",
+        "api-assisted" => "API-assisted",
+        _ => "Manual",
+    };
+
     println!("{}", "=== Proof@Home Contribution ===".bold().cyan());
-    println!("Mode:         {}", "Manual".cyan());
+    println!("Mode:         {}", mode_label.cyan());
     println!("Contribution: {}", contribution_id.dimmed());
     println!(
         "Proof files:  {}",
@@ -607,6 +646,26 @@ pub async fn run_prove_submit(
             .await
             .with_context(|| format!("Failed to fetch conjecture '{}'", cid))?;
         conjectures_map.insert(cid.clone(), conjecture);
+    }
+
+    // Fix stdin temp file extensions based on actual prover
+    if stdin {
+        for (cid, path) in &mut proof_inputs {
+            if let Some(conjecture) = conjectures_map.get(cid) {
+                let ext = if conjecture.prover == "lean4" {
+                    "lean"
+                } else {
+                    "v"
+                };
+                let correct_path = path.with_extension(ext);
+                if *path != correct_path {
+                    if path.exists() {
+                        std::fs::rename(&path, &correct_path)?;
+                    }
+                    *path = correct_path;
+                }
+            }
+        }
     }
 
     // Set up unique environments
@@ -778,14 +837,14 @@ pub async fn run_prove_submit(
         &provers_used,
         &prover_versions,
         &server,
-        "manual",
+        method,
     )
     .await?;
 
     // Print summary
     println!();
     println!("{}", "=== Contribution Summary ===".bold().cyan());
-    println!("Mode:                  {}", "Manual".cyan());
+    println!("Mode:                  {}", mode_label.cyan());
     println!("Conjectures attempted: {}", conjectures_attempted);
     println!(
         "Conjectures proved:    {}",

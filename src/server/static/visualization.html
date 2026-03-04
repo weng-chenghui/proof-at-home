@@ -69,7 +69,7 @@
                 document.title = (v.title || v.visualization_id) + ' — Proof@Home';
 
                 const vizData = typeof v.viz_json === 'string' ? JSON.parse(v.viz_json) : (v.viz_json || {});
-                const vizs = vizData.visualizations || [];
+                const vizs = vizData.visualizations || vizData.panels || [];
 
                 let metaHtml = `<dl class="viz-meta">
                     <dt>Author:</dt><dd>${escapeHtml(v.author_username || '')}</dd>
@@ -104,11 +104,14 @@
                 vizs.forEach((viz, i) => {
                     const container = document.getElementById(`viz-${i}`);
                     try {
+                        // Support both viz.data (standard) and inline properties
+                        const vizPayload = viz.data || viz;
                         switch (viz.type) {
-                            case 'generic_graph': renderGraph(container, viz.data, i); break;
-                            case 'commutative_diagram': renderCD(container, viz.data, i); break;
-                            case 'region_diagram': renderRegion(container, viz.data, i); break;
-                            case 'table': renderTable(container, viz.data); break;
+                            case 'generic_graph': renderGraph(container, vizPayload, i); break;
+                            case 'commutative_diagram': renderCD(container, vizPayload, i); break;
+                            case 'region_diagram':
+                            case 'region_containment': renderRegion(container, vizPayload, i); break;
+                            case 'table': renderTable(container, vizPayload); break;
                             default: container.innerHTML = `<p style="padding:24px;color:var(--text-secondary)">Unknown visualization type: ${escapeHtml(viz.type)}</p>`;
                         }
                     } catch (e) {

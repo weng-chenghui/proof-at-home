@@ -46,6 +46,7 @@
 <pre><code>pah setting set          # Identity, AI provider, budget
 pah auth login           # Paste token from web UI</code></pre>
                 <p style="margin-top: 0.75rem;">For AI-assisted mode you'll need an API key from <a href="https://console.anthropic.com/">Anthropic</a>, <a href="https://platform.openai.com/">OpenAI</a>, or a local <a href="https://ollama.com/">Ollama</a> install. Manual proof submission needs no API key.</p>
+                <p style="margin-top: 0.5rem; font-size: 0.85rem;" class="text-muted">Using Claude Code, Cursor, or another AI coding assistant? You don't need an API key — see the <a href="/guide-pair-prover.html">Pair Prover guide</a> instead.</p>
             </div>
         </div>
 
@@ -68,6 +69,10 @@ pah auth login           # Paste token from web UI</code></pre>
 <pre><code>pah contribution run</code></pre>
                 <p style="margin-top: 0.5rem;"><strong>Manual</strong> — you write proofs, compiler verifies:</p>
 <pre><code>pah proof submit prob_001 ./my_proof.v</code></pre>
+                <p style="margin-top: 0.5rem;"><strong>Pair Prover</strong> — export, solve with AI assistant, submit:</p>
+<pre><code>pah conjecture export prob_001 | pbcopy
+# ... prove with your AI assistant ...
+pah proof submit prob_001 proof.lean --method pair-proved</code></pre>
                 <p style="margin-top: 0.75rem; font-size: 0.85rem;">The CLI fetches open conjectures, generates or accepts a formal proof, compiles it with <code>rocq c</code> or <code>lean</code> to verify correctness, submits the results, and archives everything with a SHA-256 hash.</p>
             </div>
         </div>

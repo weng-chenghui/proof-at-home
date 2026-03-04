@@ -141,6 +141,14 @@ enum ConjectureAction {
         #[arg(long)]
         output_dir: Option<String>,
     },
+    /// Export a conjecture in a format suitable for AI assistant chat
+    Export {
+        /// Conjecture ID
+        id: String,
+        /// Output format: prompt (default), json, source
+        #[arg(long, default_value = "prompt")]
+        format: String,
+    },
     /// Visualize a conjecture's mathematical objects as interactive D3.js/SVG
     Visualize {
         /// Conjecture ID
@@ -214,6 +222,12 @@ enum ProofAction {
         /// Directory of proof files named <conjecture-id>.v or .lean (batch mode)
         #[arg(long = "dir")]
         dir: Option<String>,
+        /// Read proof from stdin instead of a file
+        #[arg(long)]
+        stdin: bool,
+        /// Proof method: manual (default), pair-proved, api-assisted
+        #[arg(long, default_value = "manual")]
+        method: String,
     },
     /// Parse a proof and generate a human-readable explanation (exposition)
     Parse {
@@ -406,6 +420,9 @@ async fn main() {
                 )
                 .await
             }
+            ConjectureAction::Export { id, format } => {
+                commands::conjecture::cmd_export(&id, &format).await
+            }
             ConjectureAction::Visualize {
                 id,
                 domain,
@@ -439,11 +456,15 @@ async fn main() {
                 conjecture_id,
                 proof_file,
                 dir,
+                stdin,
+                method,
             } => {
                 commands::run::run_prove_submit(
                     conjecture_id.as_deref(),
                     proof_file.as_deref(),
                     dir.as_deref(),
+                    stdin,
+                    &method,
                 )
                 .await
             }
