@@ -1255,6 +1255,9 @@ func rebuildFromGit(app core.App) error {
 	// Also seed conjectures from CONJECTURES_DIR if not already loaded from git
 	seedConjectures(app)
 
+	// Seed demo expositions from EXPOSITIONS_DIR if not already loaded from git
+	seedExpositions(app)
+
 	slog.Info("PocketBase rebuild from git complete", "path", repoPath)
 	return nil
 }
@@ -1329,6 +1332,65 @@ func seedConjectures(app core.App) {
 		record.Set("hints", p.Hints)
 		record.Set("skeleton", p.Skeleton)
 		record.Set("dependencies", p.Dependencies)
+
+		app.Save(record)
+	}
+}
+
+// seedExpositions loads exposition JSON files from the EXPOSITIONS_DIR directory.
+func seedExpositions(app core.App) {
+	dir := os.Getenv("EXPOSITIONS_DIR")
+	if dir == "" {
+		dir = "expositions"
+	}
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return
+	}
+
+	collection, err := app.FindCollectionByNameOrId("expositions")
+	if err != nil {
+		return
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		summaryPath := filepath.Join(dir, entry.Name(), "summary.json")
+		raw, err := os.ReadFile(summaryPath)
+		if err != nil {
+			continue
+		}
+
+		var ex data.Exposition
+		if err := json.Unmarshal(raw, &ex); err != nil || ex.ExpositionID == "" {
+			continue
+		}
+
+		// Skip if already exists
+		existing, _ := app.FindFirstRecordByFilter("expositions", "exposition_id = {:eid}", map[string]any{
+			"eid": ex.ExpositionID,
+		})
+		if existing != nil {
+			continue
+		}
+
+		record := core.NewRecord(collection)
+		record.Set("exposition_id", ex.ExpositionID)
+		record.Set("author_username", ex.AuthorUsername)
+		record.Set("contribution_id", ex.ContributionID)
+		record.Set("conjecture_id", ex.ConjectureID)
+		record.Set("prover", ex.Prover)
+		record.Set("proof_script", ex.ProofScript)
+		record.Set("exposition_text", ex.ExpositionText)
+		record.Set("cost_usd", ex.CostUSD)
+		record.Set("strategy_used", ex.StrategyUsed)
+		record.Set("nft_metadata", ex.NFTMetadata)
+		record.Set("domain", ex.Domain)
+		record.Set("title", ex.Title)
+		record.Set("summary", ex.Summary)
 
 		app.Save(record)
 	}

@@ -17,8 +17,10 @@ RUN apk add --no-cache ca-certificates git
 
 COPY --from=builder /pah-pocketbase /pah-pocketbase
 COPY conjectures/ /conjectures/
+COPY examples/data-repo/expositions/ /expositions/
 
 ENV CONJECTURES_DIR=/conjectures
+ENV EXPOSITIONS_DIR=/expositions
 
 EXPOSE 8090
 
