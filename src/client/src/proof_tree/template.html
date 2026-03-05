@@ -53,10 +53,11 @@
     transition: filter 0.15s;
   }
   .node:hover .node-rect { filter: brightness(1.2); }
+  .node-rect.selected { stroke-width: 2.5px; filter: brightness(1.3); stroke-dasharray: none; }
   .node-tactic {
     font-size: 13px; font-weight: 600; font-family: 'JetBrains Mono', 'Fira Code', monospace;
   }
-  .node-goal { font-size: 11px; }
+  .node-goal-preview { font-size: 10px; fill: #8b949e; }
   .node-annotation { font-size: 10px; fill: #7d8590; font-style: italic; }
   .node-toggle {
     font-size: 10px; font-weight: 700;
@@ -78,6 +79,69 @@
   .tooltip-math { color: #e6edf3; margin-bottom: 8px; overflow-x: auto; }
   .tooltip-annotation { color: #7d8590; font-style: italic; }
 
+  /* Detail panel */
+  .detail-panel {
+    position: fixed; top: 0; right: 0; z-index: 50;
+    width: 320px; height: 100vh;
+    background: #161b22; border-left: 1px solid #30363d;
+    transform: translateX(100%);
+    transition: transform 0.25s ease;
+    display: flex; flex-direction: column;
+    font-size: 12px; line-height: 1.6;
+    overflow: hidden;
+  }
+  .detail-panel.open { transform: translateX(0); }
+  .detail-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px; border-bottom: 1px solid #30363d;
+    flex-shrink: 0;
+  }
+  .detail-header h2 { font-size: 13px; font-weight: 600; color: #e6edf3; }
+  .detail-close {
+    background: none; border: none; color: #7d8590; cursor: pointer;
+    font-size: 18px; line-height: 1; padding: 4px;
+  }
+  .detail-close:hover { color: #e6edf3; }
+  .detail-body {
+    flex: 1; overflow-y: auto; padding: 16px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .detail-section-label {
+    color: #7d8590; font-size: 10px; text-transform: uppercase;
+    letter-spacing: 0.5px; margin-bottom: 4px;
+  }
+  .detail-tactic {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 13px; font-weight: 600; color: #e6edf3;
+  }
+  .detail-math {
+    color: #e6edf3; overflow-x: auto; padding: 8px;
+    background: #0c0e14; border-radius: 6px;
+    max-height: 200px; overflow-y: auto;
+  }
+  .detail-annotation { color: #7d8590; font-style: italic; }
+  .detail-meta { color: #484f58; font-size: 11px; }
+
+  /* Keyboard help overlay */
+  .kbd-help-overlay {
+    position: fixed; inset: 0; z-index: 200;
+    background: rgba(0,0,0,0.6);
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.15s;
+  }
+  .kbd-help-overlay.visible { opacity: 1; pointer-events: auto; }
+  .kbd-help {
+    background: #161b22; border: 1px solid #30363d; border-radius: 12px;
+    padding: 24px 32px; max-width: 400px; width: 90%;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+  }
+  .kbd-help h3 { font-size: 14px; font-weight: 600; color: #e6edf3; margin-bottom: 16px; }
+  .kbd-help table { width: 100%; }
+  .kbd-help td { padding: 4px 0; font-size: 12px; }
+  .kbd-help td:first-child { font-family: monospace; color: #d2a8ff; width: 90px; }
+  .kbd-help td:last-child { color: #c9d1d9; }
+
   /* KaTeX overrides for dark theme */
   .katex { color: #e6edf3; font-size: 0.95em; }
 </style>
@@ -85,7 +149,7 @@
 <body>
 <div id="header">
   <h1>{{TITLE}}</h1>
-  <div class="subtitle">Interactive proof tree · {{PROVER}} · Click nodes to expand/collapse</div>
+  <div class="subtitle">Interactive proof tree · {{PROVER}} · Click to inspect · Double-click to expand/collapse · Press <strong>?</strong> for shortcuts</div>
 </div>
 <div class="controls">
   <button onclick="expandAll()">Expand All</button>
@@ -94,10 +158,30 @@
 </div>
 <div class="legend">
   <div class="legend-item"><div class="legend-dot" style="background:#58a6ff"></div> Goal / Root</div>
-  <div class="legend-item"><div class="legend-dot" style="background:#7ee787"></div> Tactic</div>
-  <div class="legend-item"><div class="legend-dot" style="background:#d2a8ff"></div> QED (Solved)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#7ee787"></div> QED (Solved)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#d2a8ff"></div> Tactic</div>
 </div>
 <div class="tooltip" id="tooltip"></div>
+<div class="detail-panel" id="detail-panel">
+  <div class="detail-header">
+    <h2>Node Details</h2>
+    <button class="detail-close" onclick="closeDetailPanel()" title="Close (Esc)">&times;</button>
+  </div>
+  <div class="detail-body" id="detail-body"></div>
+</div>
+<div class="kbd-help-overlay" id="kbd-help" onclick="toggleKbdHelp()">
+  <div class="kbd-help" onclick="event.stopPropagation()">
+    <h3>Keyboard Shortcuts</h3>
+    <table>
+      <tr><td>j / k</td><td>Next / previous sibling</td></tr>
+      <tr><td>h / l</td><td>Parent / first child</td></tr>
+      <tr><td>Space</td><td>Toggle expand/collapse</td></tr>
+      <tr><td>Enter</td><td>Toggle expand/collapse</td></tr>
+      <tr><td>Escape</td><td>Deselect / close panel</td></tr>
+      <tr><td>?</td><td>Toggle this help</td></tr>
+    </table>
+  </div>
+</div>
 <svg id="tree-svg"></svg>
 
 <script>
@@ -141,9 +225,12 @@ hierarchy.descendants().forEach(d => {
 });
 
 const nodeWidth = 220;
-const nodeHeight = 64;
+const nodeHeight = 80;
 
 const tooltip = document.getElementById('tooltip');
+const detailPanel = document.getElementById('detail-panel');
+const detailBody = document.getElementById('detail-body');
+let selectedNode = null;
 
 function update(source) {
   const tree = d3.tree().nodeSize([nodeHeight + 24, nodeWidth + 60]);
@@ -177,14 +264,12 @@ function update(source) {
     .attr('class', 'node')
     .attr('transform', `translate(${source.y0 || 0},${source.x0 || 0})`)
     .on('click', (event, d) => {
-      if (d.children) {
-        d._children = d.children;
-        d.children = null;
-      } else if (d._children) {
-        d.children = d._children;
-        d._children = null;
-      }
-      update(d);
+      event.stopPropagation();
+      selectNode(d);
+    })
+    .on('dblclick', (event, d) => {
+      event.stopPropagation();
+      toggleNode(d);
     })
     .on('mouseenter', (event, d) => showTooltip(event, d))
     .on('mouseleave', () => hideTooltip());
@@ -201,21 +286,28 @@ function update(source) {
   nodeEnter.append('text')
     .attr('class', 'node-tactic')
     .attr('text-anchor', 'middle')
-    .attr('dy', '-0.6em')
+    .attr('dy', '-1.2em')
     .attr('fill', d => nodeColor(d).stroke)
     .text(d => truncate(d.data.tactic, 28));
+
+  // Goal-after preview
+  nodeEnter.append('text')
+    .attr('class', 'node-goal-preview')
+    .attr('text-anchor', 'middle')
+    .attr('dy', '0.2em')
+    .text(d => goalPreview(d.data.goal_after));
 
   nodeEnter.append('text')
     .attr('class', 'node-annotation')
     .attr('text-anchor', 'middle')
-    .attr('dy', '1.2em')
+    .attr('dy', '1.5em')
     .text(d => truncate(d.data.annotation || '', 36));
 
   // Collapse/expand indicator
   nodeEnter.append('text')
     .attr('class', 'node-toggle')
     .attr('text-anchor', 'middle')
-    .attr('dy', '2.6em')
+    .attr('dy', '3.0em')
     .text(d => toggleLabel(d));
 
   // Update positions
@@ -225,6 +317,8 @@ function update(source) {
     .attr('transform', d => `translate(${d.y},${d.x})`);
 
   nodeUpdate.select('.node-toggle').text(d => toggleLabel(d));
+  nodeUpdate.select('.node-rect')
+    .classed('selected', d => d === selectedNode);
 
   // Remove exiting nodes
   node.exit().transition(transition)
@@ -233,6 +327,67 @@ function update(source) {
 
   // Stash old positions
   nodes.forEach(d => { d.x0 = d.x; d.y0 = d.y; });
+}
+
+function goalPreview(goalAfter) {
+  if (!goalAfter) return '';
+  // Strip LaTeX commands for a readable preview
+  const plain = goalAfter.replace(/\\[a-zA-Z]+\{([^}]*)\}/g, '$1').replace(/[\\{}]/g, '');
+  return truncate(plain, 30);
+}
+
+function toggleNode(d) {
+  if (d.children) {
+    d._children = d.children;
+    d.children = null;
+  } else if (d._children) {
+    d.children = d._children;
+    d._children = null;
+  }
+  update(d);
+}
+
+function selectNode(d) {
+  selectedNode = (selectedNode === d) ? null : d;
+  update(hierarchy);
+  if (selectedNode) {
+    showDetailPanel(selectedNode);
+  } else {
+    closeDetailPanel();
+  }
+}
+
+function showDetailPanel(d) {
+  let html = '';
+  html += `<div><div class="detail-section-label">Tactic</div>`;
+  html += `<div class="detail-tactic">${escapeHtml(d.data.tactic)}</div></div>`;
+
+  html += `<div><div class="detail-section-label">Goal before</div>`;
+  html += `<div class="detail-math" id="dp-before"></div></div>`;
+
+  html += `<div><div class="detail-section-label">Goal after</div>`;
+  html += `<div class="detail-math" id="dp-after"></div></div>`;
+
+  if (d.data.annotation) {
+    html += `<div><div class="detail-section-label">Annotation</div>`;
+    html += `<div class="detail-annotation">${escapeHtml(d.data.annotation)}</div></div>`;
+  }
+
+  const childCount = (d.children ? d.children.length : 0) + (d._children ? d._children.length : 0);
+  html += `<div class="detail-meta">Depth ${d.depth} · ${childCount} child${childCount !== 1 ? 'ren' : ''}</div>`;
+
+  detailBody.innerHTML = html;
+  detailPanel.classList.add('open');
+
+  // Render KaTeX in detail panel
+  try { katex.render(d.data.goal_before || '', document.getElementById('dp-before'), { throwOnError: false, displayMode: true }); } catch(e) { document.getElementById('dp-before').textContent = d.data.goal_before || ''; }
+  try { katex.render(d.data.goal_after || '', document.getElementById('dp-after'), { throwOnError: false, displayMode: true }); } catch(e) { document.getElementById('dp-after').textContent = d.data.goal_after || ''; }
+}
+
+function closeDetailPanel() {
+  selectedNode = null;
+  detailPanel.classList.remove('open');
+  update(hierarchy);
 }
 
 function linkPath(s, t) {
@@ -327,6 +482,85 @@ requestAnimationFrame(() => resetZoom());
 // Handle window resize
 window.addEventListener('resize', () => {
   resetZoom();
+});
+
+// --- Keyboard navigation ---
+function toggleKbdHelp() {
+  document.getElementById('kbd-help').classList.toggle('visible');
+}
+
+function visibleNodes() {
+  return hierarchy.descendants();
+}
+
+function siblings(d) {
+  if (!d.parent) return [d];
+  return d.parent.children || [];
+}
+
+document.addEventListener('keydown', (e) => {
+  // Ignore if user is typing in an input
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+  const key = e.key;
+
+  if (key === '?') {
+    e.preventDefault();
+    toggleKbdHelp();
+    return;
+  }
+
+  if (key === 'Escape') {
+    e.preventDefault();
+    const helpOverlay = document.getElementById('kbd-help');
+    if (helpOverlay.classList.contains('visible')) {
+      helpOverlay.classList.remove('visible');
+    } else {
+      closeDetailPanel();
+    }
+    return;
+  }
+
+  // Navigation keys require a selected node (or select root)
+  if ('jkhl '.includes(key) || key === 'Enter') {
+    e.preventDefault();
+    const nodes = visibleNodes();
+
+    if (!selectedNode) {
+      // Select root on any nav key
+      selectNode(hierarchy);
+      return;
+    }
+
+    if (key === 'j') {
+      // Next sibling
+      const sibs = siblings(selectedNode);
+      const idx = sibs.indexOf(selectedNode);
+      if (idx < sibs.length - 1) selectNode(sibs[idx + 1]);
+    } else if (key === 'k') {
+      // Previous sibling
+      const sibs = siblings(selectedNode);
+      const idx = sibs.indexOf(selectedNode);
+      if (idx > 0) selectNode(sibs[idx - 1]);
+    } else if (key === 'h') {
+      // Parent
+      if (selectedNode.parent) selectNode(selectedNode.parent);
+    } else if (key === 'l') {
+      // First child
+      const children = selectedNode.children || selectedNode._children;
+      if (children && children.length > 0) {
+        // Expand if collapsed
+        if (selectedNode._children) {
+          selectedNode.children = selectedNode._children;
+          selectedNode._children = null;
+          update(selectedNode);
+        }
+        selectNode(selectedNode.children[0]);
+      }
+    } else if (key === ' ' || key === 'Enter') {
+      toggleNode(selectedNode);
+    }
+  }
 });
 </script>
 </body>
