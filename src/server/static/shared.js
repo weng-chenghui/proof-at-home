@@ -165,4 +165,18 @@ function escapeHtml(str) {
     return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
+function proverToLanguage(prover) {
+    const map = { rocq: 'coq', coq: 'coq', lean4: 'lean', lean: 'lean' };
+    return map[(prover || '').toLowerCase()] || null;
+}
+
+function highlightAllCode(containerEl, language) {
+    if (!containerEl || typeof hljs === 'undefined') return;
+    containerEl.querySelectorAll('pre > code').forEach(el => {
+        if (el.closest('[data-no-highlight]')) return;
+        el.classList.add('language-' + language);
+        hljs.highlightElement(el);
+    });
+}
+
 document.addEventListener('DOMContentLoaded', initNav);

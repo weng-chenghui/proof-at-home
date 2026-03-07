@@ -8,6 +8,14 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/shared.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/contrib/auto-render.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github.min.css">
+    <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/languages/coq.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/languages/lean.min.js"></script>
+    <style>pre code.hljs { background: var(--code-bg); padding: 0; }</style>
 </head>
 <body>
     <nav id="navbar"></nav>
@@ -61,13 +69,30 @@
                     </div>
 
                     ${p.dependencies ? `
-                        <details>
+                        <details data-no-highlight>
                             <summary>Dependencies</summary>
                             <pre><code>${escapeHtml(JSON.stringify(p.dependencies, null, 2))}</code></pre>
                         </details>
                     ` : ''}
                     <div id="viz-section"></div>
                 `;
+
+                // Syntax highlighting
+                const lang = proverToLanguage(p.prover);
+                if (lang) highlightAllCode(document.getElementById('content'), lang);
+
+                // Math rendering in hints/descriptions
+                if (typeof renderMathInElement !== 'undefined') {
+                    renderMathInElement(document.getElementById('content'), {
+                        delimiters: [
+                            {left: '$$', right: '$$', display: true},
+                            {left: '$', right: '$', display: false},
+                            {left: '\\(', right: '\\)', display: false},
+                            {left: '\\[', right: '\\]', display: true}
+                        ],
+                        throwOnError: false
+                    });
+                }
 
                 // Fetch expositions for this conjecture
                 try {
