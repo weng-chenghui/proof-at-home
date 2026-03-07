@@ -677,3 +677,188 @@ impl ServerClient {
         Ok(item)
     }
 }
+
+// ── Lesson endpoints ──
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LessonRecord {
+    pub lesson_id: String,
+    #[serde(default)]
+    pub author_username: String,
+    #[serde(default)]
+    pub title: String,
+    #[serde(default)]
+    pub topic: String,
+    #[serde(default)]
+    pub difficulty: String,
+    #[serde(default)]
+    pub description: String,
+    #[serde(default)]
+    pub prerequisites: String,
+    #[serde(default)]
+    pub conjecture_ids: Vec<String>,
+    #[serde(default)]
+    pub published: bool,
+    #[serde(default)]
+    pub created_at: String,
+    #[serde(default)]
+    pub content: String,
+    #[serde(default)]
+    pub ai_annotations: Vec<AIAnnotation>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AIAnnotation {
+    pub zone: String,
+    #[serde(default)]
+    pub context: String,
+    #[serde(default)]
+    pub suggestions: Vec<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct CreateLessonRequest {
+    pub lesson_id: String,
+    pub author_username: String,
+    pub title: String,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub topic: String,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub difficulty: String,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub description: String,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub prerequisites: String,
+    pub conjecture_ids: Vec<String>,
+    pub published: bool,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub content: String,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub ai_annotations: Vec<AIAnnotation>,
+}
+
+impl ServerClient {
+    /// Fetch all lessons from the server.
+    pub async fn fetch_lessons(&self) -> Result<Vec<LessonRecord>> {
+        let items: Vec<LessonRecord> = self
+            .client
+            .get(format!("{}/lessons", self.base_url))
+            .send()
+            .await
+            .context("Failed to fetch lessons")?
+            .json()
+            .await?;
+        Ok(items)
+    }
+
+    /// Fetch a single lesson by ID.
+    pub async fn fetch_lesson(&self, id: &str) -> Result<LessonRecord> {
+        let item: LessonRecord = self
+            .client
+            .get(format!("{}/lessons/{}", self.base_url, id))
+            .send()
+            .await
+            .context("Failed to fetch lesson")?
+            .json()
+            .await?;
+        Ok(item)
+    }
+
+    /// Create a lesson on the server.
+    pub async fn create_lesson(&self, req: &CreateLessonRequest) -> Result<FinalizeResponse> {
+        let resp = self
+            .authed(self.client.post(format!("{}/lessons", self.base_url)))
+            .json(req)
+            .send()
+            .await
+            .context("Failed to create lesson")?;
+        if !resp.status().is_success() {
+            let body = resp.text().await.unwrap_or_default();
+            anyhow::bail!("Server returned error: {}", body);
+        }
+        let result: FinalizeResponse = resp.json().await?;
+        Ok(result)
+    }
+}
+
+// ── Series endpoints ──
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SeriesRecord {
+    pub series_id: String,
+    #[serde(default)]
+    pub title: String,
+    #[serde(default)]
+    pub author_username: String,
+    #[serde(default)]
+    pub difficulty: String,
+    #[serde(default)]
+    pub description: String,
+    #[serde(default)]
+    pub lesson_ids: Vec<String>,
+    #[serde(default)]
+    pub published: bool,
+    #[serde(default)]
+    pub created_at: String,
+    #[serde(default)]
+    pub content: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct CreateSeriesRequest {
+    pub series_id: String,
+    pub title: String,
+    pub author_username: String,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub difficulty: String,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub description: String,
+    pub lesson_ids: Vec<String>,
+    pub published: bool,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub content: String,
+}
+
+impl ServerClient {
+    /// Fetch all series from the server.
+    pub async fn fetch_all_series(&self) -> Result<Vec<SeriesRecord>> {
+        let items: Vec<SeriesRecord> = self
+            .client
+            .get(format!("{}/series", self.base_url))
+            .send()
+            .await
+            .context("Failed to fetch series")?
+            .json()
+            .await?;
+        Ok(items)
+    }
+
+    /// Fetch a single series by ID.
+    pub async fn fetch_series(&self, id: &str) -> Result<SeriesRecord> {
+        let item: SeriesRecord = self
+            .client
+            .get(format!("{}/series/{}", self.base_url, id))
+            .send()
+            .await
+            .context("Failed to fetch series")?
+            .json()
+            .await?;
+        Ok(item)
+    }
+
+    /// Create a series on the server.
+    pub async fn create_series(&self, req: &CreateSeriesRequest) -> Result<FinalizeResponse> {
+        let resp = self
+            .authed(self.client.post(format!("{}/series", self.base_url)))
+            .json(req)
+            .send()
+            .await
+            .context("Failed to create series")?;
+        if !resp.status().is_success() {
+            let body = resp.text().await.unwrap_or_default();
+            anyhow::bail!("Server returned error: {}", body);
+        }
+        let result: FinalizeResponse = resp.json().await?;
+        Ok(result)
+    }
+}

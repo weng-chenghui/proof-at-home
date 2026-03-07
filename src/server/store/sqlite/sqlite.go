@@ -31,6 +31,9 @@ var migration004SQL string
 //go:embed migrations/005_lessons.sql
 var migration005SQL string
 
+//go:embed migrations/006_lesson_content_and_series.sql
+var migration006SQL string
+
 type SQLiteStore struct {
 	db *sql.DB
 }
@@ -71,6 +74,10 @@ func (s *SQLiteStore) Migrate() error {
 	_, err = s.db.Exec(migration005SQL)
 	if err != nil {
 		return fmt.Errorf("running migration 005: %w", err)
+	}
+	_, err = s.db.Exec(migration006SQL)
+	if err != nil {
+		return fmt.Errorf("running migration 006: %w", err)
 	}
 	slog.Info("SQLite migration completed")
 	return nil
@@ -636,7 +643,7 @@ func (s *SQLiteStore) AddExposition(e data.Exposition) {
 func (s *SQLiteStore) ListLessons() []data.Lesson {
 	rows, err := s.db.Query(
 		`SELECT lesson_id, author_username, title, topic, difficulty, description,
-		 prerequisites, conjecture_ids, published, created_at
+		 prerequisites, conjecture_ids, published, created_at, content, ai_annotations
 		 FROM lessons ORDER BY created_at DESC`)
 	if err != nil {
 		slog.Error("ListLessons query failed", "error", err)
@@ -647,14 +654,16 @@ func (s *SQLiteStore) ListLessons() []data.Lesson {
 	var results []data.Lesson
 	for rows.Next() {
 		var l data.Lesson
-		var conjectureIDsStr string
+		var conjectureIDsStr, aiAnnotationsStr string
 		var published int
 		if err := rows.Scan(&l.LessonID, &l.AuthorUsername, &l.Title, &l.Topic, &l.Difficulty,
-			&l.Description, &l.Prerequisites, &conjectureIDsStr, &published, &l.CreatedAt); err != nil {
+			&l.Description, &l.Prerequisites, &conjectureIDsStr, &published, &l.CreatedAt,
+			&l.Content, &aiAnnotationsStr); err != nil {
 			slog.Error("ListLessons scan failed", "error", err)
 			continue
 		}
 		json.Unmarshal([]byte(conjectureIDsStr), &l.ConjectureIDs)
+		json.Unmarshal([]byte(aiAnnotationsStr), &l.AIAnnotations)
 		l.Published = published != 0
 		results = append(results, l)
 	}
@@ -664,15 +673,16 @@ func (s *SQLiteStore) ListLessons() []data.Lesson {
 // GetLesson returns a lesson by ID.
 func (s *SQLiteStore) GetLesson(id string) (data.Lesson, bool) {
 	var l data.Lesson
-	var conjectureIDsStr string
+	var conjectureIDsStr, aiAnnotationsStr string
 	var published int
 
 	err := s.db.QueryRow(
 		`SELECT lesson_id, author_username, title, topic, difficulty, description,
-		 prerequisites, conjecture_ids, published, created_at
+		 prerequisites, conjecture_ids, published, created_at, content, ai_annotations
 		 FROM lessons WHERE lesson_id = ?`, id,
 	).Scan(&l.LessonID, &l.AuthorUsername, &l.Title, &l.Topic, &l.Difficulty,
-		&l.Description, &l.Prerequisites, &conjectureIDsStr, &published, &l.CreatedAt)
+		&l.Description, &l.Prerequisites, &conjectureIDsStr, &published, &l.CreatedAt,
+		&l.Content, &aiAnnotationsStr)
 
 	if err == sql.ErrNoRows {
 		return data.Lesson{}, false
@@ -682,6 +692,7 @@ func (s *SQLiteStore) GetLesson(id string) (data.Lesson, bool) {
 		return data.Lesson{}, false
 	}
 	json.Unmarshal([]byte(conjectureIDsStr), &l.ConjectureIDs)
+	json.Unmarshal([]byte(aiAnnotationsStr), &l.AIAnnotations)
 	l.Published = published != 0
 	return l, true
 }
@@ -689,6 +700,7 @@ func (s *SQLiteStore) GetLesson(id string) (data.Lesson, bool) {
 // AddLesson inserts or updates a lesson.
 func (s *SQLiteStore) AddLesson(l data.Lesson) {
 	conjectureIDsJSON, _ := json.Marshal(l.ConjectureIDs)
+	aiAnnotationsJSON, _ := json.Marshal(l.AIAnnotations)
 	published := 0
 	if l.Published {
 		published = 1
@@ -696,8 +708,8 @@ func (s *SQLiteStore) AddLesson(l data.Lesson) {
 
 	_, err := s.db.Exec(
 		`INSERT INTO lessons (lesson_id, author_username, title, topic, difficulty, description,
-		 prerequisites, conjecture_ids, published)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		 prerequisites, conjecture_ids, published, content, ai_annotations)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		 ON CONFLICT (lesson_id) DO UPDATE SET
 		   author_username = excluded.author_username,
 		   title = excluded.title,
@@ -706,12 +718,99 @@ func (s *SQLiteStore) AddLesson(l data.Lesson) {
 		   description = excluded.description,
 		   prerequisites = excluded.prerequisites,
 		   conjecture_ids = excluded.conjecture_ids,
-		   published = excluded.published`,
+		   published = excluded.published,
+		   content = excluded.content,
+		   ai_annotations = excluded.ai_annotations`,
 		l.LessonID, l.AuthorUsername, l.Title, l.Topic, l.Difficulty,
 		l.Description, l.Prerequisites, string(conjectureIDsJSON), published,
+		l.Content, string(aiAnnotationsJSON),
 	)
 	if err != nil {
 		slog.Error("AddLesson insert failed", "error", err, "id", l.LessonID)
+	}
+}
+
+// ── Series methods ──
+
+// ListSeries returns all series.
+func (s *SQLiteStore) ListSeries() []data.Series {
+	rows, err := s.db.Query(
+		`SELECT series_id, title, author_username, difficulty, description,
+		 lesson_ids, published, created_at, content
+		 FROM series ORDER BY created_at DESC`)
+	if err != nil {
+		slog.Error("ListSeries query failed", "error", err)
+		return nil
+	}
+	defer rows.Close()
+
+	var results []data.Series
+	for rows.Next() {
+		var sr data.Series
+		var lessonIDsStr string
+		var published int
+		if err := rows.Scan(&sr.SeriesID, &sr.Title, &sr.AuthorUsername, &sr.Difficulty,
+			&sr.Description, &lessonIDsStr, &published, &sr.CreatedAt, &sr.Content); err != nil {
+			slog.Error("ListSeries scan failed", "error", err)
+			continue
+		}
+		json.Unmarshal([]byte(lessonIDsStr), &sr.LessonIDs)
+		sr.Published = published != 0
+		results = append(results, sr)
+	}
+	return results
+}
+
+// GetSeries returns a series by ID.
+func (s *SQLiteStore) GetSeries(id string) (data.Series, bool) {
+	var sr data.Series
+	var lessonIDsStr string
+	var published int
+
+	err := s.db.QueryRow(
+		`SELECT series_id, title, author_username, difficulty, description,
+		 lesson_ids, published, created_at, content
+		 FROM series WHERE series_id = ?`, id,
+	).Scan(&sr.SeriesID, &sr.Title, &sr.AuthorUsername, &sr.Difficulty,
+		&sr.Description, &lessonIDsStr, &published, &sr.CreatedAt, &sr.Content)
+
+	if err == sql.ErrNoRows {
+		return data.Series{}, false
+	}
+	if err != nil {
+		slog.Error("GetSeries query failed", "error", err, "id", id)
+		return data.Series{}, false
+	}
+	json.Unmarshal([]byte(lessonIDsStr), &sr.LessonIDs)
+	sr.Published = published != 0
+	return sr, true
+}
+
+// AddSeries inserts or updates a series.
+func (s *SQLiteStore) AddSeries(sr data.Series) {
+	lessonIDsJSON, _ := json.Marshal(sr.LessonIDs)
+	published := 0
+	if sr.Published {
+		published = 1
+	}
+
+	_, err := s.db.Exec(
+		`INSERT INTO series (series_id, title, author_username, difficulty, description,
+		 lesson_ids, published, content)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		 ON CONFLICT (series_id) DO UPDATE SET
+		   title = excluded.title,
+		   author_username = excluded.author_username,
+		   difficulty = excluded.difficulty,
+		   description = excluded.description,
+		   lesson_ids = excluded.lesson_ids,
+		   published = excluded.published,
+		   content = excluded.content`,
+		sr.SeriesID, sr.Title, sr.AuthorUsername, sr.Difficulty,
+		sr.Description, string(lessonIDsJSON), published, sr.Content,
+	)
+	if err != nil {
+		slog.Error("AddSeries insert failed", "error", err, "id", sr.SeriesID)
 	}
 }
 
@@ -775,7 +874,7 @@ func (s *SQLiteStore) RebuildFromDir(repoPath string) error {
 	defer tx.Rollback()
 
 	// Clear all tables
-	tables := []string{"proofs", "certificates", "contributions", "conjectures", "strategies", "expositions", "lessons"}
+	tables := []string{"proofs", "certificates", "contributions", "conjectures", "strategies", "expositions", "lessons", "series"}
 	for _, table := range tables {
 		if _, err := tx.Exec("DELETE FROM " + table); err != nil {
 			return fmt.Errorf("clearing %s: %w", table, err)
@@ -1097,37 +1196,100 @@ func (s *SQLiteStore) RebuildFromDir(repoPath string) error {
 		}
 	}
 
-	// Walk lessons/*/summary.json
+	// Walk lessons/*/lesson.md (new format) or summary.json (legacy)
 	lessonsDir := filepath.Join(repoPath, "lessons")
 	if entries, err := os.ReadDir(lessonsDir); err == nil {
 		for _, entry := range entries {
 			if !entry.IsDir() {
 				continue
 			}
-			summaryPath := filepath.Join(lessonsDir, entry.Name(), "summary.json")
-			raw, err := os.ReadFile(summaryPath)
-			if err != nil {
-				continue
-			}
+			lessonDir := filepath.Join(lessonsDir, entry.Name())
+
 			var l data.Lesson
-			if err := json.Unmarshal(raw, &l); err != nil {
+			var parsed bool
+
+			// Try lesson.md first (new format)
+			mdPath := filepath.Join(lessonDir, "lesson.md")
+			if raw, err := os.ReadFile(mdPath); err == nil {
+				pl, err := data.ParseLessonFile(raw)
+				if err != nil {
+					slog.Error("RebuildFromDir: failed to parse lesson.md", "dir", entry.Name(), "error", err)
+					continue
+				}
+				l = pl
+				parsed = true
+			}
+
+			// Fall back to summary.json (legacy)
+			if !parsed {
+				summaryPath := filepath.Join(lessonDir, "summary.json")
+				raw, err := os.ReadFile(summaryPath)
+				if err != nil {
+					continue
+				}
+				if err := json.Unmarshal(raw, &l); err != nil {
+					continue
+				}
+				parsed = true
+			}
+
+			if !parsed {
 				continue
 			}
+
 			conjectureIDsJSON, _ := json.Marshal(l.ConjectureIDs)
+			aiAnnotationsJSON, _ := json.Marshal(l.AIAnnotations)
 			published := 0
 			if l.Published {
 				published = 1
 			}
 			_, err = tx.Exec(
 				`INSERT INTO lessons (lesson_id, author_username, title, topic, difficulty, description,
-				 prerequisites, conjecture_ids, published)
-				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+				 prerequisites, conjecture_ids, published, content, ai_annotations)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 				 ON CONFLICT (lesson_id) DO NOTHING`,
 				l.LessonID, l.AuthorUsername, l.Title, l.Topic, l.Difficulty,
 				l.Description, l.Prerequisites, string(conjectureIDsJSON), published,
+				l.Content, string(aiAnnotationsJSON),
 			)
 			if err != nil {
 				slog.Error("RebuildFromDir: failed to insert lesson", "id", l.LessonID, "error", err)
+			}
+		}
+	}
+
+	// Walk series/*/series.md
+	seriesDir := filepath.Join(repoPath, "series")
+	if entries, err := os.ReadDir(seriesDir); err == nil {
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				continue
+			}
+			mdPath := filepath.Join(seriesDir, entry.Name(), "series.md")
+			raw, err := os.ReadFile(mdPath)
+			if err != nil {
+				continue
+			}
+			sr, err := data.ParseSeriesFile(raw)
+			if err != nil {
+				slog.Error("RebuildFromDir: failed to parse series.md", "dir", entry.Name(), "error", err)
+				continue
+			}
+			lessonIDsJSON, _ := json.Marshal(sr.LessonIDs)
+			published := 0
+			if sr.Published {
+				published = 1
+			}
+			_, err = tx.Exec(
+				`INSERT INTO series (series_id, title, author_username, difficulty, description,
+				 lesson_ids, published, content)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+				 ON CONFLICT (series_id) DO NOTHING`,
+				sr.SeriesID, sr.Title, sr.AuthorUsername, sr.Difficulty,
+				sr.Description, string(lessonIDsJSON), published, sr.Content,
+			)
+			if err != nil {
+				slog.Error("RebuildFromDir: failed to insert series", "id", sr.SeriesID, "error", err)
 			}
 		}
 	}

@@ -25,6 +25,13 @@ Thumbs.db
 # Docker test build artifacts
 .build/
 
+# Rocq/Coq build artifacts
+proofs/*.vo
+proofs/*.vok
+proofs/*.vos
+proofs/*.glob
+proofs/.*.aux
+
 # Generated review demo archives (re-created by seed script)
 examples/review-demo/*.tar.gz
 examples/review-demo/seed/

@@ -450,7 +450,7 @@ func (gs *GitStore) SealExposition(id string, nftMetadata any) (string, error) {
 
 // ── Lesson operations ──
 
-// AddLesson creates a branch and commits the lesson summary.
+// AddLesson creates a branch and commits the lesson as lesson.md with YAML frontmatter.
 func (gs *GitStore) AddLesson(l data.Lesson) (string, error) {
 	gs.mu.Lock()
 	defer gs.mu.Unlock()
@@ -462,7 +462,7 @@ func (gs *GitStore) AddLesson(l data.Lesson) (string, error) {
 		return "", err
 	}
 
-	if err := gs.writeJSON(filepath.Join(dir, "summary.json"), l); err != nil {
+	if err := gs.writeLessonMD(filepath.Join(dir, "lesson.md"), l); err != nil {
 		return "", err
 	}
 
@@ -478,7 +478,7 @@ func (gs *GitStore) AddLesson(l data.Lesson) (string, error) {
 	return sha, nil
 }
 
-// UpdateLesson overwrites the lesson summary on its branch.
+// UpdateLesson overwrites the lesson on its branch.
 func (gs *GitStore) UpdateLesson(id string, l data.Lesson) (string, error) {
 	gs.mu.Lock()
 	defer gs.mu.Unlock()
@@ -493,11 +493,71 @@ func (gs *GitStore) UpdateLesson(id string, l data.Lesson) (string, error) {
 		}
 	}
 
-	if err := gs.writeJSON(filepath.Join(dir, "summary.json"), l); err != nil {
+	if err := gs.writeLessonMD(filepath.Join(dir, "lesson.md"), l); err != nil {
 		return "", err
 	}
 
 	if err := gs.commitAndPush(branch, fmt.Sprintf("Update lesson %s", id)); err != nil {
+		return "", err
+	}
+
+	sha, err := gs.getHeadSHA()
+	if err != nil {
+		return "", err
+	}
+
+	return sha, nil
+}
+
+// ── Series operations ──
+
+// AddSeries creates a branch and commits the series as series.md with YAML frontmatter.
+func (gs *GitStore) AddSeries(s data.Series) (string, error) {
+	gs.mu.Lock()
+	defer gs.mu.Unlock()
+
+	branch := fmt.Sprintf("series/%s", s.SeriesID)
+	dir := filepath.Join("series", s.SeriesID)
+
+	if err := gs.createBranch(branch); err != nil {
+		return "", err
+	}
+
+	if err := gs.writeSeriesMD(filepath.Join(dir, "series.md"), s); err != nil {
+		return "", err
+	}
+
+	if err := gs.commitAndPush(branch, fmt.Sprintf("Add series %s", s.SeriesID)); err != nil {
+		return "", err
+	}
+
+	sha, err := gs.getHeadSHA()
+	if err != nil {
+		return "", err
+	}
+
+	return sha, nil
+}
+
+// UpdateSeries overwrites the series on its branch.
+func (gs *GitStore) UpdateSeries(id string, s data.Series) (string, error) {
+	gs.mu.Lock()
+	defer gs.mu.Unlock()
+
+	branch := fmt.Sprintf("series/%s", id)
+	dir := filepath.Join("series", id)
+
+	if err := gs.checkoutBranch(branch); err != nil {
+		if err2 := gs.createBranch(branch); err2 != nil {
+			return "", err
+		}
+	}
+
+	if err := gs.writeSeriesMD(filepath.Join(dir, "series.md"), s); err != nil {
+		return "", err
+	}
+
+	if err := gs.commitAndPush(branch, fmt.Sprintf("Update series %s", id)); err != nil {
 		return "", err
 	}
 
@@ -615,6 +675,40 @@ func (gs *GitStore) commitAndPush(branch, message string) error {
 
 func (gs *GitStore) getHeadSHA() (string, error) {
 	return gs.gitOutput("rev-parse", "HEAD")
+}
+
+func (gs *GitStore) writeLessonMD(relPath string, l data.Lesson) error {
+	absPath := filepath.Join(gs.repoPath, relPath)
+	if err := os.MkdirAll(filepath.Dir(absPath), 0o755); err != nil {
+		return fmt.Errorf("creating directory for %s: %w", relPath, err)
+	}
+
+	mdBytes, err := data.RenderLessonFile(l)
+	if err != nil {
+		return fmt.Errorf("rendering lesson.md: %w", err)
+	}
+
+	if err := os.WriteFile(absPath, mdBytes, 0o644); err != nil {
+		return fmt.Errorf("writing %s: %w", relPath, err)
+	}
+	return nil
+}
+
+func (gs *GitStore) writeSeriesMD(relPath string, s data.Series) error {
+	absPath := filepath.Join(gs.repoPath, relPath)
+	if err := os.MkdirAll(filepath.Dir(absPath), 0o755); err != nil {
+		return fmt.Errorf("creating directory for %s: %w", relPath, err)
+	}
+
+	mdBytes, err := data.RenderSeriesFile(s)
+	if err != nil {
+		return fmt.Errorf("rendering series.md: %w", err)
+	}
+
+	if err := os.WriteFile(absPath, mdBytes, 0o644); err != nil {
+		return fmt.Errorf("writing %s: %w", relPath, err)
+	}
+	return nil
 }
 
 // injectToken embeds a token into an HTTPS git URL for authentication.

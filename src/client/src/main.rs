@@ -87,6 +87,16 @@ enum Resource {
         #[command(subcommand)]
         action: ExpositionAction,
     },
+    /// Create and manage lessons (educational content with conjectures)
+    Lesson {
+        #[command(subcommand)]
+        action: LessonAction,
+    },
+    /// Create and manage lesson series (curriculum packaging)
+    Series {
+        #[command(subcommand)]
+        action: SeriesAction,
+    },
 }
 
 // ── Conjecture ──
@@ -351,6 +361,83 @@ enum ProviderAction {
     Quota,
 }
 
+// ── Lesson ──
+
+#[derive(Subcommand)]
+enum LessonAction {
+    /// List all lessons
+    List,
+    /// Get details for a specific lesson
+    Get {
+        /// Lesson ID
+        id: String,
+    },
+    /// Create a lesson (api-assisted, pair-proved, or manual)
+    Create {
+        /// Topic for the lesson
+        #[arg(long)]
+        topic: Option<String>,
+        /// Comma-separated conjecture IDs to include
+        #[arg(long)]
+        conjectures: Option<String>,
+        /// Difficulty level: easy, medium, hard
+        #[arg(long)]
+        difficulty: Option<String>,
+        /// Output file path for the generated lesson.md
+        #[arg(long, short)]
+        output: Option<String>,
+        /// Read lesson.md from stdin
+        #[arg(long)]
+        stdin: bool,
+        /// Creation method: api-assisted (default), pair-proved, manual
+        #[arg(long, default_value = "api-assisted")]
+        method: String,
+    },
+    /// Export lesson prompt for use with an AI assistant
+    Export {
+        /// Comma-separated conjecture IDs
+        #[arg(long)]
+        conjectures: Option<String>,
+        /// Topic for the lesson
+        #[arg(long)]
+        topic: Option<String>,
+    },
+}
+
+// ── Series ──
+
+#[derive(Subcommand)]
+enum SeriesAction {
+    /// List all series
+    List,
+    /// Get details for a specific series
+    Get {
+        /// Series ID
+        id: String,
+    },
+    /// Create a series (api-assisted, pair-proved, or manual)
+    Create {
+        /// Comma-separated lesson IDs to include
+        #[arg(long)]
+        lessons: Option<String>,
+        /// Output file path
+        #[arg(long, short)]
+        output: Option<String>,
+        /// Read series.md from stdin
+        #[arg(long)]
+        stdin: bool,
+        /// Creation method: api-assisted (default), pair-proved, manual
+        #[arg(long, default_value = "api-assisted")]
+        method: String,
+    },
+    /// Export series prompt for use with an AI assistant
+    Export {
+        /// Comma-separated lesson IDs
+        #[arg(long)]
+        lessons: Option<String>,
+    },
+}
+
 // ── Exposition ──
 
 #[derive(Subcommand)]
@@ -549,6 +636,47 @@ async fn main() {
             PoolAction::Pull => commands::pool::cmd_pull().await,
             PoolAction::Push => commands::pool::cmd_push().await,
             PoolAction::Status => commands::pool::cmd_status().await,
+        },
+        Resource::Lesson { action } => match action {
+            LessonAction::List => commands::lesson::cmd_list().await,
+            LessonAction::Get { id } => commands::lesson::cmd_get(&id).await,
+            LessonAction::Create {
+                topic,
+                conjectures,
+                difficulty,
+                output,
+                stdin,
+                method,
+            } => {
+                commands::lesson::cmd_create(
+                    topic.as_deref(),
+                    conjectures.as_deref(),
+                    difficulty.as_deref(),
+                    output.as_deref(),
+                    stdin,
+                    &method,
+                )
+                .await
+            }
+            LessonAction::Export { conjectures, topic } => {
+                commands::lesson::cmd_export(conjectures.as_deref(), topic.as_deref()).await
+            }
+        },
+        Resource::Series { action } => match action {
+            SeriesAction::List => commands::series::cmd_list().await,
+            SeriesAction::Get { id } => commands::series::cmd_get(&id).await,
+            SeriesAction::Create {
+                lessons,
+                output,
+                stdin,
+                method,
+            } => {
+                commands::series::cmd_create(lessons.as_deref(), output.as_deref(), stdin, &method)
+                    .await
+            }
+            SeriesAction::Export { lessons } => {
+                commands::series::cmd_export(lessons.as_deref()).await
+            }
         },
         Resource::Exposition { action } => match action {
             ExpositionAction::Create {

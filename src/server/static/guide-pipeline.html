@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Content Pipeline — Proof@Home</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/shared.css">
+</head>
+<body>
+    <nav id="navbar"></nav>
+    <div class="container">
+        <h1>Content Pipeline</h1>
+        <p class="text-secondary" style="margin-bottom: 2rem;">How educational content flows from conjectures to courses. Each stage supports three creation methods: AI-assisted, pair-proved, and manual.</p>
+
+        <h2>Pipeline Overview</h2>
+        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 2rem; align-items: center;">
+            <div class="badge" style="padding: 0.5rem 1rem; font-size: 0.95rem;">1. Conjecture</div>
+            <span style="color: var(--text-secondary);">&rarr;</span>
+            <div class="badge" style="padding: 0.5rem 1rem; font-size: 0.95rem;">2. Proof</div>
+            <span style="color: var(--text-secondary);">&rarr;</span>
+            <div class="badge" style="padding: 0.5rem 1rem; font-size: 0.95rem;">3. Exposition</div>
+            <span style="color: var(--text-secondary);">&rarr;</span>
+            <div class="badge" style="padding: 0.5rem 1rem; font-size: 0.95rem;">4. Lesson</div>
+            <span style="color: var(--text-secondary);">&rarr;</span>
+            <div class="badge" style="padding: 0.5rem 1rem; font-size: 0.95rem;">5. Series</div>
+        </div>
+
+        <h2>Three Methods per Resource</h2>
+        <table class="data-table" style="margin-bottom: 2rem;">
+            <thead>
+                <tr>
+                    <th>Method</th>
+                    <th>Who does AI work</th>
+                    <th>Cost</th>
+                    <th>stdin needed</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>api-assisted</code> (default)</td>
+                    <td><code>pah</code> calls AI provider directly</td>
+                    <td>Tracked</td>
+                    <td>No</td>
+                </tr>
+                <tr>
+                    <td><code>pair-proved</code></td>
+                    <td>User pastes into Claude/ChatGPT</td>
+                    <td>Free</td>
+                    <td>Yes</td>
+                </tr>
+                <tr>
+                    <td><code>manual</code></td>
+                    <td>User writes everything by hand</td>
+                    <td>Free</td>
+                    <td>Yes</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2>Pair-Proved Workflow</h2>
+        <p>For users who have access to Claude but no API key configured:</p>
+
+        <div class="workflow-step" style="margin-bottom: 1rem;">
+            <div class="workflow-number">1</div>
+            <div class="workflow-content">
+                <h3>Export the prompt</h3>
+<pre><code>pah lesson export --conjectures id1,id2,id3 > prompt.txt</code></pre>
+            </div>
+        </div>
+
+        <div class="workflow-step" style="margin-bottom: 1rem;">
+            <div class="workflow-number">2</div>
+            <div class="workflow-content">
+                <h3>Paste into Claude</h3>
+                <p>Copy the contents of <code>prompt.txt</code> into Claude or ChatGPT. The AI generates a complete <code>lesson.md</code> file.</p>
+            </div>
+        </div>
+
+        <div class="workflow-step" style="margin-bottom: 1rem;">
+            <div class="workflow-number">3</div>
+            <div class="workflow-content">
+                <h3>Pipe the result back</h3>
+<pre><code>cat lesson.md | pah lesson create --stdin --method pair-proved</code></pre>
+            </div>
+        </div>
+
+        <h2>Lesson Commands</h2>
+<pre><code>pah lesson list                              # List all lessons
+pah lesson get &lt;id&gt;                          # Get lesson details
+pah lesson create --topic &lt;topic&gt; \
+  --conjectures id1,id2,id3                  # AI-assisted creation
+pah lesson create --stdin --method manual     # From stdin
+pah lesson export --conjectures id1,id2       # Export prompt</code></pre>
+
+        <h2>Series Commands</h2>
+<pre><code>pah series list                              # List all series
+pah series get &lt;id&gt;                          # Get series details
+pah series create --lessons id1,id2,id3      # AI-assisted creation
+pah series export --lessons id1,id2           # Export prompt</code></pre>
+
+        <h2>Lesson Format</h2>
+        <p>Lessons use Markdown with YAML frontmatter at <code>lessons/{id}/lesson.md</code>:</p>
+<pre><code>---
+lesson_id: my-lesson
+title: "My Lesson Title"
+topic: algebra
+difficulty: medium
+conjecture_ids: [conj_001, conj_002]
+published: true
+ai_annotations:
+  - zone: "## Section Heading"
+    context: "What this section covers"
+    suggestions:
+      - "A suggested question"
+---
+# My Lesson Title
+
+Markdown body with $\LaTeX$ math...</code></pre>
+
+        <h2>Series Format</h2>
+        <p>Series use the same pattern at <code>series/{id}/series.md</code>:</p>
+<pre><code>---
+series_id: intro-verification
+title: "Introduction to Verification"
+lesson_ids:
+  - getting-started
+  - newman-lemma
+published: true
+---
+# Series Title
+
+Markdown body with learning path...</code></pre>
+
+        <h2>Full Pipeline Example</h2>
+<pre><code># 1. List conjectures
+pah conjecture list
+
+# 2. AI-assisted proof run
+pah contribution run --by prove-coq-lemma
+
+# 3. Generate exposition
+pah exposition create --for newman_001
+
+# 4. Compose lesson from conjectures
+pah lesson create --topic rewriting-systems \
+  --conjectures newman_001,newman_002,newman_003
+
+# 5. Package into series
+pah series create --lessons how-to-create-a-lesson,newman-lemma</code></pre>
+
+        <h2>Troubleshooting</h2>
+        <details style="margin-bottom: 1rem;">
+            <summary><strong>No API key configured</strong></summary>
+            <p>Run <code>pah setting set</code> for the interactive wizard, or export <code>PAH_API_KEY</code>. Alternatively, use the pair-proved workflow above.</p>
+        </details>
+        <details style="margin-bottom: 1rem;">
+            <summary><strong>Lesson not appearing</strong></summary>
+            <p>Ensure <code>published: true</code> in frontmatter, and that the <code>lesson_id</code> matches the directory name. The server cache rebuilds from git on push.</p>
+        </details>
+        <details style="margin-bottom: 1rem;">
+            <summary><strong>Proof verification failure</strong></summary>
+            <p>Check prover version with <code>pah tools check</code>. Ensure dependencies match the conjecture's requirements.</p>
+        </details>
+    </div>
+    <script src="/shared.js"></script>
+</body>
+</html>

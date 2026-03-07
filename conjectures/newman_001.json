@@ -1,0 +1,18 @@
+{
+  "id": "newman_001",
+  "title": "Reflexive-transitive closure is transitive",
+  "difficulty": "easy",
+  "prover": "rocq",
+  "status": "open",
+  "preamble": "Require Import Coq.Relations.Relation_Definitions.\nRequire Import Coq.Relations.Relation_Operators.",
+  "lemma_statement": "Lemma clos_rt_trans : forall (A : Type) (R : relation A) (x y z : A),\n  clos_refl_trans A R x y -> clos_refl_trans A R y z -> clos_refl_trans A R x z.",
+  "hints": [
+    "Use induction on the reflexive-transitive closure",
+    "Apply rt_trans"
+  ],
+  "skeleton": "Lemma clos_rt_trans : forall (A : Type) (R : relation A) (x y z : A),\n  clos_refl_trans A R x y -> clos_refl_trans A R y z -> clos_refl_trans A R x z.\nProof.\n  (* your proof here *)\nAdmitted.",
+  "dependencies": {
+    "rocq_version": "9.0",
+    "opam_packages": []
+  }
+}

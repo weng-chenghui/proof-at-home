@@ -96,17 +96,39 @@ type ContributionRanking struct {
 
 // ── Lesson types ──
 
+type AIAnnotation struct {
+	Zone        string   `json:"zone" yaml:"zone"`
+	Context     string   `json:"context" yaml:"context"`
+	Suggestions []string `json:"suggestions" yaml:"suggestions"`
+}
+
 type Lesson struct {
-	LessonID       string   `json:"lesson_id"`
-	AuthorUsername string   `json:"author_username"`
-	Title          string   `json:"title"`
-	Topic          string   `json:"topic,omitempty"`
-	Difficulty     string   `json:"difficulty,omitempty"`
-	Description    string   `json:"description,omitempty"`
-	Prerequisites  string   `json:"prerequisites,omitempty"`
-	ConjectureIDs  []string `json:"conjecture_ids"`
-	Published      bool     `json:"published"`
-	CreatedAt      string   `json:"created_at,omitempty"`
+	LessonID       string         `json:"lesson_id" yaml:"lesson_id"`
+	AuthorUsername string         `json:"author_username" yaml:"author_username"`
+	Title          string         `json:"title" yaml:"title"`
+	Topic          string         `json:"topic,omitempty" yaml:"topic,omitempty"`
+	Difficulty     string         `json:"difficulty,omitempty" yaml:"difficulty,omitempty"`
+	Description    string         `json:"description,omitempty" yaml:"description,omitempty"`
+	Prerequisites  string         `json:"prerequisites,omitempty" yaml:"prerequisites,omitempty"`
+	ConjectureIDs  []string       `json:"conjecture_ids" yaml:"conjecture_ids"`
+	Published      bool           `json:"published" yaml:"published"`
+	CreatedAt      string         `json:"created_at,omitempty" yaml:"-"`
+	Content        string         `json:"content,omitempty" yaml:"-"`
+	AIAnnotations  []AIAnnotation `json:"ai_annotations,omitempty" yaml:"ai_annotations,omitempty"`
+}
+
+// ── Series types ──
+
+type Series struct {
+	SeriesID       string   `json:"series_id" yaml:"series_id"`
+	Title          string   `json:"title" yaml:"title"`
+	AuthorUsername string   `json:"author_username" yaml:"author_username"`
+	Difficulty     string   `json:"difficulty,omitempty" yaml:"difficulty,omitempty"`
+	Description    string   `json:"description,omitempty" yaml:"description,omitempty"`
+	LessonIDs      []string `json:"lesson_ids" yaml:"lesson_ids"`
+	Published      bool     `json:"published" yaml:"published"`
+	CreatedAt      string   `json:"created_at,omitempty" yaml:"-"`
+	Content        string   `json:"content,omitempty" yaml:"-"`
 }
 
 // ── Exposition types ──

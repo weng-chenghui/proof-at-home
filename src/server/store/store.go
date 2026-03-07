@@ -18,5 +18,7 @@ type Store interface {
 	GetExposition(id string) (data.Exposition, bool)
 	ListLessons() []data.Lesson
 	GetLesson(id string) (data.Lesson, bool)
+	ListSeries() []data.Series
+	GetSeries(id string) (data.Series, bool)
 	RebuildFromDir(repoPath string) error
 }

@@ -17,6 +17,8 @@ const BUILTIN_VISUALIZE_GROUP_THEORY: &str = include_str!("builtins/visualize-gr
 const BUILTIN_VISUALIZE_INFO_THEORY: &str =
     include_str!("builtins/visualize-information-theory.md");
 const BUILTIN_EXPOSITION_DEFAULT: &str = include_str!("builtins/exposition-default.md");
+const BUILTIN_COMPOSE_LESSON: &str = include_str!("builtins/compose-lesson.md");
+const BUILTIN_COMPOSE_SERIES: &str = include_str!("builtins/compose-series.md");
 
 const ALL_BUILTINS: &[&str] = &[
     BUILTIN_LEAN,
@@ -29,6 +31,8 @@ const ALL_BUILTINS: &[&str] = &[
     BUILTIN_VISUALIZE_GROUP_THEORY,
     BUILTIN_VISUALIZE_INFO_THEORY,
     BUILTIN_EXPOSITION_DEFAULT,
+    BUILTIN_COMPOSE_LESSON,
+    BUILTIN_COMPOSE_SERIES,
 ];
 
 /// A loaded strategy ready for rendering.
@@ -215,6 +219,18 @@ pub fn render_exposition_strategy(
     strategy: &LoadedStrategy,
     vars: &ExpositionStrategyVars,
 ) -> String {
+    strategy
+        .body
+        .replace("$RESOURCE_ARGUMENTS", &vars.resource_arguments)
+}
+
+/// Variables for lesson/series strategy templates (same shape as exposition).
+pub struct LessonStrategyVars {
+    pub resource_arguments: String,
+}
+
+/// Render a lesson composition strategy body by substituting variables.
+pub fn render_lesson_strategy(strategy: &LoadedStrategy, vars: &LessonStrategyVars) -> String {
     strategy
         .body
         .replace("$RESOURCE_ARGUMENTS", &vars.resource_arguments)
