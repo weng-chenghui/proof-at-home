@@ -1369,16 +1369,16 @@ func seedExpositions(app core.App) {
 			continue
 		}
 
-		// Skip if already exists
+		// Upsert: update if exists, create if not
 		existing, _ := app.FindFirstRecordByFilter("expositions", "exposition_id = {:eid}", map[string]any{
 			"eid": ex.ExpositionID,
 		})
-		if existing != nil {
-			continue
-		}
 
-		record := core.NewRecord(collection)
-		record.Set("exposition_id", ex.ExpositionID)
+		record := existing
+		if record == nil {
+			record = core.NewRecord(collection)
+			record.Set("exposition_id", ex.ExpositionID)
+		}
 		record.Set("author_username", ex.AuthorUsername)
 		record.Set("contribution_id", ex.ContributionID)
 		record.Set("conjecture_id", ex.ConjectureID)
