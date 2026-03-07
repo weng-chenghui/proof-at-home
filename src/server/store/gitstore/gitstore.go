@@ -448,6 +448,67 @@ func (gs *GitStore) SealExposition(id string, nftMetadata any) (string, error) {
 	return prURL, nil
 }
 
+// ── Lesson operations ──
+
+// AddLesson creates a branch and commits the lesson summary.
+func (gs *GitStore) AddLesson(l data.Lesson) (string, error) {
+	gs.mu.Lock()
+	defer gs.mu.Unlock()
+
+	branch := fmt.Sprintf("lesson/%s", l.LessonID)
+	dir := filepath.Join("lessons", l.LessonID)
+
+	if err := gs.createBranch(branch); err != nil {
+		return "", err
+	}
+
+	if err := gs.writeJSON(filepath.Join(dir, "summary.json"), l); err != nil {
+		return "", err
+	}
+
+	if err := gs.commitAndPush(branch, fmt.Sprintf("Add lesson %s", l.LessonID)); err != nil {
+		return "", err
+	}
+
+	sha, err := gs.getHeadSHA()
+	if err != nil {
+		return "", err
+	}
+
+	return sha, nil
+}
+
+// UpdateLesson overwrites the lesson summary on its branch.
+func (gs *GitStore) UpdateLesson(id string, l data.Lesson) (string, error) {
+	gs.mu.Lock()
+	defer gs.mu.Unlock()
+
+	branch := fmt.Sprintf("lesson/%s", id)
+	dir := filepath.Join("lessons", id)
+
+	if err := gs.checkoutBranch(branch); err != nil {
+		// Branch may not exist yet if lesson was merged to main; create it
+		if err2 := gs.createBranch(branch); err2 != nil {
+			return "", err
+		}
+	}
+
+	if err := gs.writeJSON(filepath.Join(dir, "summary.json"), l); err != nil {
+		return "", err
+	}
+
+	if err := gs.commitAndPush(branch, fmt.Sprintf("Update lesson %s", id)); err != nil {
+		return "", err
+	}
+
+	sha, err := gs.getHeadSHA()
+	if err != nil {
+		return "", err
+	}
+
+	return sha, nil
+}
+
 // ── Cache rebuild ──
 
 // PullAndRebuild pulls latest main and calls the rebuild function.

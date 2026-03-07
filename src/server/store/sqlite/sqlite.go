@@ -28,6 +28,9 @@ var migration003SQL string
 //go:embed migrations/004_merge_visualizations.sql
 var migration004SQL string
 
+//go:embed migrations/005_lessons.sql
+var migration005SQL string
+
 type SQLiteStore struct {
 	db *sql.DB
 }
@@ -64,6 +67,10 @@ func (s *SQLiteStore) Migrate() error {
 	_, err = s.db.Exec(migration004SQL)
 	if err != nil {
 		return fmt.Errorf("running migration 004: %w", err)
+	}
+	_, err = s.db.Exec(migration005SQL)
+	if err != nil {
+		return fmt.Errorf("running migration 005: %w", err)
 	}
 	slog.Info("SQLite migration completed")
 	return nil
@@ -625,6 +632,89 @@ func (s *SQLiteStore) AddExposition(e data.Exposition) {
 	}
 }
 
+// ListLessons returns all published lessons.
+func (s *SQLiteStore) ListLessons() []data.Lesson {
+	rows, err := s.db.Query(
+		`SELECT lesson_id, author_username, title, topic, difficulty, description,
+		 prerequisites, conjecture_ids, published, created_at
+		 FROM lessons ORDER BY created_at DESC`)
+	if err != nil {
+		slog.Error("ListLessons query failed", "error", err)
+		return nil
+	}
+	defer rows.Close()
+
+	var results []data.Lesson
+	for rows.Next() {
+		var l data.Lesson
+		var conjectureIDsStr string
+		var published int
+		if err := rows.Scan(&l.LessonID, &l.AuthorUsername, &l.Title, &l.Topic, &l.Difficulty,
+			&l.Description, &l.Prerequisites, &conjectureIDsStr, &published, &l.CreatedAt); err != nil {
+			slog.Error("ListLessons scan failed", "error", err)
+			continue
+		}
+		json.Unmarshal([]byte(conjectureIDsStr), &l.ConjectureIDs)
+		l.Published = published != 0
+		results = append(results, l)
+	}
+	return results
+}
+
+// GetLesson returns a lesson by ID.
+func (s *SQLiteStore) GetLesson(id string) (data.Lesson, bool) {
+	var l data.Lesson
+	var conjectureIDsStr string
+	var published int
+
+	err := s.db.QueryRow(
+		`SELECT lesson_id, author_username, title, topic, difficulty, description,
+		 prerequisites, conjecture_ids, published, created_at
+		 FROM lessons WHERE lesson_id = ?`, id,
+	).Scan(&l.LessonID, &l.AuthorUsername, &l.Title, &l.Topic, &l.Difficulty,
+		&l.Description, &l.Prerequisites, &conjectureIDsStr, &published, &l.CreatedAt)
+
+	if err == sql.ErrNoRows {
+		return data.Lesson{}, false
+	}
+	if err != nil {
+		slog.Error("GetLesson query failed", "error", err, "id", id)
+		return data.Lesson{}, false
+	}
+	json.Unmarshal([]byte(conjectureIDsStr), &l.ConjectureIDs)
+	l.Published = published != 0
+	return l, true
+}
+
+// AddLesson inserts or updates a lesson.
+func (s *SQLiteStore) AddLesson(l data.Lesson) {
+	conjectureIDsJSON, _ := json.Marshal(l.ConjectureIDs)
+	published := 0
+	if l.Published {
+		published = 1
+	}
+
+	_, err := s.db.Exec(
+		`INSERT INTO lessons (lesson_id, author_username, title, topic, difficulty, description,
+		 prerequisites, conjecture_ids, published)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		 ON CONFLICT (lesson_id) DO UPDATE SET
+		   author_username = excluded.author_username,
+		   title = excluded.title,
+		   topic = excluded.topic,
+		   difficulty = excluded.difficulty,
+		   description = excluded.description,
+		   prerequisites = excluded.prerequisites,
+		   conjecture_ids = excluded.conjecture_ids,
+		   published = excluded.published`,
+		l.LessonID, l.AuthorUsername, l.Title, l.Topic, l.Difficulty,
+		l.Description, l.Prerequisites, string(conjectureIDsJSON), published,
+	)
+	if err != nil {
+		slog.Error("AddLesson insert failed", "error", err, "id", l.LessonID)
+	}
+}
+
 // parseCommandFile parses a .md command file with TOML frontmatter (between +++ delimiters).
 func parseCommandFile(raw []byte) (data.Strategy, error) {
 	content := string(raw)
@@ -685,7 +775,7 @@ func (s *SQLiteStore) RebuildFromDir(repoPath string) error {
 	defer tx.Rollback()
 
 	// Clear all tables
-	tables := []string{"proofs", "certificates", "contributions", "conjectures", "strategies", "expositions"}
+	tables := []string{"proofs", "certificates", "contributions", "conjectures", "strategies", "expositions", "lessons"}
 	for _, table := range tables {
 		if _, err := tx.Exec("DELETE FROM " + table); err != nil {
 			return fmt.Errorf("clearing %s: %w", table, err)
@@ -1003,6 +1093,41 @@ func (s *SQLiteStore) RebuildFromDir(repoPath string) error {
 			)
 			if err != nil {
 				slog.Error("RebuildFromDir: failed to insert visualization as exposition", "id", vizID, "error", err)
+			}
+		}
+	}
+
+	// Walk lessons/*/summary.json
+	lessonsDir := filepath.Join(repoPath, "lessons")
+	if entries, err := os.ReadDir(lessonsDir); err == nil {
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				continue
+			}
+			summaryPath := filepath.Join(lessonsDir, entry.Name(), "summary.json")
+			raw, err := os.ReadFile(summaryPath)
+			if err != nil {
+				continue
+			}
+			var l data.Lesson
+			if err := json.Unmarshal(raw, &l); err != nil {
+				continue
+			}
+			conjectureIDsJSON, _ := json.Marshal(l.ConjectureIDs)
+			published := 0
+			if l.Published {
+				published = 1
+			}
+			_, err = tx.Exec(
+				`INSERT INTO lessons (lesson_id, author_username, title, topic, difficulty, description,
+				 prerequisites, conjecture_ids, published)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+				 ON CONFLICT (lesson_id) DO NOTHING`,
+				l.LessonID, l.AuthorUsername, l.Title, l.Topic, l.Difficulty,
+				l.Description, l.Prerequisites, string(conjectureIDsJSON), published,
+			)
+			if err != nil {
+				slog.Error("RebuildFromDir: failed to insert lesson", "id", l.LessonID, "error", err)
 			}
 		}
 	}

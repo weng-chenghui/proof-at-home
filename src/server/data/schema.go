@@ -94,6 +94,21 @@ type ContributionRanking struct {
 	OverallScore              float64 `json:"overall_score"`
 }
 
+// ── Lesson types ──
+
+type Lesson struct {
+	LessonID       string   `json:"lesson_id"`
+	AuthorUsername string   `json:"author_username"`
+	Title          string   `json:"title"`
+	Topic          string   `json:"topic,omitempty"`
+	Difficulty     string   `json:"difficulty,omitempty"`
+	Description    string   `json:"description,omitempty"`
+	Prerequisites  string   `json:"prerequisites,omitempty"`
+	ConjectureIDs  []string `json:"conjecture_ids"`
+	Published      bool     `json:"published"`
+	CreatedAt      string   `json:"created_at,omitempty"`
+}
+
 // ── Exposition types ──
 
 type Exposition struct {
