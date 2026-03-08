@@ -711,6 +711,75 @@ func (gs *GitStore) writeSeriesMD(relPath string, s data.Series) error {
 	return nil
 }
 
+// ── Strategy operations ──
+
+// AddStrategy creates a branch and commits a strategy file to the repo.
+func (gs *GitStore) AddStrategy(name string, content []byte) (string, error) {
+	gs.mu.Lock()
+	defer gs.mu.Unlock()
+
+	branch := fmt.Sprintf("strategy/%s", name)
+
+	if err := gs.createBranch(branch); err != nil {
+		return "", err
+	}
+
+	relPath := filepath.Join("strategies", name+".md")
+	absPath := filepath.Join(gs.repoPath, relPath)
+	if err := os.MkdirAll(filepath.Dir(absPath), 0o755); err != nil {
+		return "", fmt.Errorf("creating directory for %s: %w", relPath, err)
+	}
+	if err := os.WriteFile(absPath, content, 0o644); err != nil {
+		return "", fmt.Errorf("writing %s: %w", relPath, err)
+	}
+
+	if err := gs.commitAndPush(branch, fmt.Sprintf("Add strategy %s", name)); err != nil {
+		return "", err
+	}
+
+	sha, err := gs.getHeadSHA()
+	if err != nil {
+		return "", err
+	}
+
+	return sha, nil
+}
+
+// SealStrategy writes NFT metadata, commits, pushes, and creates a PR for a strategy.
+func (gs *GitStore) SealStrategy(name string, nftMetadata any) (string, error) {
+	prURL, err := func() (string, error) {
+		gs.mu.Lock()
+		defer gs.mu.Unlock()
+
+		branch := fmt.Sprintf("strategy/%s", name)
+
+		if err := gs.checkoutBranch(branch); err != nil {
+			return "", err
+		}
+
+		relPath := filepath.Join("strategies", "nft_metadata_"+name+".json")
+		if err := gs.writeJSON(relPath, nftMetadata); err != nil {
+			return "", err
+		}
+
+		if err := gs.commitAndPush(branch, fmt.Sprintf("Seal strategy %s with NFT metadata", name)); err != nil {
+			return "", err
+		}
+
+		return gs.forge.CreatePR(
+			branch, "main",
+			fmt.Sprintf("Strategy: %s", name),
+			fmt.Sprintf("Sealed strategy/memory `%s` with NFT metadata.", name),
+		)
+	}()
+	if err != nil {
+		return "", fmt.Errorf("creating PR: %w", err)
+	}
+
+	gs.triggerRebuild()
+	return prURL, nil
+}
+
 // injectToken embeds a token into an HTTPS git URL for authentication.
 // e.g. https://github.com/org/repo.git -> https://x-access-token:TOKEN@github.com/org/repo.git
 func injectToken(repoURL, token string) string {

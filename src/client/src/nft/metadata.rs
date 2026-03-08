@@ -260,6 +260,52 @@ pub fn generate_exposition_nft_metadata(info: &ExpositionInfo) -> Value {
     })
 }
 
+// ── Agent Memory NFT metadata ──
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, JsonSchema)]
+pub struct AgentMemoryInfo {
+    pub author_username: String,
+    pub agent_id: String,
+    pub run_id: String,
+    pub memories_created: u32,
+    pub memories_refined: u32,
+    pub memory_kinds: Vec<String>,
+    pub total_cost_usd: f64,
+    pub content_hash: String,
+    pub git_commit: String,
+    pub git_repository: String,
+    pub public_key: String,
+    pub commit_signature: String,
+}
+
+/// Generate OpenSea-compatible NFT metadata JSON for agent memory contribution
+#[allow(dead_code)]
+pub fn generate_agent_memory_nft_metadata(info: &AgentMemoryInfo) -> Value {
+    let date = Utc::now().format("%Y-%m-%d").to_string();
+
+    json!({
+        "name": format!("Proof@Home Agent Memory — {} — {}", info.author_username, date),
+        "description": "Agent memory contribution: reusable knowledge extracted from lesson generation.",
+        "external_url": "",
+        "image": "",
+        "attributes": [
+            {"trait_type": "Author Username", "value": info.author_username},
+            {"trait_type": "Agent ID", "value": info.agent_id},
+            {"trait_type": "Run ID", "value": info.run_id},
+            {"trait_type": "Memories Created", "value": info.memories_created},
+            {"trait_type": "Memories Refined", "value": info.memories_refined},
+            {"trait_type": "Memory Kinds", "value": info.memory_kinds.join(", ")},
+            {"trait_type": "Total Cost (USD)", "value": format!("{:.4}", info.total_cost_usd)},
+            {"trait_type": "Content Hash", "value": info.content_hash},
+            {"trait_type": "Git Commit", "value": info.git_commit},
+            {"trait_type": "Git Repository", "value": info.git_repository},
+            {"trait_type": "Public Key", "value": info.public_key},
+            {"trait_type": "Commit Signature", "value": info.commit_signature}
+        ]
+    })
+}
+
 // ── Schema-only structs mirroring the NFT JSON output shape ──
 // Used by gen-schemas binary; not constructed in the main binary.
 

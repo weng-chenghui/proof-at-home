@@ -256,6 +256,19 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 				Body:        r.GetString("body"),
 			})
 		}
+
+		// Filter by kind if query param provided
+		kind := e.Request.URL.Query().Get("kind")
+		if kind != "" {
+			filtered := make([]strategyEntry, 0)
+			for _, s := range entries {
+				if s.Kind == kind {
+					filtered = append(filtered, s)
+				}
+			}
+			entries = filtered
+		}
+
 		return e.JSON(http.StatusOK, entries)
 	})
 
@@ -743,6 +756,256 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 		})
 	})
 
+	// ── Lesson routes ──
+
+	// GET /lessons — list lessons
+	se.Router.GET("/lessons", func(e *core.RequestEvent) error {
+		records, err := app.FindAllRecords("lessons")
+		if err != nil {
+			return e.JSON(http.StatusOK, []any{})
+		}
+
+		type lessonEntry struct {
+			LessonID       string   `json:"lesson_id"`
+			AuthorUsername string   `json:"author_username"`
+			Title          string   `json:"title"`
+			Topic          string   `json:"topic"`
+			Difficulty     string   `json:"difficulty"`
+			Description    string   `json:"description"`
+			ConjectureIDs  []string `json:"conjecture_ids"`
+			Published      bool     `json:"published"`
+		}
+
+		entries := make([]lessonEntry, 0, len(records))
+		for _, r := range records {
+			entries = append(entries, lessonEntry{
+				LessonID:       r.GetString("lesson_id"),
+				AuthorUsername: r.GetString("author_username"),
+				Title:          r.GetString("title"),
+				Topic:          r.GetString("topic"),
+				Difficulty:     r.GetString("difficulty"),
+				Description:    r.GetString("description"),
+				ConjectureIDs:  getStringSlice(r, "conjecture_ids"),
+				Published:      r.GetBool("published"),
+			})
+		}
+		return e.JSON(http.StatusOK, entries)
+	})
+
+	// GET /lessons/{id} — get specific lesson
+	se.Router.GET("/lessons/{id}", func(e *core.RequestEvent) error {
+		id := e.Request.PathValue("id")
+		record, err := app.FindFirstRecordByFilter("lessons", "lesson_id = {:lid}", map[string]any{
+			"lid": id,
+		})
+		if err != nil {
+			return e.JSON(http.StatusNotFound, map[string]string{"error": "not found"})
+		}
+
+		result := map[string]any{
+			"lesson_id":       record.GetString("lesson_id"),
+			"author_username": record.GetString("author_username"),
+			"title":           record.GetString("title"),
+			"topic":           record.GetString("topic"),
+			"difficulty":      record.GetString("difficulty"),
+			"description":     record.GetString("description"),
+			"prerequisites":   record.GetString("prerequisites"),
+			"conjecture_ids":  getStringSlice(record, "conjecture_ids"),
+			"published":       record.GetBool("published"),
+			"content":         record.GetString("content"),
+			"ai_annotations":  record.Get("ai_annotations"),
+		}
+		return e.JSON(http.StatusOK, result)
+	})
+
+	// POST /lessons — create lesson via GitStore
+	se.Router.POST("/lessons", func(e *core.RequestEvent) error {
+		var lesson data.Lesson
+		if err := json.NewDecoder(e.Request.Body).Decode(&lesson); err != nil {
+			return e.JSON(http.StatusBadRequest, map[string]string{"error": "invalid JSON: " + err.Error()})
+		}
+		if lesson.LessonID == "" {
+			return e.JSON(http.StatusBadRequest, map[string]string{"error": "lesson_id is required"})
+		}
+
+		sha, err := gs.AddLesson(lesson)
+		if err != nil {
+			return e.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		}
+
+		return e.JSON(http.StatusOK, map[string]string{
+			"status":     "created",
+			"commit_sha": sha,
+		})
+	})
+
+	// PATCH /lessons/{id} — update lesson via GitStore
+	se.Router.PATCH("/lessons/{id}", func(e *core.RequestEvent) error {
+		id := e.Request.PathValue("id")
+		var lesson data.Lesson
+		if err := json.NewDecoder(e.Request.Body).Decode(&lesson); err != nil {
+			return e.JSON(http.StatusBadRequest, map[string]string{"error": "invalid JSON: " + err.Error()})
+		}
+		lesson.LessonID = id
+
+		sha, err := gs.UpdateLesson(id, lesson)
+		if err != nil {
+			return e.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		}
+
+		return e.JSON(http.StatusOK, map[string]string{
+			"status":     "updated",
+			"commit_sha": sha,
+		})
+	})
+
+	// ── Series routes ──
+
+	// GET /series — list series
+	se.Router.GET("/series", func(e *core.RequestEvent) error {
+		records, err := app.FindAllRecords("series")
+		if err != nil {
+			return e.JSON(http.StatusOK, []any{})
+		}
+
+		type seriesEntry struct {
+			SeriesID       string   `json:"series_id"`
+			Title          string   `json:"title"`
+			AuthorUsername string   `json:"author_username"`
+			Difficulty     string   `json:"difficulty"`
+			Description    string   `json:"description"`
+			LessonIDs      []string `json:"lesson_ids"`
+			Published      bool     `json:"published"`
+		}
+
+		entries := make([]seriesEntry, 0, len(records))
+		for _, r := range records {
+			entries = append(entries, seriesEntry{
+				SeriesID:       r.GetString("series_id"),
+				Title:          r.GetString("title"),
+				AuthorUsername: r.GetString("author_username"),
+				Difficulty:     r.GetString("difficulty"),
+				Description:    r.GetString("description"),
+				LessonIDs:      getStringSlice(r, "lesson_ids"),
+				Published:      r.GetBool("published"),
+			})
+		}
+		return e.JSON(http.StatusOK, entries)
+	})
+
+	// GET /series/{id} — get specific series
+	se.Router.GET("/series/{id}", func(e *core.RequestEvent) error {
+		id := e.Request.PathValue("id")
+		record, err := app.FindFirstRecordByFilter("series", "series_id = {:sid}", map[string]any{
+			"sid": id,
+		})
+		if err != nil {
+			return e.JSON(http.StatusNotFound, map[string]string{"error": "not found"})
+		}
+
+		result := map[string]any{
+			"series_id":       record.GetString("series_id"),
+			"title":           record.GetString("title"),
+			"author_username": record.GetString("author_username"),
+			"difficulty":      record.GetString("difficulty"),
+			"description":     record.GetString("description"),
+			"lesson_ids":      getStringSlice(record, "lesson_ids"),
+			"published":       record.GetBool("published"),
+			"content":         record.GetString("content"),
+		}
+		return e.JSON(http.StatusOK, result)
+	})
+
+	// POST /series — create series via GitStore
+	se.Router.POST("/series", func(e *core.RequestEvent) error {
+		var s data.Series
+		if err := json.NewDecoder(e.Request.Body).Decode(&s); err != nil {
+			return e.JSON(http.StatusBadRequest, map[string]string{"error": "invalid JSON: " + err.Error()})
+		}
+		if s.SeriesID == "" {
+			return e.JSON(http.StatusBadRequest, map[string]string{"error": "series_id is required"})
+		}
+
+		sha, err := gs.AddSeries(s)
+		if err != nil {
+			return e.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		}
+
+		return e.JSON(http.StatusOK, map[string]string{
+			"status":     "created",
+			"commit_sha": sha,
+		})
+	})
+
+	// PATCH /series/{id} — update series via GitStore
+	se.Router.PATCH("/series/{id}", func(e *core.RequestEvent) error {
+		id := e.Request.PathValue("id")
+		var s data.Series
+		if err := json.NewDecoder(e.Request.Body).Decode(&s); err != nil {
+			return e.JSON(http.StatusBadRequest, map[string]string{"error": "invalid JSON: " + err.Error()})
+		}
+		s.SeriesID = id
+
+		sha, err := gs.UpdateSeries(id, s)
+		if err != nil {
+			return e.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		}
+
+		return e.JSON(http.StatusOK, map[string]string{
+			"status":     "updated",
+			"commit_sha": sha,
+		})
+	})
+
+	// ── Strategy write routes ──
+
+	// POST /strategies — write strategy/memory to git
+	se.Router.POST("/strategies", func(e *core.RequestEvent) error {
+		var req struct {
+			Name    string `json:"name"`
+			Content string `json:"content"`
+		}
+		if err := json.NewDecoder(e.Request.Body).Decode(&req); err != nil {
+			return e.JSON(http.StatusBadRequest, map[string]string{"error": "invalid JSON: " + err.Error()})
+		}
+		if req.Name == "" || req.Content == "" {
+			return e.JSON(http.StatusBadRequest, map[string]string{"error": "name and content are required"})
+		}
+
+		sha, err := gs.AddStrategy(req.Name, []byte(req.Content))
+		if err != nil {
+			return e.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		}
+
+		return e.JSON(http.StatusOK, map[string]string{
+			"status":     "created",
+			"commit_sha": sha,
+		})
+	})
+
+	// POST /strategies/{name}/seal — seal strategy with NFT metadata
+	se.Router.POST("/strategies/{name}/seal", func(e *core.RequestEvent) error {
+		name := e.Request.PathValue("name")
+		if name == "" {
+			return e.JSON(http.StatusBadRequest, map[string]string{"error": "name is required"})
+		}
+
+		var nftMetadata any
+		if err := json.NewDecoder(e.Request.Body).Decode(&nftMetadata); err != nil {
+			return e.JSON(http.StatusBadRequest, map[string]string{"error": "invalid JSON body"})
+		}
+
+		prURL, err := gs.SealStrategy(name, nftMetadata)
+		if err != nil {
+			return e.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		}
+
+		return e.JSON(http.StatusOK, map[string]string{
+			"status": "sealed",
+			"pr_url": prURL,
+		})
+	})
+
 	// POST /conjectures — submit conjecture package (tar.gz or git URL)
 	se.Router.POST("/conjectures", func(e *core.RequestEvent) error {
 		ct := e.Request.Header.Get("Content-Type")
@@ -940,7 +1203,7 @@ func rebuildFromGit(app core.App) error {
 	repoPath := gs.RepoPath()
 
 	// Clear existing records
-	for _, collName := range []string{"proofs", "certificates", "contributions", "conjectures", "strategies", "expositions"} {
+	for _, collName := range []string{"proofs", "certificates", "contributions", "conjectures", "strategies", "expositions", "lessons", "series"} {
 		records, err := app.FindAllRecords(collName)
 		if err != nil {
 			continue
@@ -1247,6 +1510,87 @@ func rebuildFromGit(app core.App) error {
 				record.Set("body", strat.Body)
 				if err := app.Save(record); err != nil {
 					slog.Error("Rebuild: failed to save strategy", "name", strat.Name, "error", err)
+				}
+			}
+		}
+	}
+
+	// Walk lessons/*/lesson.md
+	lessonsDir := filepath.Join(repoPath, "lessons")
+	if entries, err := os.ReadDir(lessonsDir); err == nil {
+		lessonCollection, _ := app.FindCollectionByNameOrId("lessons")
+		if lessonCollection != nil {
+			for _, entry := range entries {
+				if !entry.IsDir() {
+					continue
+				}
+				lessonPath := filepath.Join(lessonsDir, entry.Name(), "lesson.md")
+				raw, err := os.ReadFile(lessonPath)
+				if err != nil {
+					continue
+				}
+				lesson, err := data.ParseLessonFile(raw)
+				if err != nil {
+					slog.Error("Rebuild: failed to parse lesson", "dir", entry.Name(), "error", err)
+					continue
+				}
+				if lesson.LessonID == "" {
+					lesson.LessonID = entry.Name()
+				}
+
+				record := core.NewRecord(lessonCollection)
+				record.Set("lesson_id", lesson.LessonID)
+				record.Set("author_username", lesson.AuthorUsername)
+				record.Set("title", lesson.Title)
+				record.Set("topic", lesson.Topic)
+				record.Set("difficulty", lesson.Difficulty)
+				record.Set("description", lesson.Description)
+				record.Set("prerequisites", lesson.Prerequisites)
+				record.Set("conjecture_ids", lesson.ConjectureIDs)
+				record.Set("published", lesson.Published)
+				record.Set("content", lesson.Content)
+				record.Set("ai_annotations", lesson.AIAnnotations)
+				if err := app.Save(record); err != nil {
+					slog.Error("Rebuild: failed to save lesson", "id", lesson.LessonID, "error", err)
+				}
+			}
+		}
+	}
+
+	// Walk series/*/series.md
+	seriesDir := filepath.Join(repoPath, "series")
+	if entries, err := os.ReadDir(seriesDir); err == nil {
+		seriesCollection, _ := app.FindCollectionByNameOrId("series")
+		if seriesCollection != nil {
+			for _, entry := range entries {
+				if !entry.IsDir() {
+					continue
+				}
+				seriesPath := filepath.Join(seriesDir, entry.Name(), "series.md")
+				raw, err := os.ReadFile(seriesPath)
+				if err != nil {
+					continue
+				}
+				s, err := data.ParseSeriesFile(raw)
+				if err != nil {
+					slog.Error("Rebuild: failed to parse series", "dir", entry.Name(), "error", err)
+					continue
+				}
+				if s.SeriesID == "" {
+					s.SeriesID = entry.Name()
+				}
+
+				record := core.NewRecord(seriesCollection)
+				record.Set("series_id", s.SeriesID)
+				record.Set("title", s.Title)
+				record.Set("author_username", s.AuthorUsername)
+				record.Set("difficulty", s.Difficulty)
+				record.Set("description", s.Description)
+				record.Set("lesson_ids", s.LessonIDs)
+				record.Set("published", s.Published)
+				record.Set("content", s.Content)
+				if err := app.Save(record); err != nil {
+					slog.Error("Rebuild: failed to save series", "id", s.SeriesID, "error", err)
 				}
 			}
 		}

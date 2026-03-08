@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use serde::Deserialize;
+use std::collections::HashMap;
 
 /// Metadata parsed from TOML frontmatter in a strategy `.md` file.
 #[derive(Debug, Clone, Deserialize)]
@@ -15,6 +16,8 @@ pub struct StrategyMeta {
     pub description: String,
     #[serde(default)]
     pub priority: i32,
+    #[serde(default)]
+    pub extra: HashMap<String, toml::Value>,
 }
 
 fn default_kind() -> String {
@@ -86,5 +89,28 @@ Body here.
     fn test_missing_frontmatter() {
         let content = "# Just markdown\nNo frontmatter here.";
         assert!(parse_strategy_file(content).is_err());
+    }
+
+    #[test]
+    fn test_parse_extra() {
+        let content = r#"+++
+name = "mem-test"
+kind = "memory-lesson"
+description = "test memory"
+priority = 50
+
+[extra]
+agent_id = "lesson-agent"
+confidence = 0.8
+tags = ["group-theory", "pacing"]
++++
+Body here.
+"#;
+        let (meta, _) = parse_strategy_file(content).unwrap();
+        assert_eq!(meta.kind, "memory-lesson");
+        assert_eq!(
+            meta.extra.get("agent_id").unwrap().as_str().unwrap(),
+            "lesson-agent"
+        );
     }
 }

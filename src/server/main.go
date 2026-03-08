@@ -89,6 +89,7 @@ func main() {
 	certificateHandler := &handlers.CertificateHandler{Store: lite, GitStore: gs}
 	conjectureWriteHandler := &handlers.ConjectureWriteHandler{GitStore: gs}
 	strategyHandler := &handlers.StrategyHandler{Store: lite}
+	strategyWriteHandler := &handlers.StrategyWriteHandler{GitStore: gs}
 	expositionHandler := &handlers.ExpositionHandler{Store: lite, GitStore: gs}
 	lessonHandler := &handlers.LessonHandler{Store: lite, GitStore: gs}
 	seriesHandler := &handlers.SeriesHandler{Store: lite, GitStore: gs}
@@ -169,6 +170,8 @@ func main() {
 		r.Patch("/lessons/{id}", lessonHandler.Update)
 		r.Post("/series", seriesHandler.Create)
 		r.Patch("/series/{id}", seriesHandler.Update)
+		r.Post("/strategies", strategyWriteHandler.Submit)
+		r.Post("/strategies/{name}/seal", strategyWriteHandler.SealStrategy)
 	})
 
 	// Serve embedded static files

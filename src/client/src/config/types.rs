@@ -169,6 +169,15 @@ impl Config {
         })
     }
 
+    /// Budget in USD for agent runs. Uses donated_usd if set, otherwise defaults to 5.0.
+    pub fn budget_usd(&self) -> f64 {
+        if self.budget.donated_usd > 0.0 {
+            self.budget.donated_usd
+        } else {
+            5.0
+        }
+    }
+
     pub fn server_url(&self) -> String {
         std::env::var("PAH_SERVER_URL").unwrap_or_else(|_| {
             if self.api.server_url.is_empty() {
