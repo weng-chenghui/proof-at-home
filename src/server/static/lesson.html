@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lesson — Proof@Home</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/shared.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/contrib/auto-render.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github.min.css">
+    <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/languages/coq.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/languages/lean.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@15.0.0/marked.min.js"></script>
+    <style>
+        pre code.hljs { background: var(--code-bg); padding: 0; }
+        .lesson-meta {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 1rem 1.25rem;
+            margin-bottom: 1.5rem;
+            font-size: 0.85rem;
+        }
+        .lesson-meta dt { color: var(--text-secondary); font-weight: 600; display: inline; }
+        .lesson-meta dd { display: inline; margin: 0 1.5rem 0 0.25rem; }
+        .lesson-body { line-height: 1.7; }
+        .lesson-body h1 { font-size: 1.5rem; margin: 2rem 0 0.75rem; }
+        .lesson-body h2 { font-size: 1.2rem; margin: 1.75rem 0 0.625rem; }
+        .lesson-body h3 { font-size: 1rem; margin: 1.5rem 0 0.5rem; }
+        .lesson-body p { margin: 0 0 1rem; }
+        .lesson-body ul, .lesson-body ol { margin: 0 0 1rem; padding-left: 1.5rem; }
+        .lesson-body li { margin-bottom: 0.25rem; }
+        .lesson-body blockquote {
+            border-left: 3px solid var(--accent);
+            margin: 0 0 1rem;
+            padding: 0.5rem 1rem;
+            color: var(--text-secondary);
+            background: var(--accent-subtle);
+            border-radius: 0 var(--radius) var(--radius) 0;
+        }
+        .lesson-body table {
+            font-size: 0.85rem;
+            margin-bottom: 1rem;
+        }
+        .conj-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin: 1rem 0 1.5rem;
+        }
+        .conj-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 0.75rem 1rem;
+            text-decoration: none;
+            color: inherit;
+            transition: all var(--transition);
+            font-size: 0.85rem;
+        }
+        .conj-item:hover {
+            border-color: var(--accent);
+            box-shadow: var(--shadow-sm);
+            text-decoration: none;
+        }
+        .conj-item-num {
+            flex-shrink: 0;
+            width: 1.75rem;
+            height: 1.75rem;
+            border-radius: 6px;
+            background: var(--accent-subtle);
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.75rem;
+        }
+        .conj-item-info { flex: 1; }
+        .conj-item-title { font-weight: 600; }
+        .conj-item-id { color: var(--text-muted); font-size: 0.75rem; }
+    </style>
+</head>
+<body>
+    <nav id="navbar"></nav>
+    <div class="container">
+        <p><a href="/lessons.html">&larr; Back to Lessons</a></p>
+        <div id="msg" class="msg" style="display:none"></div>
+        <div id="content"></div>
+    </div>
+    <script src="/shared.js"></script>
+    <script>
+        async function load() {
+            const id = new URLSearchParams(window.location.search).get('id');
+            if (!id) {
+                showMsg('msg', 'No lesson ID specified.', true);
+                return;
+            }
+            try {
+                const lesson = await api('GET', '/lessons/' + encodeURIComponent(id));
+                document.title = (lesson.title || lesson.lesson_id) + ' — Proof@Home';
+
+                // Render metadata bar
+                let metaHtml = `<dl class="lesson-meta">
+                    ${lesson.author_username ? `<dt>Author:</dt><dd>${escapeHtml(lesson.author_username)}</dd>` : ''}
+                    ${lesson.topic ? `<dt>Topic:</dt><dd>${escapeHtml(lesson.topic)}</dd>` : ''}
+                    ${lesson.difficulty ? `<dt>Difficulty:</dt><dd>${difficultyBadge(lesson.difficulty)}</dd>` : ''}
+                    ${lesson.prerequisites ? `<dt>Prerequisites:</dt><dd>${escapeHtml(lesson.prerequisites)}</dd>` : ''}
+                    <dt>Conjectures:</dt><dd>${(lesson.conjecture_ids || []).length}</dd>
+                </dl>`;
+
+                // Render Markdown content
+                let bodyHtml = '';
+                if (lesson.content) {
+                    bodyHtml = `<div class="lesson-body">${marked.parse(lesson.content)}</div>`;
+                }
+
+                // Conjecture list section
+                const conjIds = lesson.conjecture_ids || [];
+                let conjHtml = '';
+                if (conjIds.length > 0) {
+                    conjHtml = '<h2>Conjectures</h2><div class="conj-list" id="conj-list"></div>';
+                }
+
+                document.getElementById('content').innerHTML = `
+                    <h1>${escapeHtml(lesson.title || lesson.lesson_id)}</h1>
+                    ${metaHtml}
+                    ${bodyHtml}
+                    ${conjHtml}
+                `;
+
+                // Fetch conjectures for the list
+                if (conjIds.length > 0) {
+                    const conjList = document.getElementById('conj-list');
+                    const results = await Promise.allSettled(
+                        conjIds.map(cid => api('GET', '/conjectures/' + encodeURIComponent(cid)))
+                    );
+                    conjList.innerHTML = results.map((r, i) => {
+                        const cid = conjIds[i];
+                        if (r.status === 'fulfilled') {
+                            const c = r.value;
+                            return `<a class="conj-item" href="/conjecture.html?id=${encodeURIComponent(cid)}">
+                                <div class="conj-item-num">${i + 1}</div>
+                                <div class="conj-item-info">
+                                    <div class="conj-item-title">${escapeHtml(c.title || cid)}</div>
+                                    <div class="conj-item-id">${escapeHtml(cid)} &middot; ${escapeHtml(c.prover || '')} ${c.difficulty ? '&middot; ' + escapeHtml(c.difficulty) : ''}</div>
+                                </div>
+                                <div>${c.status ? statusDot(c.status) : ''}</div>
+                            </a>`;
+                        }
+                        return `<a class="conj-item" href="/conjecture.html?id=${encodeURIComponent(cid)}">
+                            <div class="conj-item-num">${i + 1}</div>
+                            <div class="conj-item-info">
+                                <div class="conj-item-title">${escapeHtml(cid)}</div>
+                            </div>
+                        </a>`;
+                    }).join('');
+                }
+
+                // Syntax highlighting for code blocks
+                document.querySelectorAll('.lesson-body pre code').forEach(el => {
+                    hljs.highlightElement(el);
+                });
+
+                // KaTeX math rendering
+                if (typeof renderMathInElement !== 'undefined') {
+                    renderMathInElement(document.getElementById('content'), {
+                        delimiters: [
+                            {left: '$$', right: '$$', display: true},
+                            {left: '$', right: '$', display: false},
+                            {left: '\\(', right: '\\)', display: false},
+                            {left: '\\[', right: '\\]', display: true}
+                        ],
+                        throwOnError: false
+                    });
+                }
+            } catch (e) {
+                showMsg('msg', 'Failed to load lesson: ' + (e.error || e.message || 'not found'), true);
+            }
+        }
+        document.addEventListener('DOMContentLoaded', load);
+    </script>
+</body>
+</html>

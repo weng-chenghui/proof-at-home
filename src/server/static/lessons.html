@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lessons — Proof@Home</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/shared.css">
+    <style>
+        .lesson-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 1.25rem;
+            transition: all var(--transition);
+            text-decoration: none;
+            color: inherit;
+            display: flex;
+            flex-direction: column;
+        }
+        .lesson-card:hover {
+            box-shadow: var(--shadow-md);
+            border-color: var(--accent);
+            text-decoration: none;
+        }
+        .lesson-card h3 {
+            margin: 0 0 0.35rem;
+            font-size: 0.95rem;
+            font-weight: 650;
+            letter-spacing: -0.01em;
+        }
+        .lesson-card-meta {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            flex-wrap: wrap;
+        }
+        .lesson-card-meta .badge { font-size: 0.65rem; }
+        .lesson-card-desc {
+            margin: 0;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+            flex: 1;
+        }
+        .lesson-card-footer {
+            margin-top: 0.75rem;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            display: flex;
+            gap: 1rem;
+        }
+        .search-input {
+            padding: 0.4rem 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            font-size: 0.825rem;
+            background: var(--surface);
+            font-family: inherit;
+            outline: none;
+            min-width: 180px;
+            transition: border-color var(--transition), box-shadow var(--transition);
+        }
+        .search-input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-subtle);
+        }
+    </style>
+</head>
+<body>
+    <nav id="navbar"></nav>
+    <div class="container">
+        <h1>Lessons</h1>
+        <p class="text-secondary" style="margin-bottom:1.5rem;font-size:0.9rem">Structured learning paths built from formally verified conjectures. Each lesson teaches a topic through hands-on proving.</p>
+
+        <div id="msg" class="msg" style="display:none"></div>
+
+        <div class="filter-bar">
+            <input type="text" id="search" class="search-input" placeholder="Search lessons...">
+            <select id="filter-topic"><option value="">All topics</option></select>
+            <select id="filter-difficulty">
+                <option value="">All difficulties</option>
+                <option value="easy">Easy</option>
+                <option value="medium">Medium</option>
+                <option value="hard">Hard</option>
+            </select>
+        </div>
+
+        <div class="card-grid" id="grid" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));"></div>
+
+        <div id="empty" class="empty-state" style="display:none">
+            <h2>No lessons yet</h2>
+            <p>Lessons can be created with <code>pah lesson create</code>. See the <a href="/guide-pipeline.html">Content Pipeline</a> guide.</p>
+        </div>
+    </div>
+    <script src="/shared.js"></script>
+    <script>
+        let allLessons = [];
+
+        function render(lessons) {
+            const grid = document.getElementById('grid');
+            const empty = document.getElementById('empty');
+            if (!lessons || lessons.length === 0) {
+                grid.innerHTML = '';
+                grid.style.display = 'none';
+                empty.style.display = 'block';
+                return;
+            }
+            grid.style.display = '';
+            empty.style.display = 'none';
+            grid.innerHTML = lessons.map(l => `
+                <a class="lesson-card" href="/lesson.html?id=${encodeURIComponent(l.lesson_id)}">
+                    <h3>${escapeHtml(l.title || l.lesson_id)}</h3>
+                    <div class="lesson-card-meta">
+                        ${l.difficulty ? difficultyBadge(l.difficulty) : ''}
+                        ${l.topic ? `<span class="badge" style="background:var(--accent-subtle);color:var(--accent)">${escapeHtml(l.topic)}</span>` : ''}
+                    </div>
+                    <p class="lesson-card-desc">${escapeHtml(l.description || '')}</p>
+                    <div class="lesson-card-footer">
+                        ${l.conjecture_ids ? `<span>${l.conjecture_ids.length} conjecture${l.conjecture_ids.length !== 1 ? 's' : ''}</span>` : ''}
+                        ${l.author_username ? `<span>by ${escapeHtml(l.author_username)}</span>` : ''}
+                    </div>
+                </a>
+            `).join('');
+        }
+
+        function applyFilters() {
+            const q = document.getElementById('search').value.toLowerCase();
+            const topic = document.getElementById('filter-topic').value;
+            const diff = document.getElementById('filter-difficulty').value;
+            const filtered = allLessons.filter(l => {
+                if (q && !(l.title || '').toLowerCase().includes(q) && !(l.description || '').toLowerCase().includes(q) && !(l.lesson_id || '').toLowerCase().includes(q)) return false;
+                if (topic && l.topic !== topic) return false;
+                if (diff && l.difficulty !== diff) return false;
+                return true;
+            });
+            render(filtered);
+        }
+
+        async function load() {
+            try {
+                allLessons = await api('GET', '/lessons') || [];
+                // Populate topic filter from data
+                const topics = [...new Set(allLessons.map(l => l.topic).filter(Boolean))].sort();
+                const topicSelect = document.getElementById('filter-topic');
+                topics.forEach(t => {
+                    const opt = document.createElement('option');
+                    opt.value = t;
+                    opt.textContent = t;
+                    topicSelect.appendChild(opt);
+                });
+                render(allLessons);
+            } catch (e) {
+                showMsg('msg', 'Failed to load lessons: ' + (e.error || e.message || 'unknown error'), true);
+            }
+        }
+
+        document.getElementById('search').addEventListener('input', applyFilters);
+        document.getElementById('filter-topic').addEventListener('change', applyFilters);
+        document.getElementById('filter-difficulty').addEventListener('change', applyFilters);
+        document.addEventListener('DOMContentLoaded', load);
+    </script>
+</body>
+</html>

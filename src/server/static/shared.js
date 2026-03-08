@@ -106,6 +106,7 @@ function initNav() {
             <a href="/getting-started.html">Getting Started</a>
             <a href="/conjectures.html">Conjectures</a>
             <a href="/certificates.html">Certificates</a>
+            <a href="/lessons.html">Lessons</a>
             <a href="/expositions.html">Expositions</a>
             <a href="/strategies.html">Strategies</a>
             <a href="/nft-gallery.html">NFT Gallery</a>
