@@ -2,6 +2,7 @@ package main
 
 import (
 	"archive/tar"
+	"bytes"
 	"compress/gzip"
 	"encoding/json"
 	"fmt"
@@ -135,7 +136,7 @@ func main() {
 
 	// Register custom API routes
 	app.OnServe().BindFunc(func(se *core.ServeEvent) error {
-		registerRoutes(se, app)
+		registerRoutes(se, app, cfg)
 		return se.Next()
 	})
 
@@ -163,7 +164,7 @@ func main() {
 
 // registerRoutes adds custom routes that preserve backward compatibility
 // with the existing Proof@Home client.
-func registerRoutes(se *core.ServeEvent, app core.App) {
+func registerRoutes(se *core.ServeEvent, app core.App, cfg *config.Config) {
 	// ── Read routes (PocketBase as cache) ──
 
 	// GET /health
@@ -1184,6 +1185,139 @@ func registerRoutes(se *core.ServeEvent, app core.App) {
 
 		slog.Info("Webhook: PocketBase rebuild complete")
 		return e.JSON(http.StatusOK, map[string]string{"status": "rebuilt"})
+	})
+
+	// POST /ai/chat — AI tutor proxy (BYOK)
+	se.Router.POST("/ai/chat", func(e *core.RequestEvent) error {
+		var req struct {
+			Messages    []struct {
+				Role    string `json:"role"`
+				Content string `json:"content"`
+			} `json:"messages"`
+			ZoneContext string `json:"zone_context"`
+			LessonTitle string `json:"lesson_title"`
+			APIKey      string `json:"api_key"`
+		}
+		if err := json.NewDecoder(e.Request.Body).Decode(&req); err != nil {
+			return e.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		}
+
+		apiKey := req.APIKey
+		if apiKey == "" {
+			apiKey = cfg.AIAPIKey
+		}
+		if apiKey == "" {
+			return e.JSON(http.StatusBadRequest, map[string]string{"error": "API key required"})
+		}
+		if len(req.Messages) == 0 {
+			return e.JSON(http.StatusBadRequest, map[string]string{"error": "messages required"})
+		}
+		if len(req.Messages) > 20 {
+			return e.JSON(http.StatusBadRequest, map[string]string{"error": "too many messages (max 20)"})
+		}
+
+		systemPrompt := fmt.Sprintf(
+			"You are a math tutor helping a student with %s in '%s'. Use $...$ for inline and $$...$$ for display math. Be concise.",
+			req.ZoneContext, req.LessonTitle,
+		)
+
+		// Build messages for provider
+		type aiMsg struct {
+			Role    string `json:"role"`
+			Content string `json:"content"`
+		}
+		messages := make([]aiMsg, len(req.Messages))
+		for i, m := range req.Messages {
+			messages[i] = aiMsg{Role: m.Role, Content: m.Content}
+		}
+
+		var (
+			providerURL string
+			payload     []byte
+			authHeader  string
+			authValue   string
+		)
+
+		model := cfg.AIModel
+
+		if cfg.AIProvider == "openai" {
+			allMessages := make([]aiMsg, 0, len(messages)+1)
+			allMessages = append(allMessages, aiMsg{Role: "system", Content: systemPrompt})
+			allMessages = append(allMessages, messages...)
+			payload, _ = json.Marshal(map[string]any{
+				"model": model, "max_tokens": 2048, "messages": allMessages,
+			})
+			providerURL = "https://api.openai.com/v1/chat/completions"
+			authHeader = "Authorization"
+			authValue = "Bearer " + apiKey
+		} else {
+			payload, _ = json.Marshal(map[string]any{
+				"model": model, "max_tokens": 2048, "system": systemPrompt, "messages": messages,
+			})
+			providerURL = "https://api.anthropic.com/v1/messages"
+			authHeader = "x-api-key"
+			authValue = apiKey
+		}
+
+		providerReq, err := http.NewRequest("POST", providerURL, bytes.NewReader(payload))
+		if err != nil {
+			return e.JSON(http.StatusBadGateway, map[string]string{"error": "AI provider error. Try again later."})
+		}
+		providerReq.Header.Set("Content-Type", "application/json")
+		providerReq.Header.Set(authHeader, authValue)
+		if cfg.AIProvider != "openai" {
+			providerReq.Header.Set("anthropic-version", "2023-06-01")
+		}
+
+		resp, err := http.DefaultClient.Do(providerReq)
+		if err != nil {
+			return e.JSON(http.StatusBadGateway, map[string]string{"error": "AI provider error. Try again later."})
+		}
+		defer resp.Body.Close()
+
+		respBody, _ := io.ReadAll(resp.Body)
+		if resp.StatusCode != http.StatusOK {
+			var errMsg string
+			switch resp.StatusCode {
+			case 401:
+				errMsg = "API key rejected by provider. Check your key."
+			case 429:
+				errMsg = "Rate limited by provider. Wait and retry."
+			case 402:
+				errMsg = "Insufficient credits. Check your provider billing."
+			default:
+				errMsg = "AI provider error. Try again later."
+			}
+			return e.JSON(http.StatusBadGateway, map[string]string{"error": errMsg})
+		}
+
+		// Parse provider response
+		var content string
+		if cfg.AIProvider == "openai" {
+			var result struct {
+				Choices []struct {
+					Message struct {
+						Content string `json:"content"`
+					} `json:"message"`
+				} `json:"choices"`
+			}
+			if err := json.Unmarshal(respBody, &result); err != nil || len(result.Choices) == 0 {
+				return e.JSON(http.StatusBadGateway, map[string]string{"error": "AI provider error. Try again later."})
+			}
+			content = result.Choices[0].Message.Content
+		} else {
+			var result struct {
+				Content []struct {
+					Text string `json:"text"`
+				} `json:"content"`
+			}
+			if err := json.Unmarshal(respBody, &result); err != nil || len(result.Content) == 0 {
+				return e.JSON(http.StatusBadGateway, map[string]string{"error": "AI provider error. Try again later."})
+			}
+			content = result.Content[0].Text
+		}
+
+		return e.JSON(http.StatusOK, map[string]string{"content": content})
 	})
 
 	// Serve embedded static files (web UI)
