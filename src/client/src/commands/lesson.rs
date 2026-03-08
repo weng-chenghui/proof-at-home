@@ -277,7 +277,7 @@ pub async fn cmd_export(conjectures: Option<&str>, topic: Option<&str>) -> Resul
 
 /// Parse YAML frontmatter from lesson.md to extract key fields.
 /// Simple parser — doesn't require a YAML library.
-fn parse_lesson_frontmatter(
+pub fn parse_lesson_frontmatter(
     content: &str,
 ) -> (String, String, Option<String>, Option<String>, Vec<String>) {
     let mut lesson_id = String::new();

@@ -1,3 +1,4 @@
+mod agent;
 mod ai;
 mod archive;
 mod budget;
@@ -52,7 +53,7 @@ enum Resource {
         #[command(subcommand)]
         action: CertificateAction,
     },
-    /// Manage proving strategies (list, get, import)
+    /// Manage proving strategies (list, get, import, memory)
     Strategy {
         #[command(subcommand)]
         action: StrategyAction,
@@ -96,6 +97,11 @@ enum Resource {
     Series {
         #[command(subcommand)]
         action: SeriesAction,
+    },
+    /// Run AI agents
+    Agent {
+        #[command(subcommand)]
+        action: AgentAction,
     },
 }
 
@@ -291,7 +297,11 @@ enum CertificateAction {
 #[derive(Subcommand)]
 enum StrategyAction {
     /// List strategies from the server
-    List,
+    List {
+        /// Filter by kind (e.g. prove, certify-compare, memory-lesson)
+        #[arg(long)]
+        kind: Option<String>,
+    },
     /// Get details for a specific strategy
     Get {
         /// Strategy name
@@ -301,6 +311,11 @@ enum StrategyAction {
     Import {
         /// Paths to import
         paths: Vec<String>,
+    },
+    /// Manage agent memories (strategies with kind=memory-*)
+    Memory {
+        #[command(subcommand)]
+        action: MemoryAction,
     },
 }
 
@@ -499,6 +514,76 @@ enum PoolAction {
     Status,
 }
 
+// ── Agent ──
+
+#[derive(Subcommand)]
+enum AgentAction {
+    /// Run an agent task
+    Run {
+        #[command(subcommand)]
+        task: AgentTask,
+    },
+    /// Show agent run status
+    Status {
+        /// Run ID to query
+        run_id: Option<String>,
+    },
+}
+
+#[derive(Subcommand)]
+enum AgentTask {
+    /// Run the lesson agent (multi-step lesson generation with memory)
+    Lesson {
+        /// Topic for the lesson
+        #[arg(long)]
+        topic: Option<String>,
+        /// Comma-separated conjecture IDs
+        #[arg(long)]
+        conjectures: Option<String>,
+        /// Difficulty level: easy, medium, hard
+        #[arg(long)]
+        difficulty: Option<String>,
+        /// Output file path
+        #[arg(long, short)]
+        output: Option<String>,
+    },
+}
+
+#[derive(Subcommand)]
+enum MemoryAction {
+    /// List agent memories
+    List {
+        /// Filter by kind (e.g. memory-lesson)
+        #[arg(long)]
+        kind: Option<String>,
+        /// Filter by agent ID
+        #[arg(long)]
+        agent: Option<String>,
+    },
+    /// Get details for a specific memory
+    Get {
+        /// Memory name
+        name: String,
+    },
+    /// Create a memory manually
+    Create {
+        /// Memory kind (e.g. memory-lesson)
+        #[arg(long)]
+        kind: String,
+        /// Memory body text
+        #[arg(long)]
+        body: String,
+        /// Comma-separated tags
+        #[arg(long)]
+        tags: Option<String>,
+    },
+    /// Delete a memory
+    Forget {
+        /// Memory name
+        name: String,
+    },
+}
+
 #[tokio::main]
 async fn main() {
     let cli = Cli::parse();
@@ -606,9 +691,19 @@ async fn main() {
             CertificateAction::Publish { id } => commands::certificate::cmd_publish(&id).await,
         },
         Resource::Strategy { action } => match action {
-            StrategyAction::List => commands::strategy::cmd_list().await,
+            StrategyAction::List { kind } => commands::strategy::cmd_list(kind.as_deref()).await,
             StrategyAction::Get { name } => commands::strategy::cmd_get(&name).await,
             StrategyAction::Import { paths } => commands::strategy::cmd_import(&paths),
+            StrategyAction::Memory { action: mem_action } => match mem_action {
+                MemoryAction::List { kind, agent } => {
+                    commands::strategy::cmd_memory_list(kind.as_deref(), agent.as_deref())
+                }
+                MemoryAction::Get { name } => commands::strategy::cmd_memory_get(&name),
+                MemoryAction::Create { kind, body, tags } => {
+                    commands::strategy::cmd_memory_create(&kind, &body, tags.as_deref())
+                }
+                MemoryAction::Forget { name } => commands::strategy::cmd_memory_forget(&name),
+            },
         },
         Resource::Setting { action } => match action {
             SettingAction::Get { key } => commands::setting::cmd_get(key.as_deref()),
@@ -677,6 +772,25 @@ async fn main() {
             SeriesAction::Export { lessons } => {
                 commands::series::cmd_export(lessons.as_deref()).await
             }
+        },
+        Resource::Agent { action } => match action {
+            AgentAction::Run { task } => match task {
+                AgentTask::Lesson {
+                    topic,
+                    conjectures,
+                    difficulty,
+                    output,
+                } => {
+                    commands::agent::cmd_run_lesson(
+                        topic.as_deref(),
+                        conjectures.as_deref(),
+                        difficulty.as_deref(),
+                        output.as_deref(),
+                    )
+                    .await
+                }
+            },
+            AgentAction::Status { run_id } => commands::agent::cmd_status(run_id.as_deref()),
         },
         Resource::Exposition { action } => match action {
             ExpositionAction::Create {
