@@ -93,6 +93,7 @@ func main() {
 	expositionHandler := &handlers.ExpositionHandler{Store: lite, GitStore: gs}
 	lessonHandler := &handlers.LessonHandler{Store: lite, GitStore: gs}
 	seriesHandler := &handlers.SeriesHandler{Store: lite, GitStore: gs}
+	aiChatHandler := &handlers.AIChatHandler{Config: cfg}
 	webhookHandler := &handlers.WebhookHandler{
 		GitStore:  gs,
 		RebuildFn: lite.RebuildFromDir,
@@ -172,6 +173,7 @@ func main() {
 		r.Patch("/series/{id}", seriesHandler.Update)
 		r.Post("/strategies", strategyWriteHandler.Submit)
 		r.Post("/strategies/{name}/seal", strategyWriteHandler.SealStrategy)
+		r.Post("/ai/chat", aiChatHandler.Chat)
 	})
 
 	// Serve embedded static files

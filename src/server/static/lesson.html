@@ -87,6 +87,413 @@
         .conj-item-info { flex: 1; }
         .conj-item-title { font-weight: 600; }
         .conj-item-id { color: var(--text-muted); font-size: 0.75rem; }
+
+        /* ── AI Sparkle button ──────────────────────────── */
+        .ai-sparkle {
+            display: inline-flex;
+            align-items: center;
+            background: none;
+            border: none;
+            color: var(--accent);
+            cursor: pointer;
+            opacity: 0.5;
+            padding: 0 0.25rem;
+            font-size: 0.9em;
+            vertical-align: middle;
+            transition: opacity var(--transition), color var(--transition);
+            position: relative;
+        }
+        .ai-sparkle:hover {
+            opacity: 1;
+            box-shadow: none;
+            transform: none;
+        }
+        .ai-sparkle-tooltip {
+            display: none;
+            position: absolute;
+            bottom: calc(100% + 6px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--nav-bg);
+            color: #e2e8f0;
+            font-size: 0.7rem;
+            font-weight: 500;
+            padding: 0.3rem 0.6rem;
+            border-radius: 6px;
+            white-space: nowrap;
+            z-index: 10;
+            pointer-events: none;
+        }
+        .ai-sparkle:hover .ai-sparkle-tooltip {
+            display: block;
+        }
+
+        /* ── AI Sidebar ─────────────────────────────────── */
+        .ai-sidebar {
+            position: fixed;
+            top: 3.25rem;
+            right: -400px;
+            width: 380px;
+            height: calc(100vh - 3.25rem);
+            background: var(--surface);
+            border-left: 1px solid var(--border);
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            flex-direction: column;
+            z-index: 40;
+            transition: right 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .ai-sidebar.open {
+            right: 0;
+        }
+        body.sidebar-open .container {
+            margin-right: 380px;
+            transition: margin-right 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .ai-sidebar-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border);
+            font-weight: 600;
+            font-size: 0.9rem;
+            flex-shrink: 0;
+        }
+        .ai-sidebar-header-left {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .ai-sidebar-header-right {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+        .ai-sidebar-close {
+            background: none;
+            border: none;
+            font-size: 1.25rem;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 0 0.25rem;
+            line-height: 1;
+        }
+        .ai-sidebar-close:hover {
+            color: var(--text);
+            box-shadow: none;
+            transform: none;
+        }
+        /* Gear / settings button */
+        .ai-gear-btn {
+            background: none;
+            border: none;
+            font-size: 1rem;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 0.125rem 0.25rem;
+            line-height: 1;
+            position: relative;
+        }
+        .ai-gear-btn:hover {
+            color: var(--text);
+            box-shadow: none;
+            transform: none;
+        }
+        .ai-key-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-left: 2px;
+        }
+        .ai-key-dot.ok { background: var(--green); }
+        .ai-key-dot.err { background: var(--red); }
+        /* Settings dropdown */
+        .ai-settings-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-md);
+            padding: 0.75rem 1rem;
+            min-width: 220px;
+            z-index: 50;
+            font-weight: 400;
+        }
+        .ai-settings-dropdown.open { display: block; }
+        .ai-settings-dropdown .settings-row {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+        .ai-settings-dropdown .settings-row strong {
+            color: var(--text);
+        }
+        .ai-settings-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+        .ai-settings-actions button {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+            cursor: pointer;
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            color: var(--text-secondary);
+            font-family: inherit;
+        }
+        .ai-settings-actions button:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            box-shadow: none;
+            transform: none;
+        }
+        .ai-settings-footer {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+            padding-top: 0.5rem;
+            border-top: 1px solid var(--border-light);
+        }
+        #ai-sidebar-zone {
+            padding: 0.75rem 1rem;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            border-bottom: 1px solid var(--border-light);
+            flex-shrink: 0;
+        }
+        #ai-sidebar-zone:empty {
+            display: none;
+        }
+        .ai-sidebar-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0.75rem 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        .ai-msg {
+            font-size: 0.85rem;
+            line-height: 1.6;
+            border-radius: var(--radius);
+            padding: 0.625rem 0.75rem;
+            max-width: 100%;
+            overflow-wrap: break-word;
+        }
+        .ai-msg p { margin: 0 0 0.5rem; }
+        .ai-msg p:last-child { margin-bottom: 0; }
+        .ai-msg pre { font-size: 0.75rem; margin: 0.5rem 0; }
+        .ai-msg.user {
+            background: var(--accent-subtle);
+            align-self: flex-end;
+        }
+        .ai-msg.assistant {
+            border-left: 3px solid var(--accent);
+            background: var(--code-bg);
+        }
+        .ai-msg.error {
+            background: var(--red-subtle);
+            color: #991b1b;
+            font-size: 0.8rem;
+        }
+        .ai-sidebar-suggestions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.375rem;
+            padding: 0.5rem 1rem;
+            border-bottom: 1px solid var(--border-light);
+            flex-shrink: 0;
+        }
+        .ai-sidebar-suggestions:empty {
+            display: none;
+        }
+        .ai-suggestion-pill {
+            background: var(--accent-subtle);
+            color: var(--accent);
+            border: 1px solid transparent;
+            border-radius: 999px;
+            padding: 0.25rem 0.75rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--transition);
+            font-family: inherit;
+        }
+        .ai-suggestion-pill:hover {
+            border-color: var(--accent);
+            background: var(--accent-subtle);
+            box-shadow: none;
+            transform: none;
+        }
+        .ai-sidebar-input {
+            display: flex;
+            gap: 0.5rem;
+            padding: 0.75rem 1rem;
+            border-top: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+        .ai-sidebar-input textarea {
+            flex: 1;
+            padding: 0.5rem 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            font-size: 0.825rem;
+            font-family: inherit;
+            resize: none;
+            outline: none;
+            background: var(--surface);
+            color: var(--text);
+            transition: border-color var(--transition);
+        }
+        .ai-sidebar-input textarea:focus {
+            border-color: var(--accent);
+        }
+        .ai-sidebar-input button {
+            flex-shrink: 0;
+            align-self: flex-end;
+        }
+        .ai-sidebar-input button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* ── Setup panel ──────────────────────────────────── */
+        .ai-setup {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.25rem 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .ai-setup h3 {
+            margin: 0;
+            font-size: 1rem;
+        }
+        .ai-setup .setup-desc {
+            font-size: 0.825rem;
+            color: var(--text-secondary);
+            margin: 0;
+            line-height: 1.6;
+        }
+        .ai-trust-banner {
+            background: var(--green-subtle);
+            border: 1px solid #a7f3d0;
+            border-radius: var(--radius);
+            padding: 0.75rem 1rem;
+            font-size: 0.8rem;
+            line-height: 1.6;
+            display: flex;
+            gap: 0.625rem;
+            align-items: flex-start;
+        }
+        .ai-trust-banner .trust-icon {
+            font-size: 1.1rem;
+            flex-shrink: 0;
+            line-height: 1.4;
+        }
+        .ai-trust-banner a {
+            font-weight: 500;
+        }
+        .ai-setup label {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+            font-size: 0.825rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            line-height: 1.5;
+        }
+        .ai-setup label input[type="checkbox"] {
+            margin-top: 0.25rem;
+            flex-shrink: 0;
+        }
+        .ai-setup select, .ai-setup input[type="password"] {
+            width: 100%;
+            padding: 0.5rem 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            font-size: 0.85rem;
+            font-family: inherit;
+            background: var(--surface);
+            color: var(--text);
+            outline: none;
+            transition: border-color var(--transition);
+        }
+        .ai-setup select:focus, .ai-setup input[type="password"]:focus {
+            border-color: var(--accent);
+        }
+        .ai-setup input:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .ai-setup .setup-field-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 0.25rem;
+        }
+        .ai-setup .setup-field {
+            display: flex;
+            flex-direction: column;
+        }
+        .ai-setup .btn-save {
+            align-self: flex-start;
+            padding: 0.5rem 1.25rem;
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            border-radius: var(--radius);
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            font-family: inherit;
+            transition: background var(--transition);
+        }
+        .ai-setup .btn-save:hover {
+            background: var(--accent-hover);
+            box-shadow: none;
+            transform: none;
+        }
+        .ai-setup .btn-save:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* ── Key error banner ─────────────────────────────── */
+        .ai-key-error-banner {
+            background: var(--red-subtle);
+            border-bottom: 1px solid #fecaca;
+            padding: 0.625rem 1rem;
+            font-size: 0.8rem;
+            color: #991b1b;
+            flex-shrink: 0;
+        }
+        .ai-key-error-banner a {
+            color: #991b1b;
+            font-weight: 600;
+            text-decoration: underline;
+        }
+
+        @media (max-width: 768px) {
+            .ai-sidebar {
+                width: 100%;
+                right: -100%;
+            }
+            .ai-sidebar.open {
+                right: 0;
+            }
+            body.sidebar-open .container {
+                margin-right: 0;
+            }
+        }
     </style>
 </head>
 <body>
@@ -96,8 +503,344 @@
         <div id="msg" class="msg" style="display:none"></div>
         <div id="content"></div>
     </div>
+    <div id="ai-sidebar" class="ai-sidebar">
+        <div class="ai-sidebar-header">
+            <div class="ai-sidebar-header-left">
+                <span>AI Tutor</span>
+            </div>
+            <div class="ai-sidebar-header-right">
+                <button id="ai-gear" class="ai-gear-btn" onclick="toggleSettingsDropdown(event)" style="display:none;" title="AI key settings">
+                    &#9881;<span id="ai-key-dot" class="ai-key-dot ok"></span>
+                    <div id="ai-settings-dropdown" class="ai-settings-dropdown"></div>
+                </button>
+                <button class="ai-sidebar-close" onclick="closeSidebar()">&times;</button>
+            </div>
+        </div>
+        <div id="ai-key-error" class="ai-key-error-banner" style="display:none;"></div>
+        <div id="ai-setup-panel" class="ai-setup" style="display:none;"></div>
+        <div id="ai-chat-area" style="display:none; flex-direction:column;">
+            <div id="ai-sidebar-zone"></div>
+            <div id="ai-suggestions" class="ai-sidebar-suggestions"></div>
+            <div id="ai-messages" class="ai-sidebar-messages"></div>
+            <div class="ai-sidebar-input">
+                <textarea id="ai-input" placeholder="Ask a question..." rows="2"></textarea>
+                <button id="ai-send" onclick="sendCurrentMessage()">Send</button>
+            </div>
+        </div>
+    </div>
     <script src="/shared.js"></script>
     <script>
+        let currentAnnotation = null;
+        let currentAnnotationMap = null;
+        let currentZoneKey = null;
+        let chatHistory = [];
+        let lessonTitle = '';
+        let sending = false;
+        let keyErrorState = false;
+
+        // ── localStorage helpers ──
+        function getAIKey() { return localStorage.getItem('pah_ai_api_key') || ''; }
+        function setAIKey(key) { localStorage.setItem('pah_ai_api_key', key); }
+        function clearAIKey() { localStorage.removeItem('pah_ai_api_key'); }
+
+        function getAIProvider() { return localStorage.getItem('pah_ai_provider') || 'anthropic'; }
+        function setAIProvider(p) { localStorage.setItem('pah_ai_provider', p); }
+
+        function getAIConsent() { return localStorage.getItem('pah_ai_consent_ts') || ''; }
+        function setAIConsent() { localStorage.setItem('pah_ai_consent_ts', new Date().toISOString()); }
+
+        function maskKey(key) {
+            if (!key) return '';
+            const last4 = key.slice(-4);
+            return key.startsWith('sk-') ? 'sk-...' + last4 : '...' + last4;
+        }
+
+        // ── Sidebar state management ──
+        function showSetupPanel() {
+            const panel = document.getElementById('ai-setup-panel');
+            const chatArea = document.getElementById('ai-chat-area');
+            const gear = document.getElementById('ai-gear');
+
+            chatArea.style.display = 'none';
+            gear.style.display = 'none';
+            document.getElementById('ai-key-error').style.display = 'none';
+
+            const hasConsent = !!getAIConsent();
+
+            let html = '';
+            if (!hasConsent) {
+                html += '<h3>Set up AI Tutor</h3>';
+                html += '<p class="setup-desc">Enter your API key to chat with an AI math tutor about this lesson.</p>';
+                html += `<div class="ai-trust-banner">
+                    <span class="trust-icon">&#128274;</span>
+                    <div><strong>Your key is never stored on our server.</strong> It lives only in your browser and is used solely to forward each request to the AI provider over TLS. <a href="/ai-guide.html">See exactly how it works &rarr;</a></div>
+                </div>`;
+                html += `<label>
+                    <input type="checkbox" id="ai-consent-cb" onchange="onConsentChange()">
+                    I understand my API key will be sent through the Proof@Home server to the AI provider. <a href="/terms.html" target="_blank">Terms</a>
+                </label>`;
+            }
+
+            html += `<div class="setup-field">
+                <div class="setup-field-label">Provider</div>
+                <select id="ai-provider-select">
+                    <option value="anthropic" ${getAIProvider() === 'anthropic' ? 'selected' : ''}>Anthropic (Claude)</option>
+                    <option value="openai" ${getAIProvider() === 'openai' ? 'selected' : ''}>OpenAI (GPT)</option>
+                </select>
+            </div>`;
+
+            html += `<div class="setup-field">
+                <div class="setup-field-label">API Key</div>
+                <input type="password" id="ai-key-input" placeholder="sk-..." ${!hasConsent ? 'disabled' : ''}>
+            </div>`;
+
+            html += `<button class="btn-save" id="ai-save-btn" onclick="saveKey()" ${!hasConsent ? 'disabled' : ''}>Save</button>`;
+
+            panel.innerHTML = html;
+            panel.style.display = 'flex';
+        }
+
+        function showChatArea() {
+            document.getElementById('ai-setup-panel').style.display = 'none';
+            const chatArea = document.getElementById('ai-chat-area');
+            chatArea.style.display = 'flex';
+            document.getElementById('ai-gear').style.display = '';
+            updateGearDot();
+            updateSettingsDropdown();
+        }
+
+        function onConsentChange() {
+            const checked = document.getElementById('ai-consent-cb').checked;
+            const keyInput = document.getElementById('ai-key-input');
+            const saveBtn = document.getElementById('ai-save-btn');
+            keyInput.disabled = !checked;
+            saveBtn.disabled = !checked;
+            if (checked) keyInput.focus();
+        }
+
+        function saveKey() {
+            const providerSelect = document.getElementById('ai-provider-select');
+            const keyInput = document.getElementById('ai-key-input');
+            const key = keyInput.value.trim();
+            if (!key) return;
+
+            if (!getAIConsent()) {
+                setAIConsent();
+            }
+            setAIProvider(providerSelect.value);
+            setAIKey(key);
+            keyErrorState = false;
+
+            // Transition to chat
+            showChatArea();
+            loadChatForAnnotation();
+        }
+
+        function loadChatForAnnotation() {
+            if (!currentAnnotation) return;
+
+            document.getElementById('ai-sidebar-zone').textContent = currentAnnotation.context || '';
+
+            const sugEl = document.getElementById('ai-suggestions');
+            if (currentAnnotation.suggestions && currentAnnotation.suggestions.length > 0) {
+                sugEl.innerHTML = currentAnnotation.suggestions.map(s =>
+                    `<button class="ai-suggestion-pill" onclick="sendMessage(${escapeAttr(JSON.stringify(s))})">${escapeHtml(s)}</button>`
+                ).join('');
+            } else {
+                sugEl.innerHTML = '';
+            }
+
+            document.getElementById('ai-messages').innerHTML = '';
+            document.getElementById('ai-input').value = '';
+        }
+
+        // ── Gear / settings dropdown ──
+        function updateGearDot() {
+            const dot = document.getElementById('ai-key-dot');
+            dot.className = 'ai-key-dot ' + (keyErrorState ? 'err' : 'ok');
+        }
+
+        function updateSettingsDropdown() {
+            const dd = document.getElementById('ai-settings-dropdown');
+            const key = getAIKey();
+            const provider = getAIProvider();
+            const providerLabel = provider === 'openai' ? 'OpenAI' : 'Anthropic';
+            dd.innerHTML = `
+                <div class="settings-row"><strong>Provider:</strong> ${escapeHtml(providerLabel)}</div>
+                <div class="settings-row"><strong>Key:</strong> <code>${escapeHtml(maskKey(key))}</code></div>
+                <div class="ai-settings-actions">
+                    <button onclick="changeKey(event)">Change key</button>
+                    <button onclick="clearKeyAction(event)">Clear key</button>
+                </div>
+                <div class="ai-settings-footer">Stored in browser only &mdash; never on our server</div>
+            `;
+        }
+
+        function toggleSettingsDropdown(e) {
+            e.stopPropagation();
+            const dd = document.getElementById('ai-settings-dropdown');
+            const isOpen = dd.classList.contains('open');
+            dd.classList.toggle('open');
+            if (!isOpen) {
+                updateSettingsDropdown();
+                const close = (ev) => {
+                    if (!dd.contains(ev.target) && ev.target !== document.getElementById('ai-gear')) {
+                        dd.classList.remove('open');
+                        document.removeEventListener('click', close);
+                    }
+                };
+                setTimeout(() => document.addEventListener('click', close), 0);
+            }
+        }
+
+        function changeKey(e) {
+            e.stopPropagation();
+            document.getElementById('ai-settings-dropdown').classList.remove('open');
+            keyErrorState = false;
+            document.getElementById('ai-key-error').style.display = 'none';
+            showSetupPanel();
+        }
+
+        function clearKeyAction(e) {
+            e.stopPropagation();
+            document.getElementById('ai-settings-dropdown').classList.remove('open');
+            clearAIKey();
+            keyErrorState = false;
+            document.getElementById('ai-key-error').style.display = 'none';
+            showSetupPanel();
+        }
+
+        // ── Sidebar open/close ──
+        function openSidebar(zoneKey, annotationMap) {
+            const annotation = annotationMap[zoneKey];
+            if (!annotation) return;
+
+            currentAnnotation = annotation;
+            currentAnnotationMap = annotationMap;
+            currentZoneKey = zoneKey;
+            chatHistory = [];
+            keyErrorState = false;
+
+            document.getElementById('ai-key-error').style.display = 'none';
+            document.getElementById('ai-sidebar').classList.add('open');
+            document.body.classList.add('sidebar-open');
+
+            if (getAIKey()) {
+                showChatArea();
+                loadChatForAnnotation();
+            } else {
+                showSetupPanel();
+            }
+        }
+
+        function closeSidebar() {
+            document.getElementById('ai-sidebar').classList.remove('open');
+            document.body.classList.remove('sidebar-open');
+            document.getElementById('ai-settings-dropdown').classList.remove('open');
+        }
+
+        function escapeAttr(s) {
+            return s.replace(/&/g,'&amp;').replace(/'/g,'&#39;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        }
+
+        function appendMessage(role, html) {
+            const messagesEl = document.getElementById('ai-messages');
+            const div = document.createElement('div');
+            div.className = 'ai-msg ' + role;
+            div.innerHTML = html;
+            messagesEl.appendChild(div);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+            return div;
+        }
+
+        function renderAIContent(text) {
+            let html = marked.parse(text);
+            const wrapper = document.createElement('div');
+            wrapper.innerHTML = html;
+            wrapper.querySelectorAll('pre code').forEach(el => {
+                if (typeof hljs !== 'undefined') hljs.highlightElement(el);
+            });
+            if (typeof renderMathInElement !== 'undefined') {
+                renderMathInElement(wrapper, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$', right: '$', display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+            return wrapper.innerHTML;
+        }
+
+        function showKeyErrorBanner(msg) {
+            keyErrorState = true;
+            updateGearDot();
+            const banner = document.getElementById('ai-key-error');
+            banner.innerHTML = escapeHtml(msg) + ' <a href="#" onclick="changeKey(event)">Update in settings</a>';
+            banner.style.display = 'block';
+        }
+
+        async function sendMessage(text) {
+            if (!text || !text.trim() || sending) return;
+            if (!currentAnnotation) return;
+            if (!getAIKey()) return;
+
+            sending = true;
+            document.getElementById('ai-send').disabled = true;
+
+            appendMessage('user', escapeHtml(text));
+            chatHistory.push({ role: 'user', content: text });
+
+            const loadingEl = appendMessage('assistant', '<em>Thinking...</em>');
+
+            try {
+                const resp = await api('POST', '/ai/chat', {
+                    messages: chatHistory,
+                    zone_context: currentAnnotation.context || '',
+                    lesson_title: lessonTitle,
+                    api_key: getAIKey()
+                });
+                chatHistory.push({ role: 'assistant', content: resp.content });
+                loadingEl.innerHTML = renderAIContent(resp.content);
+                // Clear any prior key error on success
+                if (keyErrorState) {
+                    keyErrorState = false;
+                    updateGearDot();
+                    document.getElementById('ai-key-error').style.display = 'none';
+                }
+            } catch (e) {
+                loadingEl.className = 'ai-msg error';
+                const errMsg = e.error || e.message || 'Failed to get response';
+
+                if (errMsg.includes('rejected') || errMsg.includes('API key')) {
+                    loadingEl.textContent = 'Your API key was rejected.';
+                    showKeyErrorBanner('Your API key was rejected by the provider.');
+                } else if (errMsg.includes('Rate limited')) {
+                    loadingEl.textContent = 'Rate limited. Please wait a moment.';
+                } else if (errMsg.includes('credits') || errMsg.includes('billing')) {
+                    loadingEl.textContent = 'Insufficient credits. Check your provider billing.';
+                } else {
+                    loadingEl.textContent = 'AI error. Try again later.';
+                }
+                // Remove failed message from history
+                chatHistory.pop();
+            } finally {
+                sending = false;
+                document.getElementById('ai-send').disabled = false;
+            }
+        }
+
+        function sendCurrentMessage() {
+            const input = document.getElementById('ai-input');
+            const text = input.value.trim();
+            if (text) {
+                input.value = '';
+                sendMessage(text);
+            }
+        }
+
         async function load() {
             const id = new URLSearchParams(window.location.search).get('id');
             if (!id) {
@@ -106,7 +849,8 @@
             }
             try {
                 const lesson = await api('GET', '/lessons/' + encodeURIComponent(id));
-                document.title = (lesson.title || lesson.lesson_id) + ' — Proof@Home';
+                lessonTitle = lesson.title || lesson.lesson_id;
+                document.title = lessonTitle + ' — Proof@Home';
 
                 // Render metadata bar
                 let metaHtml = `<dl class="lesson-meta">
@@ -131,11 +875,47 @@
                 }
 
                 document.getElementById('content').innerHTML = `
-                    <h1>${escapeHtml(lesson.title || lesson.lesson_id)}</h1>
+                    <h1>${escapeHtml(lessonTitle)}</h1>
                     ${metaHtml}
                     ${bodyHtml}
                     ${conjHtml}
                 `;
+
+                // ── AI annotation sparkles ──
+                const annotations = lesson.ai_annotations || [];
+                if (annotations.length > 0) {
+                    const annotationMap = {};
+                    annotations.forEach(a => { annotationMap[a.zone] = a; });
+
+                    document.querySelectorAll('.lesson-body h1, .lesson-body h2, .lesson-body h3').forEach(heading => {
+                        const text = heading.textContent.trim();
+                        const level = heading.tagName.toLowerCase();
+                        const prefix = level === 'h1' ? '# ' : level === 'h2' ? '## ' : '### ';
+                        const zoneKey = prefix + text;
+
+                        if (annotationMap[zoneKey]) {
+                            const btn = document.createElement('button');
+                            btn.className = 'ai-sparkle';
+                            btn.innerHTML = '&#10024;';
+
+                            if (!isLoggedIn()) {
+                                const tooltip = document.createElement('span');
+                                tooltip.className = 'ai-sparkle-tooltip';
+                                tooltip.textContent = 'Log in to use AI tutor';
+                                btn.appendChild(tooltip);
+                                btn.addEventListener('click', (e) => { e.preventDefault(); });
+                            } else {
+                                btn.addEventListener('click', (e) => {
+                                    e.preventDefault();
+                                    openSidebar(zoneKey, annotationMap);
+                                });
+                            }
+
+                            heading.appendChild(document.createTextNode(' '));
+                            heading.appendChild(btn);
+                        }
+                    });
+                }
 
                 // Fetch conjectures for the list
                 if (conjIds.length > 0) {
@@ -186,6 +966,17 @@
                 showMsg('msg', 'Failed to load lesson: ' + (e.error || e.message || 'not found'), true);
             }
         }
+
+        // Enter key submits (Shift+Enter for newline)
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('ai-input').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendCurrentMessage();
+                }
+            });
+        });
+
         document.addEventListener('DOMContentLoaded', load);
     </script>
 </body>

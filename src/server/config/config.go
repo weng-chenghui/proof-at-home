@@ -24,6 +24,11 @@ type Config struct {
 	AuthIssuer   string
 	AuthAudience string
 
+	// AI
+	AIProvider string // "anthropic" (default) or "openai"
+	AIAPIKey   string
+	AIModel    string // default "claude-sonnet-4-20250514"
+
 	// CORS
 	CORSOrigins []string
 
@@ -44,6 +49,10 @@ func Load() *Config {
 		GitForgeProject:   os.Getenv("GIT_FORGE_PROJECT"),
 		GitLabProjectPath: os.Getenv("GITLAB_PROJECT_PATH"),
 		WebhookSecret:     os.Getenv("WEBHOOK_SECRET"),
+
+		AIProvider: envOrDefault("AI_PROVIDER", "anthropic"),
+		AIAPIKey:   os.Getenv("AI_API_KEY"),
+		AIModel:    envOrDefault("AI_MODEL", "claude-sonnet-4-20250514"),
 
 		AuthEnabled:  os.Getenv("AUTH_ENABLED") == "true",
 		AuthIssuer:   os.Getenv("AUTH_ISSUER"),
