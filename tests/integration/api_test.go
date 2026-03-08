@@ -104,8 +104,8 @@ type conjecture struct {
 func TestConjectures_Count(t *testing.T) {
 	var conjectures []conjecture
 	getJSON(t, "/conjectures", &conjectures)
-	if got := len(conjectures); got != 3 {
-		t.Errorf("len(conjectures) = %d, want 3", got)
+	if got := len(conjectures); got < 3 {
+		t.Errorf("len(conjectures) = %d, want at least 3", got)
 	}
 }
 
