@@ -12,6 +12,7 @@ primary_region = 'nrt'
 [env]
   CONJECTURES_DIR = '/conjectures'
   EXPOSITIONS_DIR = '/expositions'
+  LESSONS_DIR = '/lessons'
   GIT_DATA_REPO_PATH = '/app/pb_data/git-data'
 
 [[mounts]]

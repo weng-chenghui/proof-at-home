@@ -1,0 +1,36 @@
+# Rust build artifacts (2+ GB)
+target/
+
+# Compiled binaries
+/server
+/pah-pocketbase
+/pocketbase
+/proof-at-home-server
+src/client/server
+
+# Local data
+pb_data/
+.dev/
+.build/
+tmp/
+
+# Git & editor
+.git/
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# CI/test Docker contexts
+tests/docker/
+
+# Docs & screenshots
+*.png
+*.md
+!go.md
+!examples/data-repo/lessons/**
+
+# OS
+.DS_Store
+Thumbs.db

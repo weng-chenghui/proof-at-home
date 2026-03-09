@@ -1736,6 +1736,9 @@ func rebuildFromGit(app core.App) error {
 	// Seed demo expositions from EXPOSITIONS_DIR if not already loaded from git
 	seedExpositions(app)
 
+	// Seed lessons from LESSONS_DIR if not already loaded from git
+	seedLessons(app)
+
 	slog.Info("PocketBase rebuild from git complete", "path", repoPath)
 	return nil
 }
@@ -1870,6 +1873,64 @@ func seedExpositions(app core.App) {
 		record.Set("title", ex.Title)
 		record.Set("summary", ex.Summary)
 
+		app.Save(record)
+	}
+}
+
+// seedLessons loads lesson markdown files from the LESSONS_DIR directory.
+func seedLessons(app core.App) {
+	dir := os.Getenv("LESSONS_DIR")
+	if dir == "" {
+		dir = "lessons"
+	}
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return
+	}
+
+	collection, err := app.FindCollectionByNameOrId("lessons")
+	if err != nil {
+		return
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		lessonPath := filepath.Join(dir, entry.Name(), "lesson.md")
+		raw, err := os.ReadFile(lessonPath)
+		if err != nil {
+			continue
+		}
+		lesson, err := data.ParseLessonFile(raw)
+		if err != nil {
+			continue
+		}
+		if lesson.LessonID == "" {
+			lesson.LessonID = entry.Name()
+		}
+
+		// Skip if already loaded from git
+		existing, _ := app.FindFirstRecordByFilter("lessons", "lesson_id = {:lid}", map[string]any{
+			"lid": lesson.LessonID,
+		})
+		if existing != nil {
+			continue
+		}
+
+		record := core.NewRecord(collection)
+		record.Set("lesson_id", lesson.LessonID)
+		record.Set("author_username", lesson.AuthorUsername)
+		record.Set("title", lesson.Title)
+		record.Set("topic", lesson.Topic)
+		record.Set("difficulty", lesson.Difficulty)
+		record.Set("description", lesson.Description)
+		record.Set("prerequisites", lesson.Prerequisites)
+		record.Set("conjecture_ids", lesson.ConjectureIDs)
+		record.Set("published", lesson.Published)
+		record.Set("content", lesson.Content)
+		record.Set("ai_annotations", lesson.AIAnnotations)
 		app.Save(record)
 	}
 }
