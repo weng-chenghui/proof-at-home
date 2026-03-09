@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -1190,13 +1191,16 @@ func registerRoutes(se *core.ServeEvent, app core.App, cfg *config.Config) {
 	// POST /ai/chat — AI tutor proxy (BYOK)
 	se.Router.POST("/ai/chat", func(e *core.RequestEvent) error {
 		var req struct {
-			Messages    []struct {
+			Messages []struct {
 				Role    string `json:"role"`
 				Content string `json:"content"`
 			} `json:"messages"`
-			ZoneContext string `json:"zone_context"`
+			ZoneContext  string `json:"zone_context"`
 			LessonTitle string `json:"lesson_title"`
 			APIKey      string `json:"api_key"`
+			Provider    string `json:"provider"`
+			Model       string `json:"model"`
+			ContextType string `json:"context_type"`
 		}
 		if err := json.NewDecoder(e.Request.Body).Decode(&req); err != nil {
 			return e.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
@@ -1216,10 +1220,18 @@ func registerRoutes(se *core.ServeEvent, app core.App, cfg *config.Config) {
 			return e.JSON(http.StatusBadRequest, map[string]string{"error": "too many messages (max 20)"})
 		}
 
-		systemPrompt := fmt.Sprintf(
-			"You are a math tutor helping a student with %s in '%s'. Use $...$ for inline and $$...$$ for display math. Be concise.",
-			req.ZoneContext, req.LessonTitle,
-		)
+		var systemPrompt string
+		if req.ContextType == "selection" {
+			systemPrompt = fmt.Sprintf(
+				"You are a math tutor helping a student with the lesson '%s'. The student selected the following text and has a question about it:\n\n%s\n\nUse $...$ for inline and $$...$$ for display math. Be concise.",
+				req.LessonTitle, req.ZoneContext,
+			)
+		} else {
+			systemPrompt = fmt.Sprintf(
+				"You are a math tutor helping a student with %s in '%s'. Use $...$ for inline and $$...$$ for display math. Be concise.",
+				req.ZoneContext, req.LessonTitle,
+			)
+		}
 
 		// Build messages for provider
 		type aiMsg struct {
@@ -1238,9 +1250,23 @@ func registerRoutes(se *core.ServeEvent, app core.App, cfg *config.Config) {
 			authValue   string
 		)
 
-		model := cfg.AIModel
+		provider := req.Provider
+		if provider == "" {
+			provider = cfg.AIProvider
+		}
+		model := req.Model
+		if model == "" {
+			model = cfg.AIModel
+		}
+		if model == "" || provider != cfg.AIProvider {
+			if provider == "openai" {
+				model = "gpt-4o"
+			} else {
+				model = "claude-sonnet-4-20250514"
+			}
+		}
 
-		if cfg.AIProvider == "openai" {
+		if provider == "openai" {
 			allMessages := make([]aiMsg, 0, len(messages)+1)
 			allMessages = append(allMessages, aiMsg{Role: "system", Content: systemPrompt})
 			allMessages = append(allMessages, messages...)
@@ -1265,7 +1291,7 @@ func registerRoutes(se *core.ServeEvent, app core.App, cfg *config.Config) {
 		}
 		providerReq.Header.Set("Content-Type", "application/json")
 		providerReq.Header.Set(authHeader, authValue)
-		if cfg.AIProvider != "openai" {
+		if provider != "openai" {
 			providerReq.Header.Set("anthropic-version", "2023-06-01")
 		}
 
@@ -1293,7 +1319,7 @@ func registerRoutes(se *core.ServeEvent, app core.App, cfg *config.Config) {
 
 		// Parse provider response
 		var content string
-		if cfg.AIProvider == "openai" {
+		if provider == "openai" {
 			var result struct {
 				Choices []struct {
 					Message struct {
@@ -1318,6 +1344,96 @@ func registerRoutes(se *core.ServeEvent, app core.App, cfg *config.Config) {
 		}
 
 		return e.JSON(http.StatusOK, map[string]string{"content": content})
+	})
+
+	// POST /ai/models — discover models from a provider (BYOK)
+	se.Router.POST("/ai/models", func(e *core.RequestEvent) error {
+		var req struct {
+			Provider string `json:"provider"`
+			APIKey   string `json:"api_key"`
+		}
+		if err := json.NewDecoder(e.Request.Body).Decode(&req); err != nil {
+			return e.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		}
+		if req.APIKey == "" {
+			return e.JSON(http.StatusBadRequest, map[string]string{"error": "API key required"})
+		}
+		if req.Provider == "" {
+			return e.JSON(http.StatusBadRequest, map[string]string{"error": "provider required"})
+		}
+
+		var (
+			listURL    string
+			authHeader string
+			authValue  string
+		)
+		if req.Provider == "openai" {
+			listURL = "https://api.openai.com/v1/models"
+			authHeader = "Authorization"
+			authValue = "Bearer " + req.APIKey
+		} else {
+			listURL = "https://api.anthropic.com/v1/models?limit=100"
+			authHeader = "x-api-key"
+			authValue = req.APIKey
+		}
+
+		modelsReq, err := http.NewRequest("GET", listURL, nil)
+		if err != nil {
+			return e.JSON(http.StatusBadGateway, map[string]string{"error": "AI provider error. Try again later."})
+		}
+		modelsReq.Header.Set(authHeader, authValue)
+		if req.Provider != "openai" {
+			modelsReq.Header.Set("anthropic-version", "2023-06-01")
+		}
+
+		resp, err := http.DefaultClient.Do(modelsReq)
+		if err != nil {
+			return e.JSON(http.StatusBadGateway, map[string]string{"error": "AI provider error. Try again later."})
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			var errMsg string
+			switch resp.StatusCode {
+			case 401:
+				errMsg = "API key rejected by provider. Check your key."
+			case 429:
+				errMsg = "Rate limited by provider. Wait and retry."
+			default:
+				errMsg = "AI provider error. Try again later."
+			}
+			return e.JSON(http.StatusBadGateway, map[string]string{"error": errMsg})
+		}
+
+		respBody, _ := io.ReadAll(resp.Body)
+		var listResult struct {
+			Data []struct {
+				ID string `json:"id"`
+			} `json:"data"`
+		}
+		if err := json.Unmarshal(respBody, &listResult); err != nil {
+			return e.JSON(http.StatusBadGateway, map[string]string{"error": "AI provider error. Try again later."})
+		}
+
+		models := make([]string, 0, len(listResult.Data))
+		if req.Provider == "openai" {
+			chatPrefixes := []string{"gpt-", "o1-", "o3-", "o4-", "chatgpt-"}
+			for _, m := range listResult.Data {
+				for _, p := range chatPrefixes {
+					if strings.HasPrefix(m.ID, p) {
+						models = append(models, m.ID)
+						break
+					}
+				}
+			}
+		} else {
+			for _, m := range listResult.Data {
+				models = append(models, m.ID)
+			}
+		}
+		sort.Strings(models)
+
+		return e.JSON(http.StatusOK, map[string]any{"models": models})
 	})
 
 	// Serve embedded static files (web UI)
@@ -1883,14 +1999,18 @@ func seedLessons(app core.App) {
 	if dir == "" {
 		dir = "lessons"
 	}
+	slog.Info("seedLessons: starting", "dir", dir, "LESSONS_DIR", os.Getenv("LESSONS_DIR"))
 
 	entries, err := os.ReadDir(dir)
 	if err != nil {
+		slog.Error("seedLessons: ReadDir failed", "dir", dir, "err", err)
 		return
 	}
+	slog.Info("seedLessons: ReadDir OK", "count", len(entries))
 
 	collection, err := app.FindCollectionByNameOrId("lessons")
 	if err != nil {
+		slog.Error("seedLessons: collection lookup failed", "err", err)
 		return
 	}
 
@@ -1901,10 +2021,12 @@ func seedLessons(app core.App) {
 		lessonPath := filepath.Join(dir, entry.Name(), "lesson.md")
 		raw, err := os.ReadFile(lessonPath)
 		if err != nil {
+			slog.Warn("seedLessons: ReadFile failed", "path", lessonPath, "err", err)
 			continue
 		}
 		lesson, err := data.ParseLessonFile(raw)
 		if err != nil {
+			slog.Error("seedLessons: ParseLessonFile failed", "path", lessonPath, "err", err)
 			continue
 		}
 		if lesson.LessonID == "" {
@@ -1916,6 +2038,7 @@ func seedLessons(app core.App) {
 			"lid": lesson.LessonID,
 		})
 		if existing != nil {
+			slog.Info("seedLessons: skipping existing", "lesson_id", lesson.LessonID)
 			continue
 		}
 
@@ -1931,7 +2054,11 @@ func seedLessons(app core.App) {
 		record.Set("published", lesson.Published)
 		record.Set("content", lesson.Content)
 		record.Set("ai_annotations", lesson.AIAnnotations)
-		app.Save(record)
+		if err := app.Save(record); err != nil {
+			slog.Error("seedLessons: Save failed", "lesson_id", lesson.LessonID, "err", err)
+			continue
+		}
+		slog.Info("seedLessons: saved lesson", "lesson_id", lesson.LessonID, "title", lesson.Title)
 	}
 }
 

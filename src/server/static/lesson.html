@@ -96,36 +96,45 @@
             border: none;
             color: var(--accent);
             cursor: pointer;
-            opacity: 0.5;
+            opacity: 0.45;
             padding: 0 0.25rem;
             font-size: 0.9em;
             vertical-align: middle;
             transition: opacity var(--transition), color var(--transition);
-            position: relative;
         }
         .ai-sparkle:hover {
             opacity: 1;
             box-shadow: none;
             transform: none;
         }
-        .ai-sparkle-tooltip {
+
+        /* ── Floating Ask AI button ────────────────────── */
+        #ai-ask-float {
+            position: fixed;
+            z-index: 45;
             display: none;
-            position: absolute;
-            bottom: calc(100% + 6px);
-            left: 50%;
-            transform: translateX(-50%);
+            padding: 0.3rem 0.7rem;
+            font-size: 0.75rem;
+            font-weight: 600;
             background: var(--nav-bg);
             color: #e2e8f0;
-            font-size: 0.7rem;
-            font-weight: 500;
-            padding: 0.3rem 0.6rem;
+            border: none;
             border-radius: 6px;
+            cursor: pointer;
+            box-shadow: var(--shadow-md);
+            opacity: 0;
+            transition: opacity 0.15s ease;
             white-space: nowrap;
-            z-index: 10;
-            pointer-events: none;
         }
-        .ai-sparkle:hover .ai-sparkle-tooltip {
+        #ai-ask-float.visible {
             display: block;
+            opacity: 1;
+        }
+        #ai-ask-float:hover {
+            background: var(--accent);
+            color: #fff;
+            box-shadow: var(--shadow-lg);
+            transform: none;
         }
 
         /* ── AI Sidebar ─────────────────────────────────── */
@@ -143,37 +152,26 @@
             z-index: 40;
             transition: right 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        .ai-sidebar.open {
-            right: 0;
-        }
+        .ai-sidebar.open { right: 0; }
         body.sidebar-open .container {
             margin-right: 380px;
             transition: margin-right 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         }
+
         .ai-sidebar-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 0.75rem 1rem;
+            padding: 0.625rem 0.875rem;
             border-bottom: 1px solid var(--border);
             font-weight: 600;
-            font-size: 0.9rem;
+            font-size: 0.875rem;
             flex-shrink: 0;
-        }
-        .ai-sidebar-header-left {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        .ai-sidebar-header-right {
-            display: flex;
-            align-items: center;
-            gap: 0.25rem;
         }
         .ai-sidebar-close {
             background: none;
             border: none;
-            font-size: 1.25rem;
+            font-size: 1.2rem;
             color: var(--text-muted);
             cursor: pointer;
             padding: 0 0.25rem;
@@ -184,112 +182,279 @@
             box-shadow: none;
             transform: none;
         }
-        /* Gear / settings button */
-        .ai-gear-btn {
-            background: none;
-            border: none;
-            font-size: 1rem;
-            color: var(--text-muted);
-            cursor: pointer;
-            padding: 0.125rem 0.25rem;
-            line-height: 1;
-            position: relative;
+
+        /* ── Settings bar ──────────────────────────────── */
+        .ai-settings-bar {
+            display: flex;
+            align-items: center;
+            gap: 0.375rem;
+            padding: 0.5rem 0.875rem;
+            border-bottom: 1px solid var(--border-light);
+            flex-shrink: 0;
+            background: var(--bg);
         }
-        .ai-gear-btn:hover {
+        .ai-settings-bar select {
+            flex: 1;
+            min-width: 0;
+            padding: 0.3rem 0.5rem;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-family: inherit;
+            background: var(--surface);
             color: var(--text);
-            box-shadow: none;
-            transform: none;
+            outline: none;
+            transition: border-color var(--transition);
+            cursor: pointer;
         }
-        .ai-key-dot {
-            width: 7px;
-            height: 7px;
-            border-radius: 50%;
-            display: inline-block;
-            margin-left: 2px;
+        .ai-settings-bar select:focus {
+            border-color: var(--accent);
         }
-        .ai-key-dot.ok { background: var(--green); }
-        .ai-key-dot.err { background: var(--red); }
-        /* Settings dropdown */
-        .ai-settings-dropdown {
-            display: none;
-            position: absolute;
-            top: 100%;
-            right: 0;
+        .ai-settings-bar select:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .ai-add-key-btn {
+            flex-shrink: 0;
+            width: 1.5rem;
+            height: 1.5rem;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             background: var(--surface);
             border: 1px solid var(--border);
-            border-radius: var(--radius);
-            box-shadow: var(--shadow-md);
-            padding: 0.75rem 1rem;
-            min-width: 220px;
-            z-index: 50;
-            font-weight: 400;
-        }
-        .ai-settings-dropdown.open { display: block; }
-        .ai-settings-dropdown .settings-row {
-            font-size: 0.8rem;
-            color: var(--text-secondary);
-            margin-bottom: 0.5rem;
-        }
-        .ai-settings-dropdown .settings-row strong {
-            color: var(--text);
-        }
-        .ai-settings-actions {
-            display: flex;
-            gap: 0.5rem;
-            margin-top: 0.5rem;
-        }
-        .ai-settings-actions button {
-            font-size: 0.75rem;
-            padding: 0.25rem 0.5rem;
+            border-radius: 6px;
+            color: var(--text-muted);
+            font-size: 0.85rem;
             cursor: pointer;
-            background: var(--code-bg);
-            border: 1px solid var(--border);
-            border-radius: var(--radius);
-            color: var(--text-secondary);
-            font-family: inherit;
+            transition: all var(--transition);
+            line-height: 1;
         }
-        .ai-settings-actions button:hover {
+        .ai-add-key-btn:hover {
             border-color: var(--accent);
             color: var(--accent);
             box-shadow: none;
             transform: none;
         }
-        .ai-settings-footer {
+
+        /* ── Inline key form ───────────────────────────── */
+        .ai-key-form {
+            display: none;
+            flex-direction: column;
+            gap: 0.5rem;
+            padding: 0.75rem 0.875rem;
+            border-bottom: 1px solid var(--border-light);
+            background: var(--code-bg);
+            flex-shrink: 0;
+            animation: slideDown 0.15s ease-out;
+        }
+        .ai-key-form.open { display: flex; }
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .ai-key-form .kf-row {
+            display: flex;
+            gap: 0.375rem;
+        }
+        .ai-key-form input,
+        .ai-key-form select {
+            flex: 1;
+            min-width: 0;
+            padding: 0.35rem 0.5rem;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-family: inherit;
+            background: var(--surface);
+            color: var(--text);
+            outline: none;
+            transition: border-color var(--transition);
+        }
+        .ai-key-form input:focus,
+        .ai-key-form select:focus {
+            border-color: var(--accent);
+        }
+        .ai-key-form input:disabled {
+            opacity: 0.5;
+        }
+        .ai-key-form .kf-consent {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.375rem;
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+        .ai-key-form .kf-consent input[type="checkbox"] {
+            flex: 0 0 auto;
+            width: 0.85rem;
+            height: 0.85rem;
+            margin-top: 0.1rem;
+        }
+        .ai-key-form .kf-actions {
+            display: flex;
+            gap: 0.375rem;
+        }
+        .ai-key-form .kf-actions button {
+            padding: 0.3rem 0.625rem;
+            font-size: 0.75rem;
+            border-radius: 6px;
+        }
+        .ai-key-form .kf-save-btn {
+            background: var(--accent);
+            color: #fff;
+            border: none;
+        }
+        .ai-key-form .kf-save-btn:hover { background: var(--accent-hover); transform: none; }
+        .ai-key-form .kf-save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .ai-key-form .kf-cancel-btn {
+            background: var(--surface);
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+        }
+        .ai-key-form .kf-cancel-btn:hover { border-color: var(--text-muted); transform: none; box-shadow: none; }
+        .ai-key-form .kf-remove-btn {
+            background: none;
+            color: var(--red);
+            border: 1px solid transparent;
+            margin-left: auto;
+        }
+        .ai-key-form .kf-remove-btn:hover { background: var(--red-subtle); transform: none; box-shadow: none; }
+
+        /* ── Trust banner (compact) ────────────────────── */
+        .ai-trust-compact {
             font-size: 0.7rem;
             color: var(--text-muted);
-            margin-top: 0.5rem;
-            padding-top: 0.5rem;
-            border-top: 1px solid var(--border-light);
+            line-height: 1.4;
+            padding: 0.25rem 0;
         }
-        #ai-sidebar-zone {
-            padding: 0.75rem 1rem;
-            font-size: 0.8rem;
-            color: var(--text-secondary);
+        .ai-trust-compact a { font-weight: 500; }
+
+        /* ── Key error banner ─────────────────────────── */
+        .ai-key-error-banner {
+            background: var(--red-subtle);
+            border-bottom: 1px solid #fecaca;
+            padding: 0.5rem 0.875rem;
+            font-size: 0.75rem;
+            color: #991b1b;
+            flex-shrink: 0;
+        }
+        .ai-key-error-banner a {
+            color: #991b1b;
+            font-weight: 600;
+            text-decoration: underline;
+        }
+
+        /* ── WebLLM progress bar ──────────────────────── */
+        .ai-webllm-progress {
+            display: none;
+            padding: 0.5rem 0.875rem;
             border-bottom: 1px solid var(--border-light);
             flex-shrink: 0;
         }
-        #ai-sidebar-zone:empty {
-            display: none;
+        .ai-webllm-progress.active { display: block; }
+        .ai-webllm-progress-label {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.25rem;
         }
+        .ai-webllm-progress-bar {
+            height: 4px;
+            background: var(--border);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        .ai-webllm-progress-fill {
+            height: 100%;
+            background: var(--accent);
+            border-radius: 2px;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        /* ── Zone / selection context ─────────────────── */
+        #ai-sidebar-zone {
+            padding: 0.625rem 0.875rem;
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            border-bottom: 1px solid var(--border-light);
+            flex-shrink: 0;
+            line-height: 1.5;
+            max-height: 5rem;
+            overflow-y: auto;
+        }
+        #ai-sidebar-zone:empty { display: none; }
+        .zone-label {
+            font-size: 0.65rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: var(--text-muted);
+            margin-bottom: 0.2rem;
+        }
+
+        /* ── No-key message ────────────────────────────── */
+        .ai-no-key-msg {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem 1.5rem;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.825rem;
+            line-height: 1.6;
+        }
+
+        /* ── Messages area ─────────────────────────────── */
         .ai-sidebar-messages {
             flex: 1;
             overflow-y: auto;
-            padding: 0.75rem 1rem;
+            padding: 0.75rem 0.875rem;
             display: flex;
             flex-direction: column;
-            gap: 0.75rem;
+            gap: 0.625rem;
         }
+        .ai-sidebar-suggestions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.3rem;
+            padding: 0.4rem 0.875rem;
+            border-bottom: 1px solid var(--border-light);
+            flex-shrink: 0;
+        }
+        .ai-sidebar-suggestions:empty { display: none; }
+        .ai-suggestion-pill {
+            background: var(--accent-subtle);
+            color: var(--accent);
+            border: 1px solid transparent;
+            border-radius: 999px;
+            padding: 0.2rem 0.625rem;
+            font-size: 0.7rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--transition);
+            font-family: inherit;
+        }
+        .ai-suggestion-pill:hover {
+            border-color: var(--accent);
+            box-shadow: none;
+            transform: none;
+        }
+
         .ai-msg {
-            font-size: 0.85rem;
+            font-size: 0.825rem;
             line-height: 1.6;
             border-radius: var(--radius);
-            padding: 0.625rem 0.75rem;
+            padding: 0.5rem 0.625rem;
             max-width: 100%;
             overflow-wrap: break-word;
         }
-        .ai-msg p { margin: 0 0 0.5rem; }
+        .ai-msg p { margin: 0 0 0.4rem; }
         .ai-msg p:last-child { margin-bottom: 0; }
-        .ai-msg pre { font-size: 0.75rem; margin: 0.5rem 0; }
+        .ai-msg pre { font-size: 0.75rem; margin: 0.4rem 0; }
         .ai-msg.user {
             background: var(--accent-subtle);
             align-self: flex-end;
@@ -301,50 +466,23 @@
         .ai-msg.error {
             background: var(--red-subtle);
             color: #991b1b;
-            font-size: 0.8rem;
+            font-size: 0.78rem;
         }
-        .ai-sidebar-suggestions {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.375rem;
-            padding: 0.5rem 1rem;
-            border-bottom: 1px solid var(--border-light);
-            flex-shrink: 0;
-        }
-        .ai-sidebar-suggestions:empty {
-            display: none;
-        }
-        .ai-suggestion-pill {
-            background: var(--accent-subtle);
-            color: var(--accent);
-            border: 1px solid transparent;
-            border-radius: 999px;
-            padding: 0.25rem 0.75rem;
-            font-size: 0.75rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all var(--transition);
-            font-family: inherit;
-        }
-        .ai-suggestion-pill:hover {
-            border-color: var(--accent);
-            background: var(--accent-subtle);
-            box-shadow: none;
-            transform: none;
-        }
+
+        /* ── Input area ────────────────────────────────── */
         .ai-sidebar-input {
             display: flex;
-            gap: 0.5rem;
-            padding: 0.75rem 1rem;
+            gap: 0.375rem;
+            padding: 0.625rem 0.875rem;
             border-top: 1px solid var(--border);
             flex-shrink: 0;
         }
         .ai-sidebar-input textarea {
             flex: 1;
-            padding: 0.5rem 0.75rem;
+            padding: 0.4rem 0.625rem;
             border: 1px solid var(--border);
             border-radius: var(--radius);
-            font-size: 0.825rem;
+            font-size: 0.8rem;
             font-family: inherit;
             resize: none;
             outline: none;
@@ -352,147 +490,23 @@
             color: var(--text);
             transition: border-color var(--transition);
         }
-        .ai-sidebar-input textarea:focus {
-            border-color: var(--accent);
-        }
+        .ai-sidebar-input textarea:focus { border-color: var(--accent); }
+        .ai-sidebar-input textarea:disabled { opacity: 0.5; cursor: not-allowed; }
         .ai-sidebar-input button {
             flex-shrink: 0;
             align-self: flex-end;
+            padding: 0.4rem 0.75rem;
+            font-size: 0.8rem;
         }
         .ai-sidebar-input button:disabled {
             opacity: 0.5;
             cursor: not-allowed;
         }
 
-        /* ── Setup panel ──────────────────────────────────── */
-        .ai-setup {
-            flex: 1;
-            overflow-y: auto;
-            padding: 1.25rem 1rem;
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-        }
-        .ai-setup h3 {
-            margin: 0;
-            font-size: 1rem;
-        }
-        .ai-setup .setup-desc {
-            font-size: 0.825rem;
-            color: var(--text-secondary);
-            margin: 0;
-            line-height: 1.6;
-        }
-        .ai-trust-banner {
-            background: var(--green-subtle);
-            border: 1px solid #a7f3d0;
-            border-radius: var(--radius);
-            padding: 0.75rem 1rem;
-            font-size: 0.8rem;
-            line-height: 1.6;
-            display: flex;
-            gap: 0.625rem;
-            align-items: flex-start;
-        }
-        .ai-trust-banner .trust-icon {
-            font-size: 1.1rem;
-            flex-shrink: 0;
-            line-height: 1.4;
-        }
-        .ai-trust-banner a {
-            font-weight: 500;
-        }
-        .ai-setup label {
-            display: flex;
-            align-items: flex-start;
-            gap: 0.5rem;
-            font-size: 0.825rem;
-            color: var(--text-secondary);
-            cursor: pointer;
-            line-height: 1.5;
-        }
-        .ai-setup label input[type="checkbox"] {
-            margin-top: 0.25rem;
-            flex-shrink: 0;
-        }
-        .ai-setup select, .ai-setup input[type="password"] {
-            width: 100%;
-            padding: 0.5rem 0.75rem;
-            border: 1px solid var(--border);
-            border-radius: var(--radius);
-            font-size: 0.85rem;
-            font-family: inherit;
-            background: var(--surface);
-            color: var(--text);
-            outline: none;
-            transition: border-color var(--transition);
-        }
-        .ai-setup select:focus, .ai-setup input[type="password"]:focus {
-            border-color: var(--accent);
-        }
-        .ai-setup input:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        .ai-setup .setup-field-label {
-            font-size: 0.75rem;
-            font-weight: 600;
-            color: var(--text-secondary);
-            margin-bottom: 0.25rem;
-        }
-        .ai-setup .setup-field {
-            display: flex;
-            flex-direction: column;
-        }
-        .ai-setup .btn-save {
-            align-self: flex-start;
-            padding: 0.5rem 1.25rem;
-            background: var(--accent);
-            color: #fff;
-            border: none;
-            border-radius: var(--radius);
-            font-size: 0.85rem;
-            font-weight: 500;
-            cursor: pointer;
-            font-family: inherit;
-            transition: background var(--transition);
-        }
-        .ai-setup .btn-save:hover {
-            background: var(--accent-hover);
-            box-shadow: none;
-            transform: none;
-        }
-        .ai-setup .btn-save:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        /* ── Key error banner ─────────────────────────────── */
-        .ai-key-error-banner {
-            background: var(--red-subtle);
-            border-bottom: 1px solid #fecaca;
-            padding: 0.625rem 1rem;
-            font-size: 0.8rem;
-            color: #991b1b;
-            flex-shrink: 0;
-        }
-        .ai-key-error-banner a {
-            color: #991b1b;
-            font-weight: 600;
-            text-decoration: underline;
-        }
-
         @media (max-width: 768px) {
-            .ai-sidebar {
-                width: 100%;
-                right: -100%;
-            }
-            .ai-sidebar.open {
-                right: 0;
-            }
-            body.sidebar-open .container {
-                margin-right: 0;
-            }
+            .ai-sidebar { width: 100%; right: -100%; }
+            .ai-sidebar.open { right: 0; }
+            body.sidebar-open .container { margin-right: 0; }
         }
     </style>
 </head>
@@ -503,51 +517,93 @@
         <div id="msg" class="msg" style="display:none"></div>
         <div id="content"></div>
     </div>
+
+    <button id="ai-ask-float">Ask AI</button>
+
     <div id="ai-sidebar" class="ai-sidebar">
         <div class="ai-sidebar-header">
-            <div class="ai-sidebar-header-left">
-                <span>AI Tutor</span>
-            </div>
-            <div class="ai-sidebar-header-right">
-                <button id="ai-gear" class="ai-gear-btn" onclick="toggleSettingsDropdown(event)" style="display:none;" title="AI key settings">
-                    &#9881;<span id="ai-key-dot" class="ai-key-dot ok"></span>
-                    <div id="ai-settings-dropdown" class="ai-settings-dropdown"></div>
-                </button>
-                <button class="ai-sidebar-close" onclick="closeSidebar()">&times;</button>
-            </div>
+            <span>AI Tutor</span>
+            <button class="ai-sidebar-close" onclick="closeSidebar()">&times;</button>
         </div>
+        <div class="ai-settings-bar">
+            <select id="ai-key-select" onchange="onKeyChange()"></select>
+            <select id="ai-model-select" onchange="onModelChange()"></select>
+            <button class="ai-add-key-btn" id="ai-add-key-btn" onclick="toggleKeyForm()" title="Manage keys">+</button>
+        </div>
+        <div id="ai-key-form" class="ai-key-form"></div>
         <div id="ai-key-error" class="ai-key-error-banner" style="display:none;"></div>
-        <div id="ai-setup-panel" class="ai-setup" style="display:none;"></div>
-        <div id="ai-chat-area" style="display:none; flex-direction:column;">
-            <div id="ai-sidebar-zone"></div>
-            <div id="ai-suggestions" class="ai-sidebar-suggestions"></div>
-            <div id="ai-messages" class="ai-sidebar-messages"></div>
-            <div class="ai-sidebar-input">
-                <textarea id="ai-input" placeholder="Ask a question..." rows="2"></textarea>
-                <button id="ai-send" onclick="sendCurrentMessage()">Send</button>
-            </div>
+        <div id="ai-webllm-progress" class="ai-webllm-progress">
+            <div class="ai-webllm-progress-label" id="ai-webllm-label">Loading model...</div>
+            <div class="ai-webllm-progress-bar"><div class="ai-webllm-progress-fill" id="ai-webllm-fill"></div></div>
+        </div>
+        <div id="ai-sidebar-zone"></div>
+        <div id="ai-suggestions" class="ai-sidebar-suggestions"></div>
+        <div id="ai-no-key" class="ai-no-key-msg" style="display:none;">Add an API key to start chatting.</div>
+        <div id="ai-messages" class="ai-sidebar-messages"></div>
+        <div class="ai-sidebar-input">
+            <textarea id="ai-input" placeholder="Ask a question..." rows="2"></textarea>
+            <button id="ai-send" onclick="sendCurrentMessage()">Send</button>
         </div>
     </div>
+
     <script src="/shared.js"></script>
     <script>
-        let currentAnnotation = null;
+        // ── State ──
+        let currentContext = null;   // { text, zone, suggestions, source, zoneKey }
         let currentAnnotationMap = null;
-        let currentZoneKey = null;
         let chatHistory = [];
         let lessonTitle = '';
         let sending = false;
         let keyErrorState = false;
+        let selectedText = '';
+        let webllmEngine = null;
+        let webllmLoading = false;
 
-        // ── localStorage helpers ──
-        function getAIKey() { return localStorage.getItem('pah_ai_api_key') || ''; }
-        function setAIKey(key) { localStorage.setItem('pah_ai_api_key', key); }
-        function clearAIKey() { localStorage.removeItem('pah_ai_api_key'); }
+        // ── localStorage helpers (multi-key) ──
+        const BROWSER_DEMO_KEY = { id: 'browser-demo', label: 'Browser (Free)', provider: 'browser', key: '' };
+        const BROWSER_MODELS = ['SmolLM2-360M-Instruct-q4f16_1-MLC', 'Phi-3.5-mini-instruct-q4f16_1-MLC'];
 
-        function getAIProvider() { return localStorage.getItem('pah_ai_provider') || 'anthropic'; }
-        function setAIProvider(p) { localStorage.setItem('pah_ai_provider', p); }
+        function getKeys() {
+            try { return JSON.parse(localStorage.getItem('pah_ai_keys')) || []; }
+            catch { return []; }
+        }
+        function setKeys(keys) { localStorage.setItem('pah_ai_keys', JSON.stringify(keys)); }
+
+        function getActiveKeyId() { return localStorage.getItem('pah_ai_active_key_id') || ''; }
+        function setActiveKeyId(id) { localStorage.setItem('pah_ai_active_key_id', id); }
+
+        function getActiveKey() {
+            const keys = getKeys();
+            const id = getActiveKeyId();
+            return keys.find(k => k.id === id) || keys[0] || null;
+        }
+
+        function addKey(entry) {
+            const keys = getKeys();
+            keys.push(entry);
+            setKeys(keys);
+        }
+
+        function removeKey(id) {
+            let keys = getKeys();
+            keys = keys.filter(k => k.id !== id);
+            setKeys(keys);
+            if (getActiveKeyId() === id) {
+                setActiveKeyId(keys[0]?.id || '');
+            }
+        }
+
+        function getActiveModel() { return localStorage.getItem('pah_ai_active_model') || ''; }
+        function setActiveModel(m) { localStorage.setItem('pah_ai_active_model', m); }
 
         function getAIConsent() { return localStorage.getItem('pah_ai_consent_ts') || ''; }
         function setAIConsent() { localStorage.setItem('pah_ai_consent_ts', new Date().toISOString()); }
+
+        function getModelsCache() {
+            try { return JSON.parse(localStorage.getItem('pah_ai_models_cache')) || {}; }
+            catch { return {}; }
+        }
+        function setModelsCache(c) { localStorage.setItem('pah_ai_models_cache', JSON.stringify(c)); }
 
         function maskKey(key) {
             if (!key) return '';
@@ -555,169 +611,247 @@
             return key.startsWith('sk-') ? 'sk-...' + last4 : '...' + last4;
         }
 
-        // ── Sidebar state management ──
-        function showSetupPanel() {
-            const panel = document.getElementById('ai-setup-panel');
-            const chatArea = document.getElementById('ai-chat-area');
-            const gear = document.getElementById('ai-gear');
-
-            chatArea.style.display = 'none';
-            gear.style.display = 'none';
-            document.getElementById('ai-key-error').style.display = 'none';
-
-            const hasConsent = !!getAIConsent();
-
-            let html = '';
-            if (!hasConsent) {
-                html += '<h3>Set up AI Tutor</h3>';
-                html += '<p class="setup-desc">Enter your API key to chat with an AI math tutor about this lesson.</p>';
-                html += `<div class="ai-trust-banner">
-                    <span class="trust-icon">&#128274;</span>
-                    <div><strong>Your key is never stored on our server.</strong> It lives only in your browser and is used solely to forward each request to the AI provider over TLS. <a href="/ai-guide.html">See exactly how it works &rarr;</a></div>
-                </div>`;
-                html += `<label>
-                    <input type="checkbox" id="ai-consent-cb" onchange="onConsentChange()">
-                    I understand my API key will be sent through the Proof@Home server to the AI provider. <a href="/terms.html" target="_blank">Terms</a>
-                </label>`;
+        // ── Migration from old schema ──
+        function migrateOldSchema() {
+            const oldKey = localStorage.getItem('pah_ai_api_key');
+            const oldProvider = localStorage.getItem('pah_ai_provider');
+            if (oldKey) {
+                const entry = {
+                    id: crypto.randomUUID(),
+                    label: (oldProvider === 'openai' ? 'OpenAI' : 'Anthropic') + ' Key',
+                    provider: oldProvider || 'anthropic',
+                    key: oldKey
+                };
+                const keys = getKeys();
+                keys.push(entry);
+                setKeys(keys);
+                setActiveKeyId(entry.id);
+                localStorage.removeItem('pah_ai_api_key');
+                localStorage.removeItem('pah_ai_provider');
             }
 
-            html += `<div class="setup-field">
-                <div class="setup-field-label">Provider</div>
-                <select id="ai-provider-select">
-                    <option value="anthropic" ${getAIProvider() === 'anthropic' ? 'selected' : ''}>Anthropic (Claude)</option>
-                    <option value="openai" ${getAIProvider() === 'openai' ? 'selected' : ''}>OpenAI (GPT)</option>
-                </select>
-            </div>`;
-
-            html += `<div class="setup-field">
-                <div class="setup-field-label">API Key</div>
-                <input type="password" id="ai-key-input" placeholder="sk-..." ${!hasConsent ? 'disabled' : ''}>
-            </div>`;
-
-            html += `<button class="btn-save" id="ai-save-btn" onclick="saveKey()" ${!hasConsent ? 'disabled' : ''}>Save</button>`;
-
-            panel.innerHTML = html;
-            panel.style.display = 'flex';
+            // Ensure browser demo key exists
+            const keys = getKeys();
+            if (!keys.find(k => k.id === 'browser-demo')) {
+                keys.unshift(BROWSER_DEMO_KEY);
+                setKeys(keys);
+            }
+            if (!getActiveKeyId() && keys.length > 0) {
+                setActiveKeyId(keys[0].id);
+            }
         }
 
-        function showChatArea() {
-            document.getElementById('ai-setup-panel').style.display = 'none';
-            const chatArea = document.getElementById('ai-chat-area');
-            chatArea.style.display = 'flex';
-            document.getElementById('ai-gear').style.display = '';
-            updateGearDot();
-            updateSettingsDropdown();
+        // ── Settings bar rendering ──
+        function renderKeySelect() {
+            const sel = document.getElementById('ai-key-select');
+            const keys = getKeys();
+            const activeId = getActiveKeyId();
+            sel.innerHTML = keys.map(k => {
+                const suffix = k.provider === 'browser' ? '' : ` (${maskKey(k.key)})`;
+                return `<option value="${escapeAttr(k.id)}" ${k.id === activeId ? 'selected' : ''}>${escapeHtml(k.label)}${escapeHtml(suffix)}</option>`;
+            }).join('');
+            if (keys.length === 0) {
+                sel.innerHTML = '<option value="">No keys</option>';
+                sel.disabled = true;
+            } else {
+                sel.disabled = false;
+            }
         }
 
-        function onConsentChange() {
-            const checked = document.getElementById('ai-consent-cb').checked;
-            const keyInput = document.getElementById('ai-key-input');
-            const saveBtn = document.getElementById('ai-save-btn');
-            keyInput.disabled = !checked;
-            saveBtn.disabled = !checked;
-            if (checked) keyInput.focus();
+        async function renderModelSelect() {
+            const sel = document.getElementById('ai-model-select');
+            const key = getActiveKey();
+            if (!key) {
+                sel.innerHTML = '<option value="">—</option>';
+                sel.disabled = true;
+                return;
+            }
+
+            if (key.provider === 'browser') {
+                const active = getActiveModel();
+                sel.innerHTML = BROWSER_MODELS.map(m =>
+                    `<option value="${escapeAttr(m)}" ${m === active ? 'selected' : ''}>${escapeHtml(m)}</option>`
+                ).join('');
+                sel.disabled = false;
+                if (!active || !BROWSER_MODELS.includes(active)) {
+                    setActiveModel(BROWSER_MODELS[0]);
+                }
+                return;
+            }
+
+            // Check cache
+            const cache = getModelsCache();
+            const cached = cache[key.id];
+            if (cached && (Date.now() - cached.ts) < 300000) {
+                populateModelSelect(sel, cached.models);
+                return;
+            }
+
+            sel.innerHTML = '<option value="">Loading...</option>';
+            sel.disabled = true;
+
+            try {
+                const resp = await api('POST', '/ai/models', {
+                    provider: key.provider,
+                    api_key: key.key
+                });
+                const models = resp.models || [];
+                cache[key.id] = { models, ts: Date.now() };
+                setModelsCache(cache);
+                populateModelSelect(sel, models);
+            } catch (e) {
+                const errMsg = e.error || e.message || 'Failed to load models';
+                sel.innerHTML = `<option value="">Error</option>`;
+                sel.disabled = false;
+                if (errMsg.includes('rejected') || errMsg.includes('API key')) {
+                    showKeyErrorBanner('API key rejected. Check your key.');
+                }
+            }
         }
 
-        function saveKey() {
-            const providerSelect = document.getElementById('ai-provider-select');
-            const keyInput = document.getElementById('ai-key-input');
-            const key = keyInput.value.trim();
+        function populateModelSelect(sel, models) {
+            const active = getActiveModel();
+            const defaultModel = getActiveKey()?.provider === 'openai' ? 'gpt-4o' : 'claude-sonnet-4-20250514';
+            sel.innerHTML = models.map(m =>
+                `<option value="${escapeAttr(m)}" ${m === active ? 'selected' : ''}>${escapeHtml(m)}</option>`
+            ).join('');
+            sel.disabled = false;
+            // Pre-select: active model, or default, or first
+            if (active && models.includes(active)) {
+                sel.value = active;
+            } else if (models.includes(defaultModel)) {
+                sel.value = defaultModel;
+                setActiveModel(defaultModel);
+            } else if (models.length > 0) {
+                sel.value = models[0];
+                setActiveModel(models[0]);
+            }
+        }
+
+        function onKeyChange() {
+            const sel = document.getElementById('ai-key-select');
+            setActiveKeyId(sel.value);
+            keyErrorState = false;
+            document.getElementById('ai-key-error').style.display = 'none';
+            renderModelSelect();
+            updateChatState();
+        }
+
+        function onModelChange() {
+            const sel = document.getElementById('ai-model-select');
+            setActiveModel(sel.value);
+        }
+
+        function updateChatState() {
+            const key = getActiveKey();
+            const noKeyMsg = document.getElementById('ai-no-key');
+            const msgArea = document.getElementById('ai-messages');
+            const input = document.getElementById('ai-input');
+            const send = document.getElementById('ai-send');
+
+            const hasKey = key && (key.provider === 'browser' || key.key);
+            noKeyMsg.style.display = hasKey ? 'none' : 'block';
+            msgArea.style.display = hasKey ? 'flex' : 'none';
+            input.disabled = !hasKey;
+            send.disabled = !hasKey;
+        }
+
+        // ── Key form ──
+        function toggleKeyForm() {
+            const form = document.getElementById('ai-key-form');
+            if (form.classList.contains('open')) {
+                form.classList.remove('open');
+                return;
+            }
+            showAddKeyForm();
+        }
+
+        function showAddKeyForm() {
+            const form = document.getElementById('ai-key-form');
+            const needsConsent = !getAIConsent();
+
+            let html = `
+                <div class="kf-row">
+                    <input type="text" id="kf-label" placeholder="Label (e.g. My Anthropic)" style="flex:1;">
+                    <select id="kf-provider" style="flex:0.8;" onchange="onFormProviderChange()">
+                        <option value="anthropic">Anthropic</option>
+                        <option value="openai">OpenAI</option>
+                    </select>
+                </div>
+                <input type="password" id="kf-key" placeholder="API Key (sk-...)">
+            `;
+
+            if (needsConsent) {
+                html += `
+                    <div class="kf-consent">
+                        <input type="checkbox" id="kf-consent-cb" onchange="onFormConsentChange()">
+                        <span>I understand my API key will be sent through the Proof@Home server to the AI provider. <a href="/ai-guide.html">Learn more</a></span>
+                    </div>
+                `;
+            }
+
+            html += `
+                <div class="ai-trust-compact">Key stored in your browser only &mdash; never on our server.</div>
+                <div class="kf-actions">
+                    <button class="kf-save-btn" id="kf-save" onclick="saveNewKey()" ${needsConsent ? 'disabled' : ''}>Save</button>
+                    <button class="kf-cancel-btn" onclick="toggleKeyForm()">Cancel</button>
+                </div>
+            `;
+
+            form.innerHTML = html;
+            form.classList.add('open');
+            document.getElementById('kf-label').focus();
+        }
+
+        function onFormProviderChange() {
+            const prov = document.getElementById('kf-provider').value;
+            const keyInput = document.getElementById('kf-key');
+            keyInput.placeholder = prov === 'openai' ? 'API Key (sk-...)' : 'API Key (sk-ant-...)';
+        }
+
+        function onFormConsentChange() {
+            const checked = document.getElementById('kf-consent-cb').checked;
+            document.getElementById('kf-save').disabled = !checked;
+            document.getElementById('kf-key').disabled = !checked;
+            if (checked) document.getElementById('kf-key').focus();
+        }
+
+        function saveNewKey() {
+            const label = document.getElementById('kf-label').value.trim();
+            const provider = document.getElementById('kf-provider').value;
+            const key = document.getElementById('kf-key').value.trim();
             if (!key) return;
 
-            if (!getAIConsent()) {
-                setAIConsent();
-            }
-            setAIProvider(providerSelect.value);
-            setAIKey(key);
-            keyErrorState = false;
+            if (!getAIConsent()) setAIConsent();
 
-            // Transition to chat
-            showChatArea();
-            loadChatForAnnotation();
-        }
-
-        function loadChatForAnnotation() {
-            if (!currentAnnotation) return;
-
-            document.getElementById('ai-sidebar-zone').textContent = currentAnnotation.context || '';
-
-            const sugEl = document.getElementById('ai-suggestions');
-            if (currentAnnotation.suggestions && currentAnnotation.suggestions.length > 0) {
-                sugEl.innerHTML = currentAnnotation.suggestions.map(s =>
-                    `<button class="ai-suggestion-pill" onclick="sendMessage(${escapeAttr(JSON.stringify(s))})">${escapeHtml(s)}</button>`
-                ).join('');
-            } else {
-                sugEl.innerHTML = '';
-            }
-
-            document.getElementById('ai-messages').innerHTML = '';
-            document.getElementById('ai-input').value = '';
-        }
-
-        // ── Gear / settings dropdown ──
-        function updateGearDot() {
-            const dot = document.getElementById('ai-key-dot');
-            dot.className = 'ai-key-dot ' + (keyErrorState ? 'err' : 'ok');
-        }
-
-        function updateSettingsDropdown() {
-            const dd = document.getElementById('ai-settings-dropdown');
-            const key = getAIKey();
-            const provider = getAIProvider();
-            const providerLabel = provider === 'openai' ? 'OpenAI' : 'Anthropic';
-            dd.innerHTML = `
-                <div class="settings-row"><strong>Provider:</strong> ${escapeHtml(providerLabel)}</div>
-                <div class="settings-row"><strong>Key:</strong> <code>${escapeHtml(maskKey(key))}</code></div>
-                <div class="ai-settings-actions">
-                    <button onclick="changeKey(event)">Change key</button>
-                    <button onclick="clearKeyAction(event)">Clear key</button>
-                </div>
-                <div class="ai-settings-footer">Stored in browser only &mdash; never on our server</div>
-            `;
-        }
-
-        function toggleSettingsDropdown(e) {
-            e.stopPropagation();
-            const dd = document.getElementById('ai-settings-dropdown');
-            const isOpen = dd.classList.contains('open');
-            dd.classList.toggle('open');
-            if (!isOpen) {
-                updateSettingsDropdown();
-                const close = (ev) => {
-                    if (!dd.contains(ev.target) && ev.target !== document.getElementById('ai-gear')) {
-                        dd.classList.remove('open');
-                        document.removeEventListener('click', close);
-                    }
-                };
-                setTimeout(() => document.addEventListener('click', close), 0);
-            }
-        }
-
-        function changeKey(e) {
-            e.stopPropagation();
-            document.getElementById('ai-settings-dropdown').classList.remove('open');
+            const entry = {
+                id: crypto.randomUUID(),
+                label: label || (provider === 'openai' ? 'OpenAI Key' : 'Anthropic Key'),
+                provider,
+                key
+            };
+            addKey(entry);
+            setActiveKeyId(entry.id);
             keyErrorState = false;
             document.getElementById('ai-key-error').style.display = 'none';
-            showSetupPanel();
+            document.getElementById('ai-key-form').classList.remove('open');
+
+            renderKeySelect();
+            renderModelSelect();
+            updateChatState();
         }
 
-        function clearKeyAction(e) {
-            e.stopPropagation();
-            document.getElementById('ai-settings-dropdown').classList.remove('open');
-            clearAIKey();
-            keyErrorState = false;
-            document.getElementById('ai-key-error').style.display = 'none';
-            showSetupPanel();
+        function removeKeyById(id) {
+            removeKey(id);
+            document.getElementById('ai-key-form').classList.remove('open');
+            renderKeySelect();
+            renderModelSelect();
+            updateChatState();
         }
 
         // ── Sidebar open/close ──
-        function openSidebar(zoneKey, annotationMap) {
-            const annotation = annotationMap[zoneKey];
-            if (!annotation) return;
-
-            currentAnnotation = annotation;
-            currentAnnotationMap = annotationMap;
-            currentZoneKey = zoneKey;
+        function openSidebar(context) {
+            currentContext = context;
             chatHistory = [];
             keyErrorState = false;
 
@@ -725,20 +859,135 @@
             document.getElementById('ai-sidebar').classList.add('open');
             document.body.classList.add('sidebar-open');
 
-            if (getAIKey()) {
-                showChatArea();
-                loadChatForAnnotation();
+            // Zone / selection context display
+            const zoneEl = document.getElementById('ai-sidebar-zone');
+            if (context.zone) {
+                zoneEl.innerHTML = `<div class="zone-label">Topic</div>${escapeHtml(context.zone)}`;
+            } else if (context.text) {
+                const preview = context.text.length > 200 ? context.text.slice(0, 200) + '...' : context.text;
+                zoneEl.innerHTML = `<div class="zone-label">Selected text</div>${escapeHtml(preview)}`;
             } else {
-                showSetupPanel();
+                zoneEl.innerHTML = '';
             }
+
+            // Suggestions
+            const sugEl = document.getElementById('ai-suggestions');
+            if (context.suggestions && context.suggestions.length > 0) {
+                sugEl.innerHTML = context.suggestions.map(s =>
+                    `<button class="ai-suggestion-pill" onclick="sendMessage(${escapeAttr(JSON.stringify(s))})">${escapeHtml(s)}</button>`
+                ).join('');
+            } else {
+                sugEl.innerHTML = '';
+            }
+
+            // Clear chat
+            document.getElementById('ai-messages').innerHTML = '';
+            document.getElementById('ai-input').value = '';
+
+            // Render settings
+            renderKeySelect();
+            renderModelSelect();
+            updateChatState();
         }
 
         function closeSidebar() {
             document.getElementById('ai-sidebar').classList.remove('open');
             document.body.classList.remove('sidebar-open');
-            document.getElementById('ai-settings-dropdown').classList.remove('open');
+            document.getElementById('ai-key-form').classList.remove('open');
         }
 
+        // ── Floating button ──
+        function initFloatingButton() {
+            const floatBtn = document.getElementById('ai-ask-float');
+
+            document.addEventListener('mouseup', (e) => {
+                if (e.target === floatBtn || floatBtn.contains(e.target)) return;
+
+                const lessonBody = document.querySelector('.lesson-body');
+                if (!lessonBody) return;
+
+                setTimeout(() => {
+                    const sel = window.getSelection();
+                    const text = sel ? sel.toString().trim() : '';
+                    if (!text || !lessonBody.contains(sel.anchorNode)) {
+                        floatBtn.classList.remove('visible');
+                        return;
+                    }
+
+                    selectedText = text;
+                    const range = sel.getRangeAt(0);
+                    const rect = range.getBoundingClientRect();
+
+                    floatBtn.style.top = (rect.top + window.scrollY - 32) + 'px';
+                    floatBtn.style.left = (rect.right + window.scrollX + 8) + 'px';
+                    floatBtn.classList.add('visible');
+                }, 10);
+            });
+
+            document.addEventListener('mousedown', (e) => {
+                if (e.target === floatBtn || floatBtn.contains(e.target)) return;
+                floatBtn.classList.remove('visible');
+            });
+
+            floatBtn.addEventListener('click', () => {
+                floatBtn.classList.remove('visible');
+                if (!selectedText) return;
+
+                // Check if selection is within an annotated zone
+                const context = resolveSelectionContext(selectedText);
+                openSidebar(context);
+            });
+        }
+
+        function resolveSelectionContext(text) {
+            if (!currentAnnotationMap) {
+                return { text, zone: null, suggestions: [], source: 'selection', zoneKey: null };
+            }
+
+            // Walk up from selection to find nearest heading
+            const sel = window.getSelection();
+            if (!sel || !sel.anchorNode) {
+                return { text, zone: null, suggestions: [], source: 'selection', zoneKey: null };
+            }
+
+            let node = sel.anchorNode;
+            if (node.nodeType === Node.TEXT_NODE) node = node.parentElement;
+
+            // Walk backwards through siblings and up the DOM to find nearest heading
+            while (node && node.closest('.lesson-body')) {
+                if (/^H[123]$/.test(node.tagName)) {
+                    const zoneKey = headingToZoneKey(node);
+                    if (currentAnnotationMap[zoneKey]) {
+                        const ann = currentAnnotationMap[zoneKey];
+                        return { text: '', zone: ann.context, suggestions: ann.suggestions || [], source: 'annotation', zoneKey };
+                    }
+                }
+                // Check previous siblings
+                let prev = node.previousElementSibling;
+                while (prev) {
+                    if (/^H[123]$/.test(prev.tagName)) {
+                        const zoneKey = headingToZoneKey(prev);
+                        if (currentAnnotationMap[zoneKey]) {
+                            const ann = currentAnnotationMap[zoneKey];
+                            return { text, zone: ann.context, suggestions: ann.suggestions || [], source: 'selection', zoneKey };
+                        }
+                    }
+                    prev = prev.previousElementSibling;
+                }
+                node = node.parentElement;
+            }
+
+            return { text, zone: null, suggestions: [], source: 'selection', zoneKey: null };
+        }
+
+        function headingToZoneKey(heading) {
+            const text = heading.textContent.trim();
+            const level = heading.tagName.toLowerCase();
+            const prefix = level === 'h1' ? '# ' : level === 'h2' ? '## ' : '### ';
+            return prefix + text;
+        }
+
+        // ── Message rendering ──
         function escapeAttr(s) {
             return s.replace(/&/g,'&amp;').replace(/'/g,'&#39;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
         }
@@ -776,16 +1025,74 @@
 
         function showKeyErrorBanner(msg) {
             keyErrorState = true;
-            updateGearDot();
             const banner = document.getElementById('ai-key-error');
-            banner.innerHTML = escapeHtml(msg) + ' <a href="#" onclick="changeKey(event)">Update in settings</a>';
+            banner.innerHTML = escapeHtml(msg);
             banner.style.display = 'block';
         }
 
+        // ── WebLLM ──
+        async function getWebLLMEngine() {
+            if (webllmEngine) return webllmEngine;
+            if (webllmLoading) return null;
+
+            // Check WebGPU support
+            if (!navigator.gpu) {
+                throw new Error("Your browser doesn't support WebGPU. Use Chrome 113+ or Edge 113+.");
+            }
+
+            webllmLoading = true;
+            const progressEl = document.getElementById('ai-webllm-progress');
+            const labelEl = document.getElementById('ai-webllm-label');
+            const fillEl = document.getElementById('ai-webllm-fill');
+            progressEl.classList.add('active');
+
+            try {
+                const webllm = await import('https://esm.run/@mlc-ai/web-llm');
+                const model = getActiveModel() || BROWSER_MODELS[0];
+
+                const engine = await webllm.CreateMLCEngine(model, {
+                    initProgressCallback: (report) => {
+                        labelEl.textContent = report.text || 'Loading model...';
+                        if (report.progress !== undefined) {
+                            fillEl.style.width = (report.progress * 100) + '%';
+                        }
+                    }
+                });
+
+                webllmEngine = engine;
+                progressEl.classList.remove('active');
+                webllmLoading = false;
+                return engine;
+            } catch (err) {
+                progressEl.classList.remove('active');
+                webllmLoading = false;
+                throw err;
+            }
+        }
+
+        async function chatWithWebLLM(systemPrompt, messages) {
+            const engine = await getWebLLMEngine();
+            if (!engine) throw new Error('Model is still loading. Please wait.');
+
+            const allMessages = [
+                { role: 'system', content: systemPrompt },
+                ...messages
+            ];
+
+            const reply = await engine.chat.completions.create({
+                messages: allMessages,
+                max_tokens: 1024
+            });
+
+            return reply.choices[0]?.message?.content || '';
+        }
+
+        // ── Send message ──
         async function sendMessage(text) {
             if (!text || !text.trim() || sending) return;
-            if (!currentAnnotation) return;
-            if (!getAIKey()) return;
+            const key = getActiveKey();
+            if (!key) return;
+            if (key.provider !== 'browser' && !key.key) return;
 
             sending = true;
             document.getElementById('ai-send').disabled = true;
@@ -795,19 +1102,44 @@
 
             const loadingEl = appendMessage('assistant', '<em>Thinking...</em>');
 
+            // Build context
+            const zoneContext = currentContext?.zone || currentContext?.text || '';
+            const contextType = currentContext?.source === 'annotation' ? 'annotation' : 'selection';
+            const model = getActiveModel();
+
             try {
-                const resp = await api('POST', '/ai/chat', {
-                    messages: chatHistory,
-                    zone_context: currentAnnotation.context || '',
-                    lesson_title: lessonTitle,
-                    api_key: getAIKey()
-                });
-                chatHistory.push({ role: 'assistant', content: resp.content });
-                loadingEl.innerHTML = renderAIContent(resp.content);
-                // Clear any prior key error on success
+                let content;
+
+                if (key.provider === 'browser') {
+                    // Use WebLLM
+                    let systemPrompt;
+                    if (contextType === 'selection' && zoneContext) {
+                        systemPrompt = `You are a math tutor helping a student with the lesson '${lessonTitle}'. The student selected the following text and has a question about it:\n\n${zoneContext}\n\nUse $...$ for inline and $$...$$ for display math. Be concise.`;
+                    } else if (zoneContext) {
+                        systemPrompt = `You are a math tutor helping a student with ${zoneContext} in '${lessonTitle}'. Use $...$ for inline and $$...$$ for display math. Be concise.`;
+                    } else {
+                        systemPrompt = `You are a math tutor helping a student with the lesson '${lessonTitle}'. Use $...$ for inline and $$...$$ for display math. Be concise.`;
+                    }
+                    content = await chatWithWebLLM(systemPrompt, chatHistory);
+                } else {
+                    // Use backend
+                    const resp = await api('POST', '/ai/chat', {
+                        messages: chatHistory,
+                        zone_context: zoneContext,
+                        lesson_title: lessonTitle,
+                        api_key: key.key,
+                        provider: key.provider,
+                        model: model,
+                        context_type: contextType
+                    });
+                    content = resp.content;
+                }
+
+                chatHistory.push({ role: 'assistant', content });
+                loadingEl.innerHTML = renderAIContent(content);
+
                 if (keyErrorState) {
                     keyErrorState = false;
-                    updateGearDot();
                     document.getElementById('ai-key-error').style.display = 'none';
                 }
             } catch (e) {
@@ -816,15 +1148,16 @@
 
                 if (errMsg.includes('rejected') || errMsg.includes('API key')) {
                     loadingEl.textContent = 'Your API key was rejected.';
-                    showKeyErrorBanner('Your API key was rejected by the provider.');
+                    showKeyErrorBanner('API key rejected by the provider.');
                 } else if (errMsg.includes('Rate limited')) {
                     loadingEl.textContent = 'Rate limited. Please wait a moment.';
                 } else if (errMsg.includes('credits') || errMsg.includes('billing')) {
                     loadingEl.textContent = 'Insufficient credits. Check your provider billing.';
+                } else if (errMsg.includes('WebGPU')) {
+                    loadingEl.textContent = errMsg;
                 } else {
                     loadingEl.textContent = 'AI error. Try again later.';
                 }
-                // Remove failed message from history
                 chatHistory.pop();
             } finally {
                 sending = false;
@@ -841,18 +1174,21 @@
             }
         }
 
+        // ── Lesson loading ──
         async function load() {
             const id = new URLSearchParams(window.location.search).get('id');
             if (!id) {
                 showMsg('msg', 'No lesson ID specified.', true);
                 return;
             }
+
+            migrateOldSchema();
+
             try {
                 const lesson = await api('GET', '/lessons/' + encodeURIComponent(id));
                 lessonTitle = lesson.title || lesson.lesson_id;
                 document.title = lessonTitle + ' — Proof@Home';
 
-                // Render metadata bar
                 let metaHtml = `<dl class="lesson-meta">
                     ${lesson.author_username ? `<dt>Author:</dt><dd>${escapeHtml(lesson.author_username)}</dd>` : ''}
                     ${lesson.topic ? `<dt>Topic:</dt><dd>${escapeHtml(lesson.topic)}</dd>` : ''}
@@ -861,13 +1197,11 @@
                     <dt>Conjectures:</dt><dd>${(lesson.conjecture_ids || []).length}</dd>
                 </dl>`;
 
-                // Render Markdown content
                 let bodyHtml = '';
                 if (lesson.content) {
                     bodyHtml = `<div class="lesson-body">${marked.parse(lesson.content)}</div>`;
                 }
 
-                // Conjecture list section
                 const conjIds = lesson.conjecture_ids || [];
                 let conjHtml = '';
                 if (conjIds.length > 0) {
@@ -884,32 +1218,27 @@
                 // ── AI annotation sparkles ──
                 const annotations = lesson.ai_annotations || [];
                 if (annotations.length > 0) {
-                    const annotationMap = {};
-                    annotations.forEach(a => { annotationMap[a.zone] = a; });
+                    currentAnnotationMap = {};
+                    annotations.forEach(a => { currentAnnotationMap[a.zone] = a; });
 
                     document.querySelectorAll('.lesson-body h1, .lesson-body h2, .lesson-body h3').forEach(heading => {
-                        const text = heading.textContent.trim();
-                        const level = heading.tagName.toLowerCase();
-                        const prefix = level === 'h1' ? '# ' : level === 'h2' ? '## ' : '### ';
-                        const zoneKey = prefix + text;
+                        const zoneKey = headingToZoneKey(heading);
 
-                        if (annotationMap[zoneKey]) {
+                        if (currentAnnotationMap[zoneKey]) {
                             const btn = document.createElement('button');
                             btn.className = 'ai-sparkle';
                             btn.innerHTML = '&#10024;';
-
-                            if (!isLoggedIn()) {
-                                const tooltip = document.createElement('span');
-                                tooltip.className = 'ai-sparkle-tooltip';
-                                tooltip.textContent = 'Log in to use AI tutor';
-                                btn.appendChild(tooltip);
-                                btn.addEventListener('click', (e) => { e.preventDefault(); });
-                            } else {
-                                btn.addEventListener('click', (e) => {
-                                    e.preventDefault();
-                                    openSidebar(zoneKey, annotationMap);
+                            btn.addEventListener('click', (e) => {
+                                e.preventDefault();
+                                const ann = currentAnnotationMap[zoneKey];
+                                openSidebar({
+                                    text: '',
+                                    zone: ann.context,
+                                    suggestions: ann.suggestions || [],
+                                    source: 'annotation',
+                                    zoneKey
                                 });
-                            }
+                            });
 
                             heading.appendChild(document.createTextNode(' '));
                             heading.appendChild(btn);
@@ -917,7 +1246,10 @@
                     });
                 }
 
-                // Fetch conjectures for the list
+                // Init floating button
+                initFloatingButton();
+
+                // Fetch conjectures
                 if (conjIds.length > 0) {
                     const conjList = document.getElementById('conj-list');
                     const results = await Promise.allSettled(
@@ -945,12 +1277,12 @@
                     }).join('');
                 }
 
-                // Syntax highlighting for code blocks
+                // Syntax highlighting
                 document.querySelectorAll('.lesson-body pre code').forEach(el => {
                     hljs.highlightElement(el);
                 });
 
-                // KaTeX math rendering
+                // KaTeX
                 if (typeof renderMathInElement !== 'undefined') {
                     renderMathInElement(document.getElementById('content'), {
                         delimiters: [
@@ -967,7 +1299,7 @@
             }
         }
 
-        // Enter key submits (Shift+Enter for newline)
+        // Enter key submits
         document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('ai-input').addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {

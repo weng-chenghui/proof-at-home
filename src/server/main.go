@@ -174,6 +174,7 @@ func main() {
 		r.Post("/strategies", strategyWriteHandler.Submit)
 		r.Post("/strategies/{name}/seal", strategyWriteHandler.SealStrategy)
 		r.Post("/ai/chat", aiChatHandler.Chat)
+		r.Post("/ai/models", aiChatHandler.Models)
 	})
 
 	// Serve embedded static files
