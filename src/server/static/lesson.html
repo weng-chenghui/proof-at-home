@@ -908,18 +908,36 @@
 
                 setTimeout(() => {
                     const sel = window.getSelection();
-                    const text = sel ? sel.toString().trim() : '';
-                    if (!text || !lessonBody.contains(sel.anchorNode)) {
+                    if (!sel || sel.rangeCount === 0) {
+                        floatBtn.classList.remove('visible');
+                        return;
+                    }
+                    const text = sel.toString().trim();
+                    if (!text) {
+                        floatBtn.classList.remove('visible');
+                        return;
+                    }
+                    const range = sel.getRangeAt(0);
+                    // Check if any part of the selection is inside .lesson-body
+                    const ancestor = range.commonAncestorContainer;
+                    const ancestorEl = ancestor.nodeType === Node.TEXT_NODE ? ancestor.parentElement : ancestor;
+                    if (!lessonBody.contains(ancestorEl)) {
                         floatBtn.classList.remove('visible');
                         return;
                     }
 
                     selectedText = text;
-                    const range = sel.getRangeAt(0);
                     const rect = range.getBoundingClientRect();
 
-                    floatBtn.style.top = (rect.top + window.scrollY - 32) + 'px';
-                    floatBtn.style.left = (rect.right + window.scrollX + 8) + 'px';
+                    // Position: above-right of selection, clamped to viewport
+                    let top = rect.top + window.scrollY - 32;
+                    let left = rect.right + window.scrollX + 8;
+                    const btnWidth = 70; // approximate
+                    if (left + btnWidth > window.innerWidth) {
+                        left = rect.left + window.scrollX - btnWidth - 8;
+                    }
+                    floatBtn.style.top = top + 'px';
+                    floatBtn.style.left = left + 'px';
                     floatBtn.classList.add('visible');
                 }, 10);
             });
