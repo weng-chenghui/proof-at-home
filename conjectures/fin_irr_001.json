@@ -1,0 +1,19 @@
+{
+  "id": "fin_irr_001",
+  "title": "Existence of IRR via the Intermediate Value Theorem",
+  "difficulty": "medium",
+  "prover": "lean4",
+  "status": "open",
+  "preamble": "import Mathlib.Tactic",
+  "lemma_statement": "theorem exists_irr (n : ℕ) (cf : Fin (n+1) → ℝ)\n    (h_init : cf 0 < 0) (h_total : 0 < ∑ i, cf i)\n    (h_neg : ∃ R : ℝ, 0 < R ∧ ∑ i : Fin (n+1), cf i / (1 + R) ^ (i : ℕ) < 0) :\n    ∃ r : ℝ, 0 < r ∧ ∑ i : Fin (n+1), cf i / (1 + r) ^ (i : ℕ) = 0 := by",
+  "skeleton": "theorem exists_irr (n : ℕ) (cf : Fin (n+1) → ℝ)\n    (h_init : cf 0 < 0) (h_total : 0 < ∑ i, cf i)\n    (h_neg : ∃ R : ℝ, 0 < R ∧ ∑ i : Fin (n+1), cf i / (1 + R) ^ (i : ℕ) < 0) :\n    ∃ r : ℝ, 0 < r ∧ ∑ i : Fin (n+1), cf i / (1 + r) ^ (i : ℕ) = 0 := by\n  sorry",
+  "hints": [
+    "NPV(0) = sum(cf) > 0 by h_total",
+    "h_neg provides an explicit R where NPV(R) < 0",
+    "Apply IVT to the continuous NPV function on [0, R]"
+  ],
+  "dependencies": {
+    "lean_toolchain": "leanprover/lean4:v4.16.0",
+    "lake_packages": ["mathlib"]
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "id": "fin_mart_001",
+  "title": "Symmetric random walk is a martingale",
+  "difficulty": "easy",
+  "prover": "lean4",
+  "status": "open",
+  "preamble": "import Mathlib.Tactic",
+  "lemma_statement": "-- One-step martingale property for a symmetric ±1 random walk:\n-- E[S_{n+1} | S_n = S] = p*(S + X_up) + (1-p)*(S + X_dn) = S when p = 1/2.\n\ntheorem symmetric_rw_martingale (p : ℝ) (hp : p = 1 / 2)\n    (X_up X_dn : ℝ) (hup : X_up = 1) (hdn : X_dn = -1) (S : ℝ) :\n    p * (S + X_up) + (1 - p) * (S + X_dn) = S := by",
+  "skeleton": "theorem symmetric_rw_martingale (p : ℝ) (hp : p = 1 / 2)\n    (X_up X_dn : ℝ) (hup : X_up = 1) (hdn : X_dn = -1) (S : ℝ) :\n    p * (S + X_up) + (1 - p) * (S + X_dn) = S := by\n  sorry",
+  "hints": [
+    "Substitute hp, hup, hdn using subst or rw",
+    "The goal reduces to an algebraic identity that ring closes"
+  ],
+  "dependencies": {
+    "lean_toolchain": "leanprover/lean4:v4.16.0",
+    "lake_packages": ["mathlib"]
+  }
+}

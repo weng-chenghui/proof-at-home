@@ -1,0 +1,20 @@
+{
+  "id": "fin_binom_002",
+  "title": "Law of One Price in single-period binomial model",
+  "difficulty": "medium",
+  "prover": "lean4",
+  "status": "open",
+  "preamble": "import Mathlib.Tactic",
+  "lemma_statement": "theorem law_of_one_price (u d r Vu Vd : ℝ) (hdu : d < u) (hr1 : d < 1 + r) (hr2 : 1 + r < u)\n    (Δ₁ B₁ Δ₂ B₂ : ℝ)\n    (h1u : Δ₁ * u + B₁ * (1 + r) = Vu) (h1d : Δ₁ * d + B₁ * (1 + r) = Vd)\n    (h2u : Δ₂ * u + B₂ * (1 + r) = Vu) (h2d : Δ₂ * d + B₂ * (1 + r) = Vd) :\n    Δ₁ + B₁ = Δ₂ + B₂ := by",
+  "skeleton": "theorem law_of_one_price (u d r Vu Vd : ℝ) (hdu : d < u) (hr1 : d < 1 + r) (hr2 : 1 + r < u)\n    (Δ₁ B₁ Δ₂ B₂ : ℝ)\n    (h1u : Δ₁ * u + B₁ * (1 + r) = Vu) (h1d : Δ₁ * d + B₁ * (1 + r) = Vd)\n    (h2u : Δ₂ * u + B₂ * (1 + r) = Vu) (h2d : Δ₂ * d + B₂ * (1 + r) = Vd) :\n    Δ₁ + B₁ = Δ₂ + B₂ := by\n  sorry",
+  "hints": [
+    "Subtract the replication equations pairwise",
+    "Use hdu to show u ≠ d, then derive Δ₁ = Δ₂",
+    "From equal deltas and hr1 or hr2, derive B₁ = B₂",
+    "Note: hr1 and hr2 are not needed for this proof — they provide financial context"
+  ],
+  "dependencies": {
+    "lean_toolchain": "leanprover/lean4:v4.16.0",
+    "lake_packages": ["mathlib"]
+  }
+}
