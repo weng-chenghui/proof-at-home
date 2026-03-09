@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -16,34 +15,9 @@ import (
 
 var httpClient = &http.Client{Timeout: 30 * time.Second}
 
-func TestMain(m *testing.M) {
-	client := &http.Client{Timeout: 5 * time.Second}
-	resp, err := client.Get(baseURL() + "/health")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "FATAL: server not reachable at %s: %v\n", baseURL(), err)
-		fmt.Fprintf(os.Stderr, "Start the server first, or set TEST_SERVER_URL.\n")
-		os.Exit(1)
-	}
-	resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		fmt.Fprintf(os.Stderr, "FATAL: server health check returned status %d\n", resp.StatusCode)
-		os.Exit(1)
-	}
-	os.Exit(m.Run())
-}
-
-// baseURL returns the server URL for integration tests.
-// Set TEST_SERVER_URL to override (default: http://localhost:8080).
-func baseURL() string {
-	if u := os.Getenv("TEST_SERVER_URL"); u != "" {
-		return u
-	}
-	return "http://localhost:8080"
-}
-
 func get(t *testing.T, path string) []byte {
 	t.Helper()
-	resp, err := httpClient.Get(baseURL() + path)
+	resp, err := httpClient.Get(serverURL + path)
 	if err != nil {
 		t.Fatalf("GET %s: %v", path, err)
 	}
@@ -284,7 +258,7 @@ func postJSON(t *testing.T, path string, body any) (int, map[string]any) {
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
-	resp, err := httpClient.Post(baseURL()+path, "application/json", bytes.NewReader(b))
+	resp, err := httpClient.Post(serverURL+path, "application/json", bytes.NewReader(b))
 	if err != nil {
 		t.Fatalf("POST %s: %v", path, err)
 	}
@@ -301,7 +275,7 @@ func patchJSON(t *testing.T, path string, body any) (int, map[string]any) {
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
-	req, err := http.NewRequest("PATCH", baseURL()+path, bytes.NewReader(b))
+	req, err := http.NewRequest("PATCH", serverURL+path, bytes.NewReader(b))
 	if err != nil {
 		t.Fatalf("PATCH %s: %v", path, err)
 	}
@@ -496,7 +470,7 @@ func TestWebhook_IgnoresNonMain(t *testing.T) {
 func TestArchiveDownload(t *testing.T) {
 	// The archive endpoint requires proofs to exist in git.
 	// For the seed data (alice's contribution), check if it has proofs.
-	resp, err := httpClient.Get(fmt.Sprintf("%s/contributions/a1111111-1111-1111-1111-111111111111/archive", baseURL()))
+	resp, err := httpClient.Get(fmt.Sprintf("%s/contributions/a1111111-1111-1111-1111-111111111111/archive", serverURL))
 	if err != nil {
 		t.Fatalf("GET: %v", err)
 	}
@@ -656,7 +630,7 @@ func TestCommands_GetByName(t *testing.T) {
 // ── 404 behavior ──
 
 func TestConjectures_NotFound(t *testing.T) {
-	resp, err := httpClient.Get(fmt.Sprintf("%s/conjectures/nonexistent", baseURL()))
+	resp, err := httpClient.Get(fmt.Sprintf("%s/conjectures/nonexistent", serverURL))
 	if err != nil {
 		t.Fatalf("GET: %v", err)
 	}
@@ -670,7 +644,7 @@ func TestConjectures_NotFound(t *testing.T) {
 
 func postRaw(t *testing.T, path string, contentType string, body []byte) (int, map[string]any) {
 	t.Helper()
-	resp, err := httpClient.Post(baseURL()+path, contentType, bytes.NewReader(body))
+	resp, err := httpClient.Post(serverURL+path, contentType, bytes.NewReader(body))
 	if err != nil {
 		t.Fatalf("POST %s: %v", path, err)
 	}

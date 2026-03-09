@@ -26,13 +26,13 @@ build-debug: ## Build Rust CLI (debug, faster compile)
 # ── Run ────────────────────────────────────────────────
 
 run-server: build-server ## Start the conjecture server
-	CONJECTURES_DIR=conjectures ./target/proof-at-home-server
+	./target/proof-at-home-server
 
 run-pocketbase: build-pocketbase dev-setup ## Run PocketBase with local dev environment
 	GIT_DATA_REPO_URL=.dev/data-repo.git \
 	GIT_DATA_REPO_PATH=.dev/data \
 	GIT_FORGE_TYPE=local \
-	CONJECTURES_DIR=conjectures \
+	CONJECTURES_DIR=examples/data-repo/conjectures \
 	./target/pah-pocketbase serve --http=0.0.0.0:8090
 
 run-login: build-debug ## Log in with auth token from web UI

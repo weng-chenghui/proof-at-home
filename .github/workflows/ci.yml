@@ -145,24 +145,8 @@ jobs:
           go build -o target/pah-pocketbase ./cmd/pocketbase
 
       - name: Set up dev environment
+        if: matrix.server == 'pocketbase'
         run: make dev-setup
-
-      - name: Start standalone server
-        if: matrix.server == 'standalone'
-        run: |
-          GIT_DATA_REPO_URL=.dev/data-repo.git \
-          GIT_DATA_REPO_PATH=.dev/data \
-          GIT_FORGE_TYPE=local \
-          DATABASE_PATH=.dev/proofathome.db \
-          PORT=8080 \
-          ./target/proof-at-home-server &
-          for i in $(seq 1 30); do
-            if curl -sf http://localhost:8080/health > /dev/null 2>&1; then
-              echo "Server ready"
-              break
-            fi
-            sleep 1
-          done
 
       - name: Start PocketBase server
         if: matrix.server == 'pocketbase'
@@ -170,7 +154,7 @@ jobs:
           GIT_DATA_REPO_URL=.dev/data-repo.git \
           GIT_DATA_REPO_PATH=.dev/data \
           GIT_FORGE_TYPE=local \
-          CONJECTURES_DIR=conjectures \
+          CONJECTURES_DIR=examples/data-repo/conjectures \
           ./target/pah-pocketbase serve --http=0.0.0.0:8090 &
           for i in $(seq 1 30); do
             if curl -sf http://localhost:8090/health > /dev/null 2>&1; then

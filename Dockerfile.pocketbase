@@ -16,7 +16,7 @@ FROM alpine:3.20
 RUN apk add --no-cache ca-certificates git
 
 COPY --from=builder /pah-pocketbase /pah-pocketbase
-COPY conjectures/ /conjectures/
+COPY examples/data-repo/conjectures/ /conjectures/
 COPY examples/data-repo/expositions/ /expositions/
 COPY examples/data-repo/lessons/ /lessons/
 

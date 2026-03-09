@@ -16,7 +16,7 @@ FROM alpine:3.20
 RUN apk add --no-cache ca-certificates git
 
 COPY --from=builder /server /server
-COPY conjectures/ /conjectures/
+COPY examples/data-repo/conjectures/ /conjectures/
 
 ENV PORT=8080
 ENV CONJECTURES_DIR=/conjectures
