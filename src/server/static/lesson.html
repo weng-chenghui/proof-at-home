@@ -918,10 +918,12 @@
                         return;
                     }
                     const range = sel.getRangeAt(0);
-                    // Check if any part of the selection is inside .lesson-body
-                    const ancestor = range.commonAncestorContainer;
-                    const ancestorEl = ancestor.nodeType === Node.TEXT_NODE ? ancestor.parentElement : ancestor;
-                    if (!lessonBody.contains(ancestorEl)) {
+                    // Check if any part of the selection touches .lesson-body
+                    // (commonAncestorContainer may be above .lesson-body when
+                    //  selection spans across KaTeX or other nested elements)
+                    const startEl = range.startContainer.nodeType === Node.TEXT_NODE ? range.startContainer.parentElement : range.startContainer;
+                    const endEl = range.endContainer.nodeType === Node.TEXT_NODE ? range.endContainer.parentElement : range.endContainer;
+                    if (!lessonBody.contains(startEl) && !lessonBody.contains(endEl)) {
                         floatBtn.classList.remove('visible');
                         return;
                     }
