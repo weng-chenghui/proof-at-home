@@ -68,6 +68,44 @@
             border-color: var(--accent);
             box-shadow: 0 0 0 3px var(--accent-subtle);
         }
+        .series-block {
+            margin-bottom: 2rem;
+            border-left: 3px solid var(--accent);
+            padding-left: 1.25rem;
+        }
+        .series-header {
+            margin-bottom: 0.75rem;
+        }
+        .series-header h2 {
+            margin: 0 0 0.25rem;
+            font-size: 1.15rem;
+            font-weight: 650;
+            letter-spacing: -0.02em;
+        }
+        .series-header-meta {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 0.25rem;
+        }
+        .series-header-meta .badge { font-size: 0.65rem; }
+        .series-header p {
+            margin: 0;
+            font-size: 0.825rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+        .standalone-header {
+            margin: 2rem 0 0.75rem;
+        }
+        .standalone-header h2 {
+            margin: 0;
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            letter-spacing: -0.01em;
+        }
     </style>
 </head>
 <body>
@@ -89,7 +127,7 @@
             </select>
         </div>
 
-        <div class="card-grid" id="grid" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));"></div>
+        <div id="lessons-container"></div>
 
         <div id="empty" class="empty-state" style="display:none">
             <h2>No lessons yet</h2>
@@ -99,32 +137,68 @@
     <script src="/shared.js"></script>
     <script>
         let allLessons = [];
+        let allSeries = [];
+
+        function lessonCard(l) {
+            return `<a class="lesson-card" href="/lesson.html?id=${encodeURIComponent(l.lesson_id)}">
+                <h3>${escapeHtml(l.title || l.lesson_id)}</h3>
+                <div class="lesson-card-meta">
+                    ${l.difficulty ? difficultyBadge(l.difficulty) : ''}
+                    ${l.topic ? `<span class="badge" style="background:var(--accent-subtle);color:var(--accent)">${escapeHtml(l.topic)}</span>` : ''}
+                </div>
+                <p class="lesson-card-desc">${escapeHtml(l.description || '')}</p>
+                <div class="lesson-card-footer">
+                    ${l.conjecture_ids ? `<span>${l.conjecture_ids.length} conjecture${l.conjecture_ids.length !== 1 ? 's' : ''}</span>` : ''}
+                    ${l.author_username ? `<span>by ${escapeHtml(l.author_username)}</span>` : ''}
+                </div>
+            </a>`;
+        }
 
         function render(lessons) {
-            const grid = document.getElementById('grid');
+            const container = document.getElementById('lessons-container');
             const empty = document.getElementById('empty');
             if (!lessons || lessons.length === 0) {
-                grid.innerHTML = '';
-                grid.style.display = 'none';
+                container.innerHTML = '';
                 empty.style.display = 'block';
                 return;
             }
-            grid.style.display = '';
             empty.style.display = 'none';
-            grid.innerHTML = lessons.map(l => `
-                <a class="lesson-card" href="/lesson.html?id=${encodeURIComponent(l.lesson_id)}">
-                    <h3>${escapeHtml(l.title || l.lesson_id)}</h3>
-                    <div class="lesson-card-meta">
-                        ${l.difficulty ? difficultyBadge(l.difficulty) : ''}
-                        ${l.topic ? `<span class="badge" style="background:var(--accent-subtle);color:var(--accent)">${escapeHtml(l.topic)}</span>` : ''}
+
+            const lessonMap = new Map(lessons.map(l => [l.lesson_id, l]));
+            const inSeries = new Set();
+            let html = '';
+
+            for (const s of allSeries) {
+                const seriesLessons = (s.lesson_ids || [])
+                    .map(id => lessonMap.get(id))
+                    .filter(Boolean);
+                if (seriesLessons.length === 0) continue;
+                seriesLessons.forEach(l => inSeries.add(l.lesson_id));
+
+                html += `<div class="series-block">
+                    <div class="series-header">
+                        <h2>${escapeHtml(s.title)}</h2>
+                        <div class="series-header-meta">
+                            ${s.difficulty ? difficultyBadge(s.difficulty) : ''}
+                            <span class="badge" style="background:var(--accent-subtle);color:var(--accent)">${seriesLessons.length} lesson${seriesLessons.length !== 1 ? 's' : ''}</span>
+                        </div>
+                        ${s.description ? `<p>${escapeHtml(s.description)}</p>` : ''}
                     </div>
-                    <p class="lesson-card-desc">${escapeHtml(l.description || '')}</p>
-                    <div class="lesson-card-footer">
-                        ${l.conjecture_ids ? `<span>${l.conjecture_ids.length} conjecture${l.conjecture_ids.length !== 1 ? 's' : ''}</span>` : ''}
-                        ${l.author_username ? `<span>by ${escapeHtml(l.author_username)}</span>` : ''}
+                    <div class="card-grid" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));">
+                        ${seriesLessons.map(lessonCard).join('')}
                     </div>
-                </a>
-            `).join('');
+                </div>`;
+            }
+
+            const standalone = lessons.filter(l => !inSeries.has(l.lesson_id));
+            if (standalone.length > 0) {
+                html += `<div class="standalone-header"><h2>Standalone Lessons</h2></div>
+                <div class="card-grid" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));">
+                    ${standalone.map(lessonCard).join('')}
+                </div>`;
+            }
+
+            container.innerHTML = html;
         }
 
         function applyFilters() {
@@ -142,7 +216,12 @@
 
         async function load() {
             try {
-                allLessons = await api('GET', '/lessons') || [];
+                const [lessons, series] = await Promise.all([
+                    api('GET', '/lessons'),
+                    api('GET', '/series').catch(() => []),
+                ]);
+                allLessons = lessons || [];
+                allSeries = (series || []).filter(s => s.lesson_ids && s.lesson_ids.length > 0);
                 // Populate topic filter from data
                 const topics = [...new Set(allLessons.map(l => l.topic).filter(Boolean))].sort();
                 const topicSelect = document.getElementById('filter-topic');
