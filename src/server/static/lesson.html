@@ -954,12 +954,6 @@
                         return;
                     }
 
-                    console.log('[AskAI] SHOW button', {
-                        text: text.slice(0, 60),
-                        rect: { top: rect.top, left: rect.left, w: rect.width, h: rect.height },
-                        btnPos: { top, left },
-                        viewport: { w: window.innerWidth, h: window.innerHeight }
-                    });
                     // Position above-right of selection, clamped to viewport
                     // Button is position:fixed so use viewport-relative coords (no scroll offset)
                     let top = rect.top - 32;
@@ -970,6 +964,12 @@
                         left = rect.left - btnWidth - 8;
                     }
                     if (left < 4) left = 4;
+                    console.log('[AskAI] SHOW button', {
+                        text: text.slice(0, 60),
+                        rect: { top: rect.top, left: rect.left, w: rect.width, h: rect.height },
+                        btnPos: { top, left },
+                        viewport: { w: window.innerWidth, h: window.innerHeight }
+                    });
                     floatBtn.style.top = top + 'px';
                     floatBtn.style.left = left + 'px';
                     floatBtn.classList.add('visible');
