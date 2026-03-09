@@ -1856,6 +1856,9 @@ func rebuildFromGit(app core.App) error {
 	// Seed lessons from LESSONS_DIR if not already loaded from git
 	seedLessons(app)
 
+	// Seed series from SERIES_DIR if not already loaded from git
+	seedSeries(app)
+
 	slog.Info("PocketBase rebuild from git complete", "path", repoPath)
 	return nil
 }
@@ -2050,6 +2053,70 @@ func seedLessons(app core.App) {
 			continue
 		}
 		slog.Info("seedLessons: saved lesson", "lesson_id", lesson.LessonID, "title", lesson.Title)
+	}
+}
+
+// seedSeries loads series markdown files from the SERIES_DIR directory.
+func seedSeries(app core.App) {
+	dir := os.Getenv("SERIES_DIR")
+	if dir == "" {
+		dir = "series"
+	}
+	slog.Info("seedSeries: starting", "dir", dir)
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		slog.Error("seedSeries: ReadDir failed", "dir", dir, "err", err)
+		return
+	}
+
+	collection, err := app.FindCollectionByNameOrId("series")
+	if err != nil {
+		slog.Error("seedSeries: collection lookup failed", "err", err)
+		return
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		seriesPath := filepath.Join(dir, entry.Name(), "series.md")
+		raw, err := os.ReadFile(seriesPath)
+		if err != nil {
+			continue
+		}
+		s, err := data.ParseSeriesFile(raw)
+		if err != nil {
+			slog.Error("seedSeries: ParseSeriesFile failed", "path", seriesPath, "err", err)
+			continue
+		}
+		if s.SeriesID == "" {
+			s.SeriesID = entry.Name()
+		}
+
+		// Skip if already loaded from git
+		existing, _ := app.FindFirstRecordByFilter("series", "series_id = {:sid}", map[string]any{
+			"sid": s.SeriesID,
+		})
+		if existing != nil {
+			slog.Info("seedSeries: skipping existing", "series_id", s.SeriesID)
+			continue
+		}
+
+		record := core.NewRecord(collection)
+		record.Set("series_id", s.SeriesID)
+		record.Set("title", s.Title)
+		record.Set("author_username", s.AuthorUsername)
+		record.Set("difficulty", s.Difficulty)
+		record.Set("description", s.Description)
+		record.Set("lesson_ids", s.LessonIDs)
+		record.Set("published", s.Published)
+		record.Set("content", s.Content)
+		if err := app.Save(record); err != nil {
+			slog.Error("seedSeries: Save failed", "series_id", s.SeriesID, "err", err)
+			continue
+		}
+		slog.Info("seedSeries: saved series", "series_id", s.SeriesID, "title", s.Title)
 	}
 }
 

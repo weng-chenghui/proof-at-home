@@ -19,10 +19,12 @@ COPY --from=builder /pah-pocketbase /pah-pocketbase
 COPY examples/data-repo/conjectures/ /conjectures/
 COPY examples/data-repo/expositions/ /expositions/
 COPY examples/data-repo/lessons/ /lessons/
+COPY examples/data-repo/series/ /series/
 
 ENV CONJECTURES_DIR=/conjectures
 ENV EXPOSITIONS_DIR=/expositions
 ENV LESSONS_DIR=/lessons
+ENV SERIES_DIR=/series
 
 EXPOSE 8090
 
