@@ -899,16 +899,17 @@
         // ── Floating button ──
         function initFloatingButton() {
             const floatBtn = document.getElementById('ai-ask-float');
+            const lessonBody = document.querySelector('.lesson-body');
+            if (!lessonBody) return;
 
-            document.addEventListener('mouseup', (e) => {
-                if (e.target === floatBtn || floatBtn.contains(e.target)) return;
+            let selDebounce = null;
 
-                const lessonBody = document.querySelector('.lesson-body');
-                if (!lessonBody) return;
-
-                setTimeout(() => {
+            // selectionchange fires on every caret/selection change — debounce it
+            document.addEventListener('selectionchange', () => {
+                clearTimeout(selDebounce);
+                selDebounce = setTimeout(() => {
                     const sel = window.getSelection();
-                    if (!sel || sel.rangeCount === 0) {
+                    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
                         floatBtn.classList.remove('visible');
                         return;
                     }
@@ -917,34 +918,38 @@
                         floatBtn.classList.remove('visible');
                         return;
                     }
-                    const range = sel.getRangeAt(0);
-                    // Check if any part of the selection touches .lesson-body
-                    // (commonAncestorContainer may be above .lesson-body when
-                    //  selection spans across KaTeX or other nested elements)
-                    const startEl = range.startContainer.nodeType === Node.TEXT_NODE ? range.startContainer.parentElement : range.startContainer;
-                    const endEl = range.endContainer.nodeType === Node.TEXT_NODE ? range.endContainer.parentElement : range.endContainer;
-                    if (!lessonBody.contains(startEl) && !lessonBody.contains(endEl)) {
+
+                    // Check if either endpoint is inside .lesson-body
+                    const anchorEl = sel.anchorNode?.nodeType === Node.TEXT_NODE ? sel.anchorNode.parentElement : sel.anchorNode;
+                    const focusEl = sel.focusNode?.nodeType === Node.TEXT_NODE ? sel.focusNode.parentElement : sel.focusNode;
+                    if (!anchorEl?.closest('.lesson-body') && !focusEl?.closest('.lesson-body')) {
                         floatBtn.classList.remove('visible');
                         return;
                     }
 
                     selectedText = text;
+                    const range = sel.getRangeAt(0);
                     const rect = range.getBoundingClientRect();
+                    if (!rect.width && !rect.height) {
+                        floatBtn.classList.remove('visible');
+                        return;
+                    }
 
-                    // Position: above-right of selection, clamped to viewport
+                    // Position above-right, clamped to viewport
                     let top = rect.top + window.scrollY - 32;
                     let left = rect.right + window.scrollX + 8;
-                    const btnWidth = 70; // approximate
+                    const btnWidth = 70;
                     if (left + btnWidth > window.innerWidth) {
                         left = rect.left + window.scrollX - btnWidth - 8;
                     }
                     floatBtn.style.top = top + 'px';
                     floatBtn.style.left = left + 'px';
                     floatBtn.classList.add('visible');
-                }, 10);
+                }, 80);
             });
 
-            document.addEventListener('mousedown', (e) => {
+            // Hide on pointerdown anywhere except the float button itself
+            document.addEventListener('pointerdown', (e) => {
                 if (e.target === floatBtn || floatBtn.contains(e.target)) return;
                 floatBtn.classList.remove('visible');
             });
