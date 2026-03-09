@@ -900,6 +900,7 @@
         function initFloatingButton() {
             const floatBtn = document.getElementById('ai-ask-float');
             const lessonBody = document.querySelector('.lesson-body');
+            console.log('[AskAI] initFloatingButton', { lessonBody: !!lessonBody });
             if (!lessonBody) return;
 
             let selDebounce = null;
@@ -910,11 +911,17 @@
                 selDebounce = setTimeout(() => {
                     const sel = window.getSelection();
                     if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
+                        console.log('[AskAI] skip: no selection or collapsed', {
+                            sel: !!sel,
+                            rangeCount: sel?.rangeCount,
+                            isCollapsed: sel?.isCollapsed
+                        });
                         floatBtn.classList.remove('visible');
                         return;
                     }
                     const text = sel.toString().trim();
                     if (!text) {
+                        console.log('[AskAI] skip: empty text');
                         floatBtn.classList.remove('visible');
                         return;
                     }
@@ -922,7 +929,18 @@
                     // Check if either endpoint is inside .lesson-body
                     const anchorEl = sel.anchorNode?.nodeType === Node.TEXT_NODE ? sel.anchorNode.parentElement : sel.anchorNode;
                     const focusEl = sel.focusNode?.nodeType === Node.TEXT_NODE ? sel.focusNode.parentElement : sel.focusNode;
-                    if (!anchorEl?.closest('.lesson-body') && !focusEl?.closest('.lesson-body')) {
+                    const anchorIn = anchorEl?.closest('.lesson-body');
+                    const focusIn = focusEl?.closest('.lesson-body');
+                    if (!anchorIn && !focusIn) {
+                        console.log('[AskAI] skip: not in .lesson-body', {
+                            anchorTag: anchorEl?.tagName,
+                            anchorClass: anchorEl?.className,
+                            anchorClosest: anchorEl?.closest('[class]')?.className,
+                            focusTag: focusEl?.tagName,
+                            focusClass: focusEl?.className,
+                            focusClosest: focusEl?.closest('[class]')?.className,
+                            text: text.slice(0, 60)
+                        });
                         floatBtn.classList.remove('visible');
                         return;
                     }
@@ -931,10 +949,15 @@
                     const range = sel.getRangeAt(0);
                     const rect = range.getBoundingClientRect();
                     if (!rect.width && !rect.height) {
+                        console.log('[AskAI] skip: zero-size rect', { rect });
                         floatBtn.classList.remove('visible');
                         return;
                     }
 
+                    console.log('[AskAI] SHOW button', {
+                        text: text.slice(0, 60),
+                        rect: { top: rect.top, left: rect.left, w: rect.width, h: rect.height }
+                    });
                     // Position above-right, clamped to viewport
                     let top = rect.top + window.scrollY - 32;
                     let left = rect.right + window.scrollX + 8;
