@@ -1,0 +1,19 @@
+id = "fin_delta_001"
+title = "Delta hedge replicates any derivative payoff"
+difficulty = "medium"
+prover = "lean4"
+status = "open"
+preamble = "import Mathlib.Tactic"
+lemma_statement = "theorem delta_hedge_replicates (S₀ u d r Vu Vd : ℝ)\n    (hS : S₀ ≠ 0) (hdu : d < u) (hr : 1 + r ≠ 0) :\n    let Δ := (Vu - Vd) / (S₀ * (u - d))\n    let B := (Vd - Δ * S₀ * d) / (1 + r)\n    Δ * S₀ * u + B * (1 + r) = Vu ∧ Δ * S₀ * d + B * (1 + r) = Vd := by"
+skeleton = "theorem delta_hedge_replicates (S₀ u d r Vu Vd : ℝ)\n    (hS : S₀ ≠ 0) (hdu : d < u) (hr : 1 + r ≠ 0) :\n    let Δ := (Vu - Vd) / (S₀ * (u - d))\n    let B := (Vd - Δ * S₀ * d) / (1 + r)\n    Δ * S₀ * u + B * (1 + r) = Vu ∧ Δ * S₀ * d + B * (1 + r) = Vd := by\n  sorry"
+hints = [
+    "Expand the definitions of Δ and B",
+    "Use field_simp to clear denominators",
+    "ring or linarith should close the goals",
+]
+
+[dependencies]
+lean_toolchain = "leanprover/lean4:v4.16.0"
+lake_packages = [
+    "mathlib",
+]

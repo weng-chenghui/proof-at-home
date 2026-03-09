@@ -259,15 +259,16 @@ func loadConjecturesFromDir(dir string) ([]data.Conjecture, error) {
 		if err != nil {
 			return nil // skip errors
 		}
-		if info.IsDir() || filepath.Ext(path) != ".json" {
+		ext := filepath.Ext(path)
+		if info.IsDir() || !data.IsConjectureExt(ext) {
 			return nil
 		}
 		raw, err := os.ReadFile(path)
 		if err != nil {
 			return nil
 		}
-		var c data.Conjecture
-		if err := json.Unmarshal(raw, &c); err != nil {
+		c, err := data.UnmarshalConjecture(raw, ext)
+		if err != nil {
 			return nil // skip invalid files
 		}
 		if c.ID == "" {

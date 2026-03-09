@@ -1,0 +1,19 @@
+id = "fin_binom_001"
+title = "Risk-neutral probability lies in (0,1)"
+difficulty = "medium"
+prover = "lean4"
+status = "open"
+preamble = "import Mathlib.Tactic"
+lemma_statement = "theorem binomial_risk_neutral (u d r : ℝ) (hdu : d < u) (hr1 : d < 1 + r) (hr2 : 1 + r < u) :\n    let q := (1 + r - d) / (u - d); 0 < q ∧ q < 1 := by"
+skeleton = "theorem binomial_risk_neutral (u d r : ℝ) (hdu : d < u) (hr1 : d < 1 + r) (hr2 : 1 + r < u) :\n    let q := (1 + r - d) / (u - d); 0 < q ∧ q < 1 := by\n  sorry"
+hints = [
+    "The numerator 1+r-d is positive by hr1",
+    "The denominator u-d is positive by hdu",
+    "For q < 1, show 1+r-d < u-d using hr2",
+]
+
+[dependencies]
+lean_toolchain = "leanprover/lean4:v4.16.0"
+lake_packages = [
+    "mathlib",
+]

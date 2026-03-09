@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 
+	toml "github.com/pelletier/go-toml/v2"
 	"github.com/proof-at-home/server/src/server/data"
 )
 
@@ -304,8 +305,8 @@ func (gs *GitStore) AddConjectures(conjectures []data.Conjecture, batchID string
 		}
 
 		for _, c := range conjectures {
-			path := filepath.Join("conjectures", c.ID+".json")
-			if err := gs.writeJSON(path, c); err != nil {
+			path := filepath.Join("conjectures", c.ID+".toml")
+			if err := gs.writeTOML(path, c); err != nil {
 				return nil, err
 			}
 		}
@@ -639,6 +640,24 @@ func (gs *GitStore) checkoutBranch(branch string) error {
 	if err := gs.gitInRepo("checkout", branch); err != nil {
 		return fmt.Errorf("checking out branch %s: %w", branch, err)
 	}
+	return nil
+}
+
+func (gs *GitStore) writeTOML(relPath string, v any) error {
+	absPath := filepath.Join(gs.repoPath, relPath)
+	if err := os.MkdirAll(filepath.Dir(absPath), 0o755); err != nil {
+		return fmt.Errorf("creating directory for %s: %w", relPath, err)
+	}
+
+	data, err := toml.Marshal(v)
+	if err != nil {
+		return fmt.Errorf("marshaling TOML for %s: %w", relPath, err)
+	}
+
+	if err := os.WriteFile(absPath, data, 0o644); err != nil {
+		return fmt.Errorf("writing %s: %w", relPath, err)
+	}
+
 	return nil
 }
 

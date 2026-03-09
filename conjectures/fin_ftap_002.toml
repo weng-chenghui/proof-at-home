@@ -1,0 +1,20 @@
+id = "fin_ftap_002"
+title = "FTAP reverse: risk-neutral measure implies no-arbitrage"
+difficulty = "medium"
+prover = "lean4"
+status = "open"
+preamble = "import Mathlib.Tactic"
+lemma_statement = "-- If there exist positive state prices q₁, q₂ such that the expected\n-- payoff of any portfolio is zero, then no arbitrage exists.\ntheorem ftap_reverse (q₁ q₂ : ℝ) (hq1 : 0 < q₁) (hq2 : 0 < q₂)\n    (payoff₁ payoff₂ : ℝ)\n    (h_pricing : q₁ * payoff₁ + q₂ * payoff₂ = 0)\n    (h_nonneg₁ : 0 ≤ payoff₁) (h_nonneg₂ : 0 ≤ payoff₂) :\n    payoff₁ = 0 ∧ payoff₂ = 0 := by"
+skeleton = "theorem ftap_reverse (q₁ q₂ : ℝ) (hq1 : 0 < q₁) (hq2 : 0 < q₂)\n    (payoff₁ payoff₂ : ℝ)\n    (h_pricing : q₁ * payoff₁ + q₂ * payoff₂ = 0)\n    (h_nonneg₁ : 0 ≤ payoff₁) (h_nonneg₂ : 0 ≤ payoff₂) :\n    payoff₁ = 0 ∧ payoff₂ = 0 := by\n  sorry"
+hints = [
+    "Both q₁ * payoff₁ and q₂ * payoff₂ are non-negative",
+    "Their sum is zero, so both must be zero",
+    "Use positivity of q₁, q₂ to conclude payoffs are zero",
+    "nlinarith or positivity tactics may help",
+]
+
+[dependencies]
+lean_toolchain = "leanprover/lean4:v4.16.0"
+lake_packages = [
+    "mathlib",
+]

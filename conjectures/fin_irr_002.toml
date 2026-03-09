@@ -1,0 +1,18 @@
+id = "fin_irr_002"
+title = "NPV is continuous in the discount rate"
+difficulty = "easy"
+prover = "lean4"
+status = "open"
+preamble = "import Mathlib.Tactic"
+lemma_statement = "theorem npv_continuous (n : ℕ) (cf : Fin n → ℝ) :\n    Continuous (fun r : ℝ => ∑ i : Fin n, cf i / (1 + r) ^ (i : ℕ)) := by"
+skeleton = "theorem npv_continuous (n : ℕ) (cf : Fin n → ℝ) :\n    Continuous (fun r : ℝ => ∑ i : Fin n, cf i / (1 + r) ^ (i : ℕ)) := by\n  sorry"
+hints = [
+    "Each summand is continuous",
+    "Use Continuous.sum and Continuous.div",
+]
+
+[dependencies]
+lean_toolchain = "leanprover/lean4:v4.16.0"
+lake_packages = [
+    "mathlib",
+]

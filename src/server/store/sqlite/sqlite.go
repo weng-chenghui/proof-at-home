@@ -133,7 +133,10 @@ func (s *SQLiteStore) GetConjecture(id string) (data.Conjecture, bool) {
 		json.Unmarshal([]byte(hints.String), &p.Hints)
 	}
 	if deps.Valid {
-		p.Dependencies = json.RawMessage(deps.String)
+		var d data.Dependencies
+		if err := json.Unmarshal([]byte(deps.String), &d); err == nil {
+			p.Dependencies = &d
+		}
 	}
 
 	return p, true
@@ -152,8 +155,10 @@ func (s *SQLiteStore) AddConjectures(conjectures []data.Conjecture) []string {
 		hintsJSON, _ := json.Marshal(p.Hints)
 		var depsJSON *string
 		if p.Dependencies != nil {
-			d := string(p.Dependencies)
-			depsJSON = &d
+			if b, err := json.Marshal(p.Dependencies); err == nil {
+				s := string(b)
+				depsJSON = &s
+			}
 		}
 
 		res, err := s.db.Exec(
@@ -885,7 +890,8 @@ func (s *SQLiteStore) RebuildFromDir(repoPath string) error {
 	conjecturesDir := filepath.Join(repoPath, "conjectures")
 	if entries, err := os.ReadDir(conjecturesDir); err == nil {
 		for _, entry := range entries {
-			if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
+			ext := filepath.Ext(entry.Name())
+			if entry.IsDir() || !data.IsConjectureExt(ext) {
 				continue
 			}
 			raw, err := os.ReadFile(filepath.Join(conjecturesDir, entry.Name()))
@@ -893,8 +899,8 @@ func (s *SQLiteStore) RebuildFromDir(repoPath string) error {
 				slog.Error("RebuildFromDir: failed to read conjecture", "file", entry.Name(), "error", err)
 				continue
 			}
-			var c data.Conjecture
-			if err := json.Unmarshal(raw, &c); err != nil {
+			c, err := data.UnmarshalConjecture(raw, ext)
+			if err != nil {
 				slog.Error("RebuildFromDir: failed to parse conjecture", "file", entry.Name(), "error", err)
 				continue
 			}
@@ -907,8 +913,10 @@ func (s *SQLiteStore) RebuildFromDir(repoPath string) error {
 			hintsJSON, _ := json.Marshal(c.Hints)
 			var depsJSON *string
 			if c.Dependencies != nil {
-				d := string(c.Dependencies)
-				depsJSON = &d
+				if b, err := json.Marshal(c.Dependencies); err == nil {
+					s := string(b)
+					depsJSON = &s
+				}
 			}
 			_, err = tx.Exec(
 				`INSERT INTO conjectures (id, title, difficulty, prover, status, preamble, lemma_statement, hints, skeleton, dependencies)
@@ -1310,7 +1318,8 @@ func (s *SQLiteStore) LoadConjectures(dir string) error {
 	}
 
 	for _, entry := range entries {
-		if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
+		ext := filepath.Ext(entry.Name())
+		if entry.IsDir() || !data.IsConjectureExt(ext) {
 			continue
 		}
 		path := filepath.Join(dir, entry.Name())
@@ -1319,8 +1328,8 @@ func (s *SQLiteStore) LoadConjectures(dir string) error {
 			return fmt.Errorf("reading %s: %w", path, err)
 		}
 
-		var p data.Conjecture
-		if err := json.Unmarshal(raw, &p); err != nil {
+		p, err := data.UnmarshalConjecture(raw, ext)
+		if err != nil {
 			return fmt.Errorf("parsing %s: %w", path, err)
 		}
 

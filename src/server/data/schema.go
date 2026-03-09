@@ -3,20 +3,25 @@ package data
 // "prover" = machine/software (proof assistant, e.g. rocq/lean4);
 // "contributor" = the human person who submitted or ran the proof.
 
-import "encoding/json"
-
 // Conjecture.Prover refers to the proof assistant software (e.g. "rocq", "lean4"), not the human.
 type Conjecture struct {
-	ID             string          `json:"id"`
-	Title          string          `json:"title"`
-	Difficulty     string          `json:"difficulty"`
-	Prover         string          `json:"prover"`
-	Status         string          `json:"status"`
-	Preamble       string          `json:"preamble"`
-	LemmaStatement string          `json:"lemma_statement"`
-	Hints          []string        `json:"hints"`
-	Skeleton       string          `json:"skeleton"`
-	Dependencies   json.RawMessage `json:"dependencies,omitempty"`
+	ID             string        `json:"id" toml:"id" yaml:"id"`
+	Title          string        `json:"title" toml:"title" yaml:"title"`
+	Difficulty     string        `json:"difficulty" toml:"difficulty" yaml:"difficulty"`
+	Prover         string        `json:"prover" toml:"prover" yaml:"prover"`
+	Status         string        `json:"status" toml:"status" yaml:"status"`
+	Preamble       string        `json:"preamble" toml:"preamble" yaml:"preamble"`
+	LemmaStatement string        `json:"lemma_statement" toml:"lemma_statement" yaml:"lemma_statement"`
+	Hints          []string      `json:"hints" toml:"hints" yaml:"hints"`
+	Skeleton       string        `json:"skeleton" toml:"skeleton" yaml:"skeleton"`
+	Dependencies   *Dependencies `json:"dependencies,omitempty" toml:"dependencies,omitempty" yaml:"dependencies,omitempty"`
+}
+
+type Dependencies struct {
+	LeanToolchain string   `json:"lean_toolchain,omitempty" toml:"lean_toolchain,omitempty" yaml:"lean_toolchain,omitempty"`
+	LakePackages  []string `json:"lake_packages,omitempty" toml:"lake_packages,omitempty" yaml:"lake_packages,omitempty"`
+	RocqVersion   string   `json:"rocq_version,omitempty" toml:"rocq_version,omitempty" yaml:"rocq_version,omitempty"`
+	OpamPackages  []string `json:"opam_packages,omitempty" toml:"opam_packages,omitempty" yaml:"opam_packages,omitempty"`
 }
 
 type ConjectureSummary struct {

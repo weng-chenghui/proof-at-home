@@ -1469,7 +1469,8 @@ func rebuildFromGit(app core.App) error {
 		collection, colErr := app.FindCollectionByNameOrId("conjectures")
 		if colErr == nil {
 			for _, entry := range entries {
-				if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
+				ext := filepath.Ext(entry.Name())
+				if entry.IsDir() || !data.IsConjectureExt(ext) {
 					continue
 				}
 				// Skip nft_metadata files
@@ -1481,8 +1482,8 @@ func rebuildFromGit(app core.App) error {
 					slog.Error("Rebuild: failed to read conjecture", "file", entry.Name(), "error", err)
 					continue
 				}
-				var c data.Conjecture
-				if err := json.Unmarshal(raw, &c); err != nil {
+				c, err := data.UnmarshalConjecture(raw, ext)
+				if err != nil {
 					slog.Error("Rebuild: failed to parse conjecture", "file", entry.Name(), "error", err)
 					continue
 				}
@@ -1877,7 +1878,8 @@ func seedConjectures(app core.App) {
 	}
 
 	for _, entry := range entries {
-		if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
+		ext := filepath.Ext(entry.Name())
+		if entry.IsDir() || !data.IsConjectureExt(ext) {
 			continue
 		}
 		if strings.HasPrefix(entry.Name(), "nft_metadata") {
@@ -1889,46 +1891,35 @@ func seedConjectures(app core.App) {
 			continue
 		}
 
-		var p struct {
-			ID             string          `json:"id"`
-			Title          string          `json:"title"`
-			Difficulty     string          `json:"difficulty"`
-			Prover         string          `json:"prover"`
-			Status         string          `json:"status"`
-			Preamble       string          `json:"preamble"`
-			LemmaStatement string          `json:"lemma_statement"`
-			Hints          json.RawMessage `json:"hints"`
-			Skeleton       string          `json:"skeleton"`
-			Dependencies   json.RawMessage `json:"dependencies"`
-		}
-		if err := json.Unmarshal(raw, &p); err != nil || p.ID == "" {
+		c, err := data.UnmarshalConjecture(raw, ext)
+		if err != nil || c.ID == "" {
 			continue
 		}
 
 		// Skip if already exists
 		existing, _ := app.FindFirstRecordByFilter("conjectures", "conjecture_id = {:pid}", map[string]any{
-			"pid": p.ID,
+			"pid": c.ID,
 		})
 		if existing != nil {
 			continue
 		}
 
-		status := p.Status
+		status := c.Status
 		if status == "" {
 			status = "open"
 		}
 
 		record := core.NewRecord(collection)
-		record.Set("conjecture_id", p.ID)
-		record.Set("title", p.Title)
-		record.Set("difficulty", p.Difficulty)
-		record.Set("prover", p.Prover)
+		record.Set("conjecture_id", c.ID)
+		record.Set("title", c.Title)
+		record.Set("difficulty", c.Difficulty)
+		record.Set("prover", c.Prover)
 		record.Set("status", status)
-		record.Set("preamble", p.Preamble)
-		record.Set("lemma_statement", p.LemmaStatement)
-		record.Set("hints", p.Hints)
-		record.Set("skeleton", p.Skeleton)
-		record.Set("dependencies", p.Dependencies)
+		record.Set("preamble", c.Preamble)
+		record.Set("lemma_statement", c.LemmaStatement)
+		record.Set("hints", c.Hints)
+		record.Set("skeleton", c.Skeleton)
+		record.Set("dependencies", c.Dependencies)
 
 		app.Save(record)
 	}

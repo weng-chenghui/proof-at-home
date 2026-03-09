@@ -1,0 +1,16 @@
+id = "prob_002"
+title = "Less-than-or-equal is antisymmetric on naturals"
+difficulty = "medium"
+prover = "rocq"
+status = "open"
+preamble = "Require Import Arith.\nRequire Import Lia."
+lemma_statement = "Lemma le_antisym : forall n m : nat, n <= m -> m <= n -> n = m."
+hints = [
+    "Consider using lia or omega",
+    "The standard library has Nat.le_antisymm",
+]
+skeleton = "Lemma le_antisym : forall n m : nat, n <= m -> m <= n -> n = m.\nProof.\n  (* your proof here *)\nAdmitted."
+
+[dependencies]
+rocq_version = "9.0"
+opam_packages = []

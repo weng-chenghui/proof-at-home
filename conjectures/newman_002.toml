@@ -1,0 +1,16 @@
+id = "newman_002"
+title = "Confluence implies Church-Rosser (joinability)"
+difficulty = "medium"
+prover = "rocq"
+status = "open"
+preamble = "Require Import Coq.Relations.Relation_Definitions.\nRequire Import Coq.Relations.Relation_Operators.\n\nSection Confluence.\n\nVariable A : Type.\nVariable R : relation A.\n\nDefinition joinable (x y : A) : Prop :=\n  exists z, clos_refl_trans A R x z /\\ clos_refl_trans A R y z.\n\nDefinition confluent : Prop :=\n  forall a b c, clos_refl_trans A R a b -> clos_refl_trans A R a c -> joinable b c."
+lemma_statement = "Lemma confluence_joinable : confluent ->\n  forall a b c, clos_refl_trans A R a b -> clos_refl_trans A R a c -> joinable b c."
+hints = [
+    "Induction on the reflexive-transitive closure derivation",
+    "Use confluence at each step",
+]
+skeleton = "Lemma confluence_joinable : confluent ->\n  forall a b c, clos_refl_trans A R a b -> clos_refl_trans A R a c -> joinable b c.\nProof.\n  (* your proof here *)\nAdmitted.\n\nEnd Confluence."
+
+[dependencies]
+rocq_version = "9.0"
+opam_packages = []

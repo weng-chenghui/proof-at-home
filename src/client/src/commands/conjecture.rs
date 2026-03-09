@@ -222,7 +222,7 @@ pub async fn cmd_get(id: &str) -> Result<()> {
 }
 
 pub async fn cmd_export(id: &str, format: &str) -> Result<()> {
-    let valid_formats = ["prompt", "json", "source"];
+    let valid_formats = ["prompt", "json", "toml", "yaml", "source"];
     if !valid_formats.contains(&format) {
         bail!(
             "Invalid format '{}'. Must be one of: {}",
@@ -239,6 +239,12 @@ pub async fn cmd_export(id: &str, format: &str) -> Result<()> {
     match format {
         "json" => {
             println!("{}", serde_json::to_string_pretty(&c)?);
+        }
+        "toml" => {
+            println!("{}", toml::to_string_pretty(&c)?);
+        }
+        "yaml" => {
+            println!("{}", serde_yaml::to_string(&c)?);
         }
         "source" => {
             if !c.preamble.is_empty() {
@@ -426,11 +432,11 @@ pub async fn cmd_import(
 
         match convert_lc_entry(&entry, difficulty) {
             Some(conjecture) => {
-                let json_path = out_dir.join(format!("{}.json", conjecture.id));
-                let json = serde_json::to_string_pretty(&conjecture)
+                let toml_path = out_dir.join(format!("{}.toml", conjecture.id));
+                let toml_str = toml::to_string_pretty(&conjecture)
                     .context("Failed to serialize conjecture")?;
-                std::fs::write(&json_path, json)
-                    .with_context(|| format!("Failed to write {}", json_path.display()))?;
+                std::fs::write(&toml_path, toml_str)
+                    .with_context(|| format!("Failed to write {}", toml_path.display()))?;
                 converted += 1;
             }
             None => {
@@ -632,7 +638,12 @@ fn tar_directory(dir: &Path) -> Result<Vec<u8>> {
     for entry in fs::read_dir(dir).context("Failed to read directory")? {
         let entry = entry?;
         let path = entry.path();
-        if path.is_file() && path.extension().and_then(|e| e.to_str()) == Some("json") {
+        if path.is_file()
+            && matches!(
+                path.extension().and_then(|e| e.to_str()),
+                Some("json" | "toml" | "yaml" | "yml")
+            )
+        {
             let name = entry.file_name();
             ar.append_path_with_name(&path, &name)
                 .with_context(|| format!("Failed to add {} to archive", path.display()))?;

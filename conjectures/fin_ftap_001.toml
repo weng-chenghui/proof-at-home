@@ -1,0 +1,19 @@
+id = "fin_ftap_001"
+title = "FTAP (two-state): no-arbitrage implies risk-neutral probability exists"
+difficulty = "hard"
+prover = "lean4"
+status = "open"
+preamble = "import Mathlib.Tactic"
+lemma_statement = "-- Simplified FTAP: In a two-state single-period binomial model,\n-- the no-arbitrage condition d < 1+r < u implies the existence of\n-- a risk-neutral probability q ∈ (0,1) such that the expected\n-- gross return under q equals the risk-free rate.\n\ntheorem ftap_two_state_forward (u d r : ℝ)\n    (hd_lt : d < 1 + r) (hr_lt : 1 + r < u) :\n    let q := (1 + r - d) / (u - d)\n    0 < q ∧ q < 1 ∧ q * u + (1 - q) * d = 1 + r := by"
+skeleton = "theorem ftap_two_state_forward (u d r : ℝ)\n    (hd_lt : d < 1 + r) (hr_lt : 1 + r < u) :\n    let q := (1 + r - d) / (u - d)\n    0 < q ∧ q < 1 ∧ q * u + (1 - q) * d = 1 + r := by\n  sorry"
+hints = [
+    "For q > 0: numerator and denominator are both positive",
+    "For q < 1: use div_lt_one and the bound 1+r < u",
+    "For the pricing equation: field_simp then ring",
+]
+
+[dependencies]
+lean_toolchain = "leanprover/lean4:v4.16.0"
+lake_packages = [
+    "mathlib",
+]
