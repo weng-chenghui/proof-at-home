@@ -193,6 +193,31 @@
             margin-right: 380px;
             transition: margin-right 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         }
+        .notes-edge-tab {
+            position: fixed;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%) rotate(-90deg);
+            transform-origin: right center;
+            z-index: 39;
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            padding: 0.35rem 0.75rem;
+            font-size: 0.7rem;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 6px 6px 0 0;
+            box-shadow: var(--shadow-sm);
+            transition: opacity 0.2s ease, right 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            letter-spacing: 0.03em;
+        }
+        .notes-edge-tab:hover {
+            opacity: 0.85;
+            box-shadow: none;
+            transform: translateY(-50%) rotate(-90deg);
+        }
+        body.sidebar-open .notes-edge-tab { opacity: 0; pointer-events: none; }
 
         .ai-sidebar-header {
             display: flex;
@@ -357,6 +382,7 @@
             background: var(--surface);
             overflow: hidden;
             font-size: 0.8rem;
+            flex-shrink: 0;
         }
         .note-card-color-bar {
             width: 4px;
@@ -799,6 +825,8 @@
         <button id="sel-note-btn" onclick="onSelNote()">&#9998; Note</button>
         <button id="sel-ai-btn" onclick="onSelAI()">&#10024; Ask AI</button>
     </div>
+
+    <button id="notes-edge-tab" class="notes-edge-tab" onclick="openSidebarToNotesOnly()" title="Open notes">Notes</button>
 
     <div id="ai-sidebar" class="ai-sidebar">
         <div class="ai-sidebar-header">
