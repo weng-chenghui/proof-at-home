@@ -1802,8 +1802,25 @@
             return div;
         }
 
+        // Protect LaTeX blocks from markdown parser (e.g. $r^*$ where * would be
+        // consumed as bold/italic). Extracts math delimited by $$..$$, $...$,
+        // \(..\), \[..\] into placeholders, runs the callback, then restores them.
+        function mathSafeMarkdown(src) {
+            const placeholders = [];
+            // Order matters: match $$ before $
+            const mathRe = /(\$\$[\s\S]*?\$\$|\$(?!\s)[^$]*?(?<!\s)\$|\\\([\s\S]*?\\\)|\\\[[\s\S]*?\\\])/g;
+            const safe = src.replace(mathRe, (m) => {
+                const idx = placeholders.length;
+                placeholders.push(m);
+                return `\x00MATH${idx}\x00`;
+            });
+            let html = marked.parse(safe);
+            html = html.replace(/\x00MATH(\d+)\x00/g, (_, i) => placeholders[+i]);
+            return html;
+        }
+
         function renderAIContent(text) {
-            let html = marked.parse(text);
+            let html = mathSafeMarkdown(text);
             const wrapper = document.createElement('div');
             wrapper.innerHTML = html;
             wrapper.querySelectorAll('pre code').forEach(el => {
@@ -2039,7 +2056,7 @@
 
                 let bodyHtml = '';
                 if (lesson.content) {
-                    bodyHtml = `<div class="lesson-body">${marked.parse(lesson.content)}</div>`;
+                    bodyHtml = `<div class="lesson-body">${mathSafeMarkdown(lesson.content)}</div>`;
                 }
 
                 const conjIds = lesson.conjecture_ids || [];
