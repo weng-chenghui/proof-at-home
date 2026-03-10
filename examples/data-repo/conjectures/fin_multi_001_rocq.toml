@@ -1,0 +1,16 @@
+id = "fin_multi_001_rocq"
+title = "Backward induction gives unique no-arbitrage price"
+difficulty = "easy"
+prover = "rocq"
+status = "open"
+preamble = "Require Import Reals.\nRequire Import Lra.\nOpen Scope R_scope."
+lemma_statement = "Lemma backward_induction_price : forall Vu Vd q r : R,\n  0 < 1 + r ->\n  let V0 := (q * Vu + (1 - q) * Vd) / (1 + r) in\n  V0 * (1 + r) = q * Vu + (1 - q) * Vd."
+skeleton = "Lemma backward_induction_price : forall Vu Vd q r : R,\n  0 < 1 + r ->\n  let V0 := (q * Vu + (1 - q) * Vd) / (1 + r) in\n  V0 * (1 + r) = q * Vu + (1 - q) * Vd.\nProof.\n  (* your proof here *)\nAdmitted."
+hints = [
+    "Unfold V0, then use field_simp with the hypothesis 0 < 1 + r",
+    "ring should close the goal",
+]
+
+[dependencies]
+rocq_version = "9.0"
+opam_packages = []

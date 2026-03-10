@@ -1,0 +1,16 @@
+id = "fin_crr_001_rocq"
+title = "CRR binomial prices converge to Black-Scholes"
+difficulty = "hard"
+prover = "rocq"
+status = "open"
+preamble = "Require Import Reals.\nOpen Scope R_scope."
+lemma_statement = "(** Placeholder: CRR convergence to Black-Scholes in Rocq.\n    Full formalization requires the CLT and real analysis libraries. *)\nLemma crr_convergence_statement : forall S K r sigma T : R,\n  0 < S -> 0 < K -> 0 < sigma -> 0 < T -> True."
+skeleton = "(** Placeholder: CRR convergence to Black-Scholes in Rocq.\n    Full formalization requires the CLT and real analysis libraries. *)\nLemma crr_convergence_statement : forall S K r sigma T : R,\n  0 < S -> 0 < K -> 0 < sigma -> 0 < T -> True.\nProof.\n  intros. exact I.\nQed."
+hints = [
+    "This is a placeholder -- the statement is True",
+    "The real statement would use Filter.Tendsto for convergence of binomial prices",
+]
+
+[dependencies]
+rocq_version = "9.0"
+opam_packages = []

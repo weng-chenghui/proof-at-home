@@ -1,0 +1,16 @@
+id = "fin_multi_002_rocq"
+title = "Self-financing portfolio identity"
+difficulty = "medium"
+prover = "rocq"
+status = "open"
+preamble = "Require Import Reals.\nRequire Import Lra.\nOpen Scope R_scope."
+lemma_statement = "Lemma self_financing : forall D0 B0 D1 B1 S0 S1 r : R,\n  D0 * S1 + B0 * (1 + r) = D1 * S1 + B1 * (1 + r) ->\n  D0 * S1 + B0 * (1 + r) = D1 * S1 + B1 * (1 + r)."
+skeleton = "Lemma self_financing : forall D0 B0 D1 B1 S0 S1 r : R,\n  D0 * S1 + B0 * (1 + r) = D1 * S1 + B1 * (1 + r) ->\n  D0 * S1 + B0 * (1 + r) = D1 * S1 + B1 * (1 + r).\nProof.\n  (* your proof here *)\nAdmitted."
+hints = [
+    "This is a direct consequence of the hypothesis",
+    "intro and exact or auto suffice",
+]
+
+[dependencies]
+rocq_version = "9.0"
+opam_packages = []

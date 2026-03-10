@@ -1,0 +1,18 @@
+id = "fin_binom_002_rocq"
+title = "Law of One Price (replicating portfolios have same initial value)"
+difficulty = "medium"
+prover = "rocq"
+status = "open"
+preamble = "Require Import Reals.\nRequire Import Lra.\nOpen Scope R_scope."
+lemma_statement = "Lemma law_of_one_price : forall u d r Vu Vd D1 B1 D2 B2 : R,\n  d < u ->\n  d < 1 + r -> 1 + r < u ->\n  D1 * u + B1 * (1 + r) = Vu ->\n  D1 * d + B1 * (1 + r) = Vd ->\n  D2 * u + B2 * (1 + r) = Vu ->\n  D2 * d + B2 * (1 + r) = Vd ->\n  D1 + B1 = D2 + B2."
+skeleton = "Lemma law_of_one_price : forall u d r Vu Vd D1 B1 D2 B2 : R,\n  d < u ->\n  d < 1 + r -> 1 + r < u ->\n  D1 * u + B1 * (1 + r) = Vu ->\n  D1 * d + B1 * (1 + r) = Vd ->\n  D2 * u + B2 * (1 + r) = Vu ->\n  D2 * d + B2 * (1 + r) = Vd ->\n  D1 + B1 = D2 + B2.\nProof.\n  (* your proof here *)\nAdmitted."
+hints = [
+    "Subtract the down-state equation from the up-state equation",
+    "Use the fact that u <> d to conclude D1 = D2",
+    "Substitute back to get B1 = B2",
+    "nlra or field_tac may help",
+]
+
+[dependencies]
+rocq_version = "9.0"
+opam_packages = []

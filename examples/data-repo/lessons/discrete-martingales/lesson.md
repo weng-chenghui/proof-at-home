@@ -3,7 +3,7 @@ lesson_id: discrete-martingales
 title: "Discrete Martingales & Fair Games"
 topic: mathematical-finance
 difficulty: hard
-conjecture_ids: [fin_mart_001, fin_mart_002]
+conjecture_ids: [fin_mart_001_lean4, fin_mart_001_rocq, fin_mart_002_lean4, fin_mart_002_rocq]
 published: true
 ai_annotations:
   - zone: "## What is a Martingale?"
@@ -47,7 +47,7 @@ $$E[S_{n+1} \mid S_1, \ldots, S_n] = S_n + E[X_{n+1}] = S_n + 0 = S_n$$
 
 So $(S_n)$ is a martingale. This is the simplest model of a fair game: on each round, you win or lose one unit with equal probability.
 
-**Conjecture `fin_mart_001`:** *The symmetric random walk is a martingale.*
+**Conjecture `fin_mart_001_lean4`:** *The symmetric random walk is a martingale.*
 
 ```lean4
 /-- The expected value of a symmetric ±1 step is zero,
@@ -59,6 +59,15 @@ theorem symmetric_rw_martingale
     p * (S + X_up) + (1 - p) * (S + X_dn) = S := by
   subst hp; subst hup; subst hdn
   ring
+```
+
+```rocq
+Lemma symmetric_rw_martingale : forall x : R,
+  let p := 1/2 in
+  p * (x + 1) + (1 - p) * (x - 1) = x.
+Proof.
+  (* your proof here *)
+Admitted.
 ```
 
 The proof substitutes $p = 1/2$, $X_{\text{up}} = 1$, $X_{\text{dn}} = -1$ and reduces the one-step conditional expectation to an algebraic identity that `ring` discharges.
@@ -73,7 +82,7 @@ Mathlib provides the infrastructure for a fully measure-theoretic treatment of m
 
 The full formalization of even simple examples requires careful handling of sigma-algebras, measurability proofs, and integrability conditions. Even in finite settings, the measure-theoretic overhead is non-trivial.
 
-Our simplified conjecture `fin_mart_001` sidesteps the measure theory by working directly with the algebraic content of the martingale property: the expected value computation. A full Mathlib-based proof would additionally verify adaptedness and integrability.
+Our simplified conjecture `fin_mart_001_lean4` sidesteps the measure theory by working directly with the algebraic content of the martingale property: the expected value computation. A full Mathlib-based proof would additionally verify adaptedness and integrability.
 
 ## Discounted Prices as Martingales
 
@@ -91,7 +100,7 @@ $$= \frac{S_0 \left(\frac{(1+r) - d}{u - d} \cdot u + \frac{u - (1+r)}{u - d} \c
 
 This is exactly the martingale property! The definition of $q$ is precisely the value that makes discounted prices a martingale.
 
-**Conjecture `fin_mart_002`:** *The discounted binomial price is a martingale under Q.*
+**Conjecture `fin_mart_002_lean4`:** *The discounted binomial price is a martingale under Q.*
 
 ```lean4
 /-- Under the risk-neutral measure, the discounted stock price
@@ -101,6 +110,16 @@ theorem discounted_martingale (S₀ u d r : ℝ) (hdu : d < u)
     let q := (1 + r - d) / (u - d)
     (q * (S₀ * u) + (1 - q) * (S₀ * d)) / (1 + r) = S₀ := by
   sorry
+```
+
+```rocq
+Lemma discounted_martingale : forall S0 u d r : R,
+  d < u -> d < 1 + r -> 1 + r < u -> 0 < 1 + r ->
+  let q := (1 + r - d) / (u - d) in
+  (q * (S0 * u) + (1 - q) * (S0 * d)) / (1 + r) = S0.
+Proof.
+  (* your proof here *)
+Admitted.
 ```
 
 The proof expands $q$ and simplifies. `field_simp` clears the denominators, and `ring` closes the resulting polynomial identity.
@@ -119,8 +138,8 @@ The martingale perspective unifies several key results:
 
 | Conjecture | Statement | Key Technique |
 |---|---|---|
-| `fin_mart_001` | Symmetric random walk one-step martingale property | Substitute $p = 1/2$, `ring` |
-| `fin_mart_002` | Discounted binomial price is a martingale under Q | Expand $q$, `field_simp`, `ring` |
+| `fin_mart_001_lean4` | Symmetric random walk one-step martingale property | Substitute $p = 1/2$, `ring` |
+| `fin_mart_002_lean4` | Discounted binomial price is a martingale under Q | Expand $q$, `field_simp`, `ring` |
 
 The martingale concept captures the idea that in a "fair" market (under the risk-neutral measure), prices have no predictable drift after discounting. This is not a statement about reality -- real prices do have drift under $\mathbb{P}$ -- but rather about the existence of a *valuation measure* under which discounted prices are fair games.
 

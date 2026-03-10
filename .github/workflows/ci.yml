@@ -119,6 +119,14 @@ jobs:
       - name: Test
         run: go test ./src/server/...
 
+  data-lint:
+    name: Data Lint
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate conjecture naming
+        run: ./scripts/check-conjectures.sh
+
   integration:
     name: Integration (${{ matrix.server }})
     runs-on: ubuntu-24.04-arm

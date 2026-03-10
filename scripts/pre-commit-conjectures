@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Pre-commit hook: validate conjecture naming when relevant files are staged.
+set -euo pipefail
+
+# Check if any conjecture or lesson files are staged
+if git diff --cached --name-only | grep -qE '^examples/data-repo/(conjectures|lessons)/'; then
+    echo "Running conjecture naming validation..."
+    ./scripts/check-conjectures.sh
+fi

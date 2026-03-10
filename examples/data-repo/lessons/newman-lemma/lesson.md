@@ -3,7 +3,7 @@ lesson_id: newman-lemma
 title: "Newman's Lemma: From Local to Global Confluence"
 topic: rewriting-systems
 difficulty: hard
-conjecture_ids: [newman_001, newman_002, newman_003]
+conjecture_ids: [newman_001_rocq, newman_001_lean4, newman_002_rocq, newman_002_lean4, newman_003_rocq, newman_003_lean4]
 published: true
 ai_annotations:
   - zone: "## Abstract Reduction Systems"
@@ -52,11 +52,20 @@ Confluence is also called the **Church-Rosser property**. It guarantees that the
 
 Before tackling confluence, we need a basic fact: the reflexive-transitive closure is transitive. If $x \to^* y$ and $y \to^* z$, then $x \to^* z$.
 
-**Conjecture `newman_001`:** *The reflexive-transitive closure is transitive.*
+**Conjecture `newman_001_rocq`:** *The reflexive-transitive closure is transitive.*
 
 ```rocq
 Lemma clos_rt_trans : forall (A : Type) (R : relation A) (x y z : A),
   clos_refl_trans A R x y -> clos_refl_trans A R y z -> clos_refl_trans A R x z.
+```
+
+```lean4
+theorem refl_trans_closure_trans {α : Type*} {R : α → α → Prop}
+    {x y z : α}
+    (hxy : Relation.ReflTransGen R x y)
+    (hyz : Relation.ReflTransGen R y z) :
+    Relation.ReflTransGen R x z := by
+  sorry
 ```
 
 This is proved by induction on the derivation of `clos_refl_trans A R x y`. The three cases correspond to the constructors of `clos_refl_trans`:
@@ -69,12 +78,23 @@ This is proved by induction on the derivation of `clos_refl_trans A R x y`. The 
 
 The second conjecture establishes that confluence is precisely the joinability of all pairs reachable from a common ancestor.
 
-**Conjecture `newman_002`:** *If $R$ is confluent, then for any $b$ and $c$ both reachable from $a$, there exists a common reduct.*
+**Conjecture `newman_002_rocq`:** *If $R$ is confluent, then for any $b$ and $c$ both reachable from $a$, there exists a common reduct.*
 
 ```rocq
 Lemma confluence_joinable :
   forall a b c, clos_refl_trans A R a b -> clos_refl_trans A R a c ->
   CR -> exists d, clos_refl_trans A R b d /\ clos_refl_trans A R c d.
+```
+
+```lean4
+theorem confluence_joinable {α : Type*} {R : α → α → Prop}
+    (hCR : ∀ a b c, Relation.ReflTransGen R a b → Relation.ReflTransGen R a c →
+      ∃ d, Relation.ReflTransGen R b d ∧ Relation.ReflTransGen R c d)
+    {a b c : α}
+    (hab : Relation.ReflTransGen R a b)
+    (hac : Relation.ReflTransGen R a c) :
+    ∃ d, Relation.ReflTransGen R b d ∧ Relation.ReflTransGen R c d := by
+  sorry
 ```
 
 This follows directly from unfolding the definition of CR. Its purpose is to build comfort with the diamond-shaped reasoning that pervades the Newman's lemma proof.
@@ -95,10 +115,20 @@ Here $b$ and $c$ reduce to $d$ and $e$ respectively, but $d$ and $e$ have no com
 
 ## Building the Proof
 
-**Conjecture `newman_003`:** *Newman's Lemma -- if $R$ is terminating and locally confluent, then $R$ is confluent.*
+**Conjecture `newman_003_rocq`:** *Newman's Lemma -- if $R$ is terminating and locally confluent, then $R$ is confluent.*
 
 ```rocq
 Lemma newman : well_founded (transp A R) -> WCR -> CR.
+```
+
+```lean4
+theorem newman {α : Type*} {R : α → α → Prop}
+    (wf : WellFounded (fun a b => R b a))
+    (wcr : ∀ a b c, R a b → R a c →
+      ∃ d, Relation.ReflTransGen R b d ∧ Relation.ReflTransGen R c d) :
+    ∀ a b c, Relation.ReflTransGen R a b → Relation.ReflTransGen R a c →
+      ∃ d, Relation.ReflTransGen R b d ∧ Relation.ReflTransGen R c d := by
+  sorry
 ```
 
 The key idea is **well-founded induction**. Since $R$ is terminating, the reverse relation `transp A R` is well-founded, and we can do induction on it via `Acc` (accessibility).
@@ -127,9 +157,9 @@ The proof is a beautiful example of how well-founded induction lets us reason ab
 
 | Conjecture | Statement | Key Technique |
 |---|---|---|
-| `newman_001` | $\to^*$ is transitive | Induction on `clos_refl_trans` |
-| `newman_002` | Confluence $\Rightarrow$ joinability | Unfold definition |
-| `newman_003` | SN + WCR $\Rightarrow$ CR | Well-founded induction on `Acc` |
+| `newman_001_rocq` | $\to^*$ is transitive | Induction on `clos_refl_trans` |
+| `newman_002_rocq` | Confluence $\Rightarrow$ joinability | Unfold definition |
+| `newman_003_rocq` | SN + WCR $\Rightarrow$ CR | Well-founded induction on `Acc` |
 
 Newman's lemma is widely used in term rewriting, lambda calculus, and automated theorem proving. For example, it underlies the proof that the simply-typed lambda calculus is confluent (since it is both terminating and locally confluent). In Knuth-Bendix completion, checking local confluence of a terminating rewrite system suffices to establish global confluence.
 

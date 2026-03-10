@@ -3,7 +3,7 @@ lesson_id: multi-period-binomial
 title: "Multi-Period Binomial & Backward Induction"
 topic: mathematical-finance
 difficulty: hard
-conjecture_ids: [fin_multi_001, fin_multi_002]
+conjecture_ids: [fin_multi_001_lean4, fin_multi_001_rocq, fin_multi_002_lean4, fin_multi_002_rocq]
 published: true
 ai_annotations:
   - zone: "## Extending to Multiple Periods"
@@ -76,7 +76,7 @@ where $q = (1 + r - d)/(u - d)$ is the risk-neutral probability from the single-
 
 This recursion computes the no-arbitrage price by treating each node as a single-period model and applying risk-neutral pricing locally.
 
-**Conjecture `fin_multi_001`:** *Backward induction gives the unique no-arbitrage price.*
+**Conjecture `fin_multi_001_lean4`:** *Backward induction gives the unique no-arbitrage price.*
 
 ```lean4
 theorem backward_induction_price (u d r : ℝ) (hdu : d < u)
@@ -87,6 +87,16 @@ theorem backward_induction_price (u d r : ℝ) (hdu : d < u)
       (q * payoff ⟨min (k + 1) n, by omega⟩ + (1 - q) * payoff ⟨k, by omega⟩) / (1 + r)
     ∀ k : Fin (n + 1), price k = (q * payoff ⟨min (k + 1) n, by omega⟩ + (1 - q) * payoff ⟨k, by omega⟩) / (1 + r) := by
   sorry
+```
+
+```rocq
+Lemma backward_induction_price : forall Vu Vd q r : R,
+  0 < 1 + r ->
+  let V0 := (q * Vu + (1 - q) * Vd) / (1 + r) in
+  V0 * (1 + r) = q * Vu + (1 - q) * Vd.
+Proof.
+  (* your proof here *)
+Admitted.
 ```
 
 This is a definitional warm-up: the statement says the locally-defined `price` function equals its own definition. While trivial (provable by `intro k; rfl`), it sets up the notation for the real backward induction proof. The substantive content — that this recursion gives the unique no-arbitrage price — requires showing that each step corresponds to the single-period replication argument.
@@ -111,13 +121,22 @@ $$(\Delta_{k+1} - \Delta_k) \cdot S_k = (B_k - B_{k+1})$$
 
 The proceeds from selling $(\Delta_k - \Delta_{k+1})$ shares at price $S_k$ exactly fund the change in bond holdings, and vice versa.
 
-**Conjecture `fin_multi_002`:** *The self-financing portfolio identity.*
+**Conjecture `fin_multi_002_lean4`:** *The self-financing portfolio identity.*
 
 ```lean4
 theorem self_financing (Δ_old Δ_new B_old B_new S r : ℝ)
     (h_sf : Δ_new * S + B_new * (1 + r) = Δ_old * S + B_old * (1 + r)) :
     (Δ_new - Δ_old) * S = (B_old - B_new) * (1 + r) := by
   linarith
+```
+
+```rocq
+Lemma self_financing : forall D_old D_new B_old B_new S r : R,
+  D_new * S + B_new * (1 + r) = D_old * S + B_old * (1 + r) ->
+  (D_new - D_old) * S = (B_old - B_new) * (1 + r).
+Proof.
+  (* your proof here *)
+Admitted.
 ```
 
 The proof follows directly from rearranging the self-financing condition.
@@ -147,8 +166,8 @@ This has a beautiful probabilistic interpretation: $V_0$ is the **expected payof
 
 | Conjecture | Statement | Key Technique |
 |---|---|---|
-| `fin_multi_001` | Backward induction consistency | `field_simp` |
-| `fin_multi_002` | Self-financing identity | `nlinarith` |
+| `fin_multi_001_lean4` | Backward induction consistency | `field_simp` |
+| `fin_multi_002_lean4` | Self-financing identity | `nlinarith` |
 
 The multi-period binomial model extends single-period pricing via backward induction, with each node treated as an independent single-period problem. The self-financing condition ensures that hedging strategies require no external cash flows. The closed-form binomial pricing formula reveals the deep connection between no-arbitrage pricing and expectation under the risk-neutral measure.
 

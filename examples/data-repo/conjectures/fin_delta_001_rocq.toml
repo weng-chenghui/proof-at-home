@@ -1,0 +1,17 @@
+id = "fin_delta_001_rocq"
+title = "Delta hedge replicates any derivative payoff"
+difficulty = "medium"
+prover = "rocq"
+status = "open"
+preamble = "Require Import Reals.\nRequire Import Lra.\nOpen Scope R_scope."
+lemma_statement = "Lemma delta_hedge_replicates : forall S0 u d r Vu Vd : R,\n  S0 <> 0 -> d < u -> 1 + r <> 0 ->\n  let D := (Vu - Vd) / (S0 * (u - d)) in\n  let B := (Vd - D * S0 * d) / (1 + r) in\n  D * S0 * u + B * (1 + r) = Vu /\\\n  D * S0 * d + B * (1 + r) = Vd."
+skeleton = "Lemma delta_hedge_replicates : forall S0 u d r Vu Vd : R,\n  S0 <> 0 -> d < u -> 1 + r <> 0 ->\n  let D := (Vu - Vd) / (S0 * (u - d)) in\n  let B := (Vd - D * S0 * d) / (1 + r) in\n  D * S0 * u + B * (1 + r) = Vu /\\\n  D * S0 * d + B * (1 + r) = Vd.\nProof.\n  (* your proof here *)\nAdmitted."
+hints = [
+    "Unfold D and B, then use field_simp to clear denominators",
+    "ring or nlra should close the resulting polynomial goals",
+    "You need S0 * (u - d) <> 0, which follows from S0 <> 0 and u <> d",
+]
+
+[dependencies]
+rocq_version = "9.0"
+opam_packages = []

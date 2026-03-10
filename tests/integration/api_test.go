@@ -88,9 +88,9 @@ func TestConjectures_ProverField(t *testing.T) {
 	getJSON(t, "/conjectures", &conjectures)
 
 	want := map[string]string{
-		"prob_001": "rocq",
-		"prob_002": "rocq",
-		"prob_003": "lean4",
+		"prob_001_rocq": "rocq",
+		"prob_002_rocq": "rocq",
+		"prob_003_lean4": "lean4",
 	}
 	for _, c := range conjectures {
 		if exp, ok := want[c.ID]; ok {
@@ -103,9 +103,9 @@ func TestConjectures_ProverField(t *testing.T) {
 
 func TestConjectures_GetByID(t *testing.T) {
 	var c conjecture
-	getJSON(t, "/conjectures/prob_001", &c)
-	if c.ID != "prob_001" {
-		t.Errorf("id = %q, want %q", c.ID, "prob_001")
+	getJSON(t, "/conjectures/prob_001_rocq", &c)
+	if c.ID != "prob_001_rocq" {
+		t.Errorf("id = %q, want %q", c.ID, "prob_001_rocq")
 	}
 	if c.Title == "" {
 		t.Error("title is empty")
@@ -299,7 +299,7 @@ func TestCreateContribution(t *testing.T) {
 		"conjectures_attempted": 1,
 		"conjectures_proved":    0,
 		"prover":                "rocq",
-		"conjecture_ids":        []string{"prob_001"},
+		"conjecture_ids":        []string{"prob_001_rocq"},
 	}
 	status, resp := postJSON(t, "/contributions", body)
 	if status != http.StatusCreated {
@@ -319,7 +319,7 @@ func TestSubmitProof(t *testing.T) {
 		"conjectures_attempted": 1,
 		"conjectures_proved":    0,
 		"prover":                "rocq",
-		"conjecture_ids":        []string{"prob_001"},
+		"conjecture_ids":        []string{"prob_001_rocq"},
 	}
 	status, _ := postJSON(t, "/contributions", body)
 	if status != http.StatusCreated {
@@ -328,7 +328,7 @@ func TestSubmitProof(t *testing.T) {
 
 	// Then submit a result
 	result := map[string]any{
-		"conjecture_id": "prob_001",
+		"conjecture_id": "prob_001_rocq",
 		"username":      "test-user-result",
 		"success":       true,
 		"proof_script":  "Proof. auto. Qed.",
@@ -353,7 +353,7 @@ func TestFinalizeContribution(t *testing.T) {
 		"conjectures_attempted": 1,
 		"conjectures_proved":    1,
 		"prover":                "rocq",
-		"conjecture_ids":        []string{"prob_001"},
+		"conjecture_ids":        []string{"prob_001_rocq"},
 	}
 	status, _ := postJSON(t, "/contributions", body)
 	if status != http.StatusCreated {
@@ -369,7 +369,7 @@ func TestFinalizeContribution(t *testing.T) {
 		"total_cost_usd":        0.05,
 		"proof_status":          "complete",
 		"prover":                "rocq",
-		"conjecture_ids":        []string{"prob_001"},
+		"conjecture_ids":        []string{"prob_001_rocq"},
 	}
 	status, resp := patchJSON(t, fmt.Sprintf("/contributions/%s", contribID), finalize)
 	if status != http.StatusOK {
@@ -389,7 +389,7 @@ func TestSealContribution(t *testing.T) {
 		"conjectures_attempted": 1,
 		"conjectures_proved":    1,
 		"prover":                "rocq",
-		"conjecture_ids":        []string{"prob_001"},
+		"conjecture_ids":        []string{"prob_001_rocq"},
 	}
 	postJSON(t, "/contributions", body)
 	patchJSON(t, fmt.Sprintf("/contributions/%s", contribID), body)
@@ -506,7 +506,7 @@ func TestManualProofContribution(t *testing.T) {
 
 	// 2. Submit a proof result with cost_usd = 0 (manual mode)
 	result := map[string]any{
-		"conjecture_id": "prob_001",
+		"conjecture_id": "prob_001_rocq",
 		"username":      "manual-prover",
 		"success":       true,
 		"proof_script":  "Lemma add_comm : forall n m : nat, n + m = m + n.\nProof.\n  intros n m. lia.\nQed.",
@@ -573,7 +573,7 @@ func TestManualProofContribution_ZeroCostResult(t *testing.T) {
 	}
 
 	result := map[string]any{
-		"conjecture_id": "prob_001",
+		"conjecture_id": "prob_001_rocq",
 		"username":      "manual-prover-2",
 		"success":       true,
 		"proof_script":  "Proof. lia. Qed.",
@@ -701,7 +701,7 @@ func TestContributorFlow(t *testing.T) {
 		"conjectures_attempted": 0,
 		"conjectures_proved":    0,
 		"prover":                "rocq",
-		"conjecture_ids":        []string{"prob_001"},
+		"conjecture_ids":        []string{"prob_001_rocq"},
 	}
 	status, _ := postJSON(t, "/contributions", create)
 	if status != http.StatusCreated {
@@ -710,7 +710,7 @@ func TestContributorFlow(t *testing.T) {
 
 	// 2. Submit proof with cost_usd > 0 (AI mode)
 	proof := map[string]any{
-		"conjecture_id": "prob_001",
+		"conjecture_id": "prob_001_rocq",
 		"username":      "flow-contributor",
 		"success":       true,
 		"proof_script":  "Proof. auto. Qed.",
@@ -731,7 +731,7 @@ func TestContributorFlow(t *testing.T) {
 		"total_cost_usd":        0.05,
 		"proof_status":          "complete",
 		"prover":                "rocq",
-		"conjecture_ids":        []string{"prob_001"},
+		"conjecture_ids":        []string{"prob_001_rocq"},
 	}
 	status, resp = patchJSON(t, fmt.Sprintf("/contributions/%s", contribID), finalize)
 	if status != http.StatusOK {
@@ -890,7 +890,7 @@ func TestExpositionFlow(t *testing.T) {
 		"exposition_id":   expoID,
 		"author_username": "expo-author",
 		"contribution_id": "a1111111-1111-1111-1111-111111111111",
-		"conjecture_id":   "prob_001",
+		"conjecture_id":   "prob_001_rocq",
 		"prover":          "rocq",
 		"proof_script":    "Proof. auto. Qed.",
 		"exposition_text":  "This proof uses the auto tactic to automatically discharge the goal.",
@@ -912,7 +912,7 @@ func TestExpositionFlow(t *testing.T) {
 		"attributes": []map[string]any{
 			{"trait_type": "Author Username", "value": "expo-author"},
 			{"trait_type": "Exposition ID", "value": expoID},
-			{"trait_type": "Conjecture ID", "value": "prob_001"},
+			{"trait_type": "Conjecture ID", "value": "prob_001_rocq"},
 			{"trait_type": "Prover", "value": "rocq"},
 			{"trait_type": "AI Cost (USD)", "value": "0.0300"},
 			{"trait_type": "Strategy Used", "value": "parse-proof"},
@@ -952,8 +952,8 @@ func TestExpositionFlow(t *testing.T) {
 			if e.AuthorUsername != "expo-author" {
 				t.Errorf("author_username = %q, want %q", e.AuthorUsername, "expo-author")
 			}
-			if e.ConjectureID != "prob_001" {
-				t.Errorf("conjecture_id = %q, want %q", e.ConjectureID, "prob_001")
+			if e.ConjectureID != "prob_001_rocq" {
+				t.Errorf("conjecture_id = %q, want %q", e.ConjectureID, "prob_001_rocq")
 			}
 			if e.Prover != "rocq" {
 				t.Errorf("prover = %q, want %q", e.Prover, "rocq")

@@ -1,0 +1,21 @@
+id = "crn_stoich_002_rocq"
+title = "O-atom conservation for water formation"
+difficulty = "easy"
+prover = "rocq"
+status = "open"
+preamble = "From mathcomp Require Import all_ssreflect all_algebra.\nOpen Scope ring_scope."
+lemma_statement = "Lemma o_atom_conservation :\n  let S : 'cV[int]_3 := \\col_i [:: -2; -1; 2]`_i in\n  let aO : 'rV[int]_3 := \\row_j [:: 0; 2; 1]`_j in\n  aO *m S = 0."
+skeleton = "Lemma o_atom_conservation :\n  let S : 'cV[int]_3 := \\col_i [:: -2; -1; 2]`_i in\n  let aO : 'rV[int]_3 := \\row_j [:: 0; 2; 1]`_j in\n  aO *m S = 0.\nProof.\n  (* your proof here *)\nAdmitted."
+hints = [
+    "Unfold the let bindings and apply matrixP to reduce to pointwise equality",
+    "Use ord1 or fin_cases on the column index (there is only one column)",
+    "rewrite /mulmx and simplify the big_ord sum with bigop lemmas",
+    "native_decide or ring may close the arithmetic goals",
+]
+
+[dependencies]
+rocq_version = "9.0"
+opam_packages = [
+    "coq-mathcomp-ssreflect",
+    "coq-mathcomp-algebra",
+]

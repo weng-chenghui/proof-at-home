@@ -1,0 +1,16 @@
+id = "fin_ftap_001_rocq"
+title = "FTAP (two-state): no-arbitrage implies risk-neutral probability exists"
+difficulty = "hard"
+prover = "rocq"
+status = "open"
+preamble = "Require Import Reals.\nRequire Import Lra.\nOpen Scope R_scope."
+lemma_statement = "Lemma ftap_forward : forall u d r : R,\n  d < u -> d < 1 + r -> 1 + r < u ->\n  let q := (1 + r - d) / (u - d) in\n  0 < q /\\ q < 1 /\\\n  q * u + (1 - q) * d = 1 + r."
+skeleton = "Lemma ftap_forward : forall u d r : R,\n  d < u -> d < 1 + r -> 1 + r < u ->\n  let q := (1 + r - d) / (u - d) in\n  0 < q /\\ q < 1 /\\\n  q * u + (1 - q) * d = 1 + r.\nProof.\n  (* your proof here *)\nAdmitted."
+hints = [
+    "The first two parts follow from binomial_risk_neutral",
+    "For the third, expand q and simplify: field_simp then ring",
+]
+
+[dependencies]
+rocq_version = "9.0"
+opam_packages = []

@@ -3,7 +3,7 @@ lesson_id: crn-stoichiometry
 title: "Atomicity & Conservation Laws (Stoichiometry)"
 topic: chemical-reaction-networks
 difficulty: easy
-conjecture_ids: [crn_stoich_001, crn_stoich_002]
+conjecture_ids: [crn_stoich_001_lean4, crn_stoich_002_rocq]
 published: true
 ai_annotations:
   - zone: "## The Stoichiometric Matrix"
@@ -78,7 +78,7 @@ $$a_O^T \cdot S = (0, 2, 1) \cdot \begin{pmatrix} -2 \\ -1 \\ 2 \end{pmatrix} = 
 
 Both atom-count vectors are in the left nullspace, confirming H and O conservation.
 
-**Conjecture `crn_stoich_001`:** *The H-atom count vector is in the left nullspace of the stoichiometric matrix for water formation.*
+**Conjecture `crn_stoich_001_lean4`:** *The H-atom count vector is in the left nullspace of the stoichiometric matrix for water formation.*
 
 ```lean4
 theorem h_atom_conservation :
@@ -88,7 +88,7 @@ theorem h_atom_conservation :
   sorry
 ```
 
-**Conjecture `crn_stoich_002`:** *The O-atom count vector is in the left nullspace for water formation.*
+**Conjecture `crn_stoich_002_rocq`:** *The O-atom count vector is in the left nullspace for water formation.*
 
 ```rocq
 Lemma o_atom_conservation :
@@ -108,8 +108,8 @@ Note the subtlety: mass balance for a *specific element* requires that element's
 
 | Conjecture | Statement | Key Technique |
 |---|---|---|
-| `crn_stoich_001` | H-atom vector in left nullspace | `Matrix`, `Fin`, `decide` or `norm_num` |
-| `crn_stoich_002` | O-atom vector in left nullspace | MathComp `matrix`, `mxker` |
+| `crn_stoich_001_lean4` | H-atom vector in left nullspace | `Matrix`, `Fin`, `decide` or `norm_num` |
+| `crn_stoich_002_rocq` | O-atom vector in left nullspace | MathComp `matrix`, `mxker` |
 
 ## Further Reading
 

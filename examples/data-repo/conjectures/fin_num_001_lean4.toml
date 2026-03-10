@@ -1,0 +1,18 @@
+id = "fin_num_001_lean4"
+title = "Interval bounds on discounted call intrinsic value"
+difficulty = "hard"
+prover = "lean4"
+status = "open"
+preamble = "import Mathlib.Tactic"
+lemma_statement = "theorem call_price_bound (S K r T sigma : ℝ)\n    (hS : S = 100) (hK : K = 100) (hr : r = 5/100) (hT : T = 1) (hsig : sigma = 20/100) :\n    let price := S - K / (1 + r)\n    0 < price := by"
+skeleton = "theorem call_price_bound (S K r T sigma : ℝ)\n    (hS : S = 100) (hK : K = 100) (hr : r = 5/100) (hT : T = 1) (hsig : sigma = 20/100) :\n    let price := S - K / (1 + r)\n    0 < price := by\n  sorry"
+hints = [
+    "Substitute the concrete values using subst or simp only [hS, hK, hr, hT, hsig]",
+    "norm_num should close the resulting numeric goal",
+]
+
+[dependencies]
+lean_toolchain = "leanprover/lean4:v4.16.0"
+lake_packages = [
+    "mathlib",
+]

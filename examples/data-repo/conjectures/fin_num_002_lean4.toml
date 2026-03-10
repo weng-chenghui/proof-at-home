@@ -1,0 +1,19 @@
+id = "fin_num_002_lean4"
+title = "Call price is increasing in the up-factor"
+difficulty = "medium"
+prover = "lean4"
+status = "open"
+preamble = "import Mathlib.Tactic"
+lemma_statement = "noncomputable def binomial_call (S K u r : ℝ) : ℝ :=\n  let d := 1 / u\n  let q := ((1 + r) - d) / (u - d)\n  (q * max (S * u - K) 0 + (1 - q) * max (S * d - K) 0) / (1 + r)\n\ntheorem call_increasing_in_u (S K u1 u2 r : ℝ)\n    (hS : 0 < S) (hK : 0 < K) (hu1 : 1 < u1) (hu2 : u1 < u2)\n    (hr : 0 < r) (hd2 : 1 / u2 < 1 + r) (hu1r : 1 + r < u1) :\n    binomial_call S K u1 r ≤ binomial_call S K u2 r := by"
+skeleton = "noncomputable def binomial_call (S K u r : ℝ) : ℝ :=\n  let d := 1 / u\n  let q := ((1 + r) - d) / (u - d)\n  (q * max (S * u - K) 0 + (1 - q) * max (S * d - K) 0) / (1 + r)\n\ntheorem call_increasing_in_u (S K u1 u2 r : ℝ)\n    (hS : 0 < S) (hK : 0 < K) (hu1 : 1 < u1) (hu2 : u1 < u2)\n    (hr : 0 < r) (hd2 : 1 / u2 < 1 + r) (hu1r : 1 + r < u1) :\n    binomial_call S K u1 r ≤ binomial_call S K u2 r := by\n  sorry"
+hints = [
+    "Unfold binomial_call and analyze the max expressions",
+    "Case split on whether each payoff is in the money",
+    "The key insight is that increasing u increases the up-state payoff while the risk-neutral probability adjusts",
+]
+
+[dependencies]
+lean_toolchain = "leanprover/lean4:v4.16.0"
+lake_packages = [
+    "mathlib",
+]

@@ -1,0 +1,20 @@
+id = "crn_graph_002_lean4"
+title = "Reachability in a simple reaction graph"
+difficulty = "medium"
+prover = "lean4"
+status = "open"
+preamble = "import Mathlib.Order.RelClasses\nimport Mathlib.Tactic"
+lemma_statement = "theorem reachability_0_to_2 :\n    let adj : Fin 3 → Fin 3 → Prop := fun i j =>\n      (i = 0 ∧ j = 1) ∨ (i = 1 ∧ j = 2) ∨ (i = 2 ∧ j = 0)\n    Relation.TransGen adj 0 2 := by"
+skeleton = "theorem reachability_0_to_2 :\n    let adj : Fin 3 → Fin 3 → Prop := fun i j =>\n      (i = 0 ∧ j = 1) ∨ (i = 1 ∧ j = 2) ∨ (i = 2 ∧ j = 0)\n    Relation.TransGen adj 0 2 := by\n  sorry"
+hints = [
+    "Construct the path explicitly: 0 → 1 → 2",
+    "Use Relation.TransGen.tail or Relation.TransGen.head to chain edges",
+    "Each edge is proved by Left or Right introduction followed by exact rfl",
+    "Relation.TransGen.single proves a one-step path",
+]
+
+[dependencies]
+lean_toolchain = "leanprover/lean4:v4.16.0"
+lake_packages = [
+    "mathlib",
+]

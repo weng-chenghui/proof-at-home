@@ -1,0 +1,18 @@
+id = "fin_ftap_002_rocq"
+title = "FTAP: risk-neutral measure implies no-arbitrage"
+difficulty = "medium"
+prover = "rocq"
+status = "open"
+preamble = "Require Import Reals.\nRequire Import Lra.\nOpen Scope R_scope."
+lemma_statement = "Lemma ftap_reverse : forall u d r q : R,\n  0 < q -> q < 1 ->\n  q * u + (1 - q) * d = 1 + r ->\n  d < 1 + r /\\ 1 + r < u."
+skeleton = "Lemma ftap_reverse : forall u d r q : R,\n  0 < q -> q < 1 ->\n  q * u + (1 - q) * d = 1 + r ->\n  d < 1 + r /\\ 1 + r < u.\nProof.\n  (* your proof here *)\nAdmitted."
+hints = [
+    "From q * u + (1-q) * d = 1+r, rewrite as 1+r = d + q*(u-d)",
+    "Since 0 < q and u > d (derive from the equation), d < 1+r",
+    "Similarly 1+r < u follows from q < 1",
+    "nlra or lra should close this after suitable manipulation",
+]
+
+[dependencies]
+rocq_version = "9.0"
+opam_packages = []

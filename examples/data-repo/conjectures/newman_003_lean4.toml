@@ -1,0 +1,19 @@
+id = "newman_003_lean4"
+title = "Newman's Lemma (termination + local confluence implies confluence)"
+difficulty = "hard"
+prover = "lean4"
+status = "open"
+preamble = "import Mathlib.Order.RelClasses\nimport Mathlib.Order.WellFounded\nimport Mathlib.Tactic"
+lemma_statement = "theorem newman {α : Type*} {R : α → α → Prop}\n    (wf : WellFounded (fun a b => R b a))\n    (wcr : ∀ a b c, R a b → R a c →\n      ∃ d, Relation.ReflTransGen R b d ∧ Relation.ReflTransGen R c d) :\n    ∀ a b c, Relation.ReflTransGen R a b → Relation.ReflTransGen R a c →\n      ∃ d, Relation.ReflTransGen R b d ∧ Relation.ReflTransGen R c d := by"
+skeleton = "theorem newman {α : Type*} {R : α → α → Prop}\n    (wf : WellFounded (fun a b => R b a))\n    (wcr : ∀ a b c, R a b → R a c →\n      ∃ d, Relation.ReflTransGen R b d ∧ Relation.ReflTransGen R c d) :\n    ∀ a b c, Relation.ReflTransGen R a b → Relation.ReflTransGen R a c →\n      ∃ d, Relation.ReflTransGen R b d ∧ Relation.ReflTransGen R c d := by\n  sorry"
+hints = [
+    "Use well-founded induction on a via wf.induction",
+    "Case split on ReflTransGen using head_induction_on or cases",
+    "Apply wcr to one-step divergences, then the IH to chain results",
+]
+
+[dependencies]
+lean_toolchain = "leanprover/lean4:v4.16.0"
+lake_packages = [
+    "mathlib",
+]

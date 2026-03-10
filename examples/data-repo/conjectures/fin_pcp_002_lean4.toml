@@ -1,0 +1,18 @@
+id = "fin_pcp_002_lean4"
+title = "Call payoff is non-negative"
+difficulty = "easy"
+prover = "lean4"
+status = "open"
+preamble = "import Mathlib.Tactic"
+lemma_statement = "theorem call_payoff_nonneg (S K : ℝ) : 0 ≤ max (S - K) 0 := by"
+skeleton = "theorem call_payoff_nonneg (S K : ℝ) : 0 ≤ max (S - K) 0 := by\n  sorry"
+hints = [
+    "le_max_right gives 0 ≤ max (S - K) 0 directly",
+    "Alternatively, simp [le_max_iff]",
+]
+
+[dependencies]
+lean_toolchain = "leanprover/lean4:v4.16.0"
+lake_packages = [
+    "mathlib",
+]

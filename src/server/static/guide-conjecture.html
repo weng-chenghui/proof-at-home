@@ -36,21 +36,45 @@
         <div class="workflow-step" style="margin-bottom: 1rem;">
             <div class="workflow-number">3</div>
             <div class="workflow-content">
-                <h3>Write conjecture JSON</h3>
-                <p>Each conjecture needs a JSON file with the required fields:</p>
-<pre><code>{
-  "id": "unique-conjecture-id",
-  "title": "My Conjecture",
-  "description": "A brief description",
-  "difficulty": "easy",
-  "prover": "rocq",
-  "code": "Theorem my_thm : forall n, n + 0 = n.\nProof.\n  Admitted."
-}</code></pre>
+                <h3>Naming Convention</h3>
+                <p>Every conjecture ID must follow the format: <code>{domain}_{topic}_{number}_{prover}</code></p>
+                <ul style="margin: 0.5rem 0 0.5rem 1.5rem; font-size: 0.9rem;">
+                    <li><strong>domain</strong> &mdash; lowercase alpha, the broad area (e.g., <code>fin</code>, <code>crn</code>, <code>newman</code>, <code>prob</code>)</li>
+                    <li><strong>topic</strong> &mdash; lowercase alphanumeric, the subtopic (e.g., <code>binom</code>, <code>stoich</code>); optional for single-topic domains</li>
+                    <li><strong>number</strong> &mdash; numeric digits (e.g., <code>001</code>, <code>42</code>)</li>
+                    <li><strong>prover</strong> &mdash; <code>lean4</code> or <code>rocq</code></li>
+                </ul>
+                <p>Examples: <code>fin_binom_001_lean4</code>, <code>newman_002_rocq</code>, <code>prob_003_lean4</code></p>
+                <p>The filename must be <code>{id}.toml</code> and the <code>prover</code> field must match the suffix.</p>
             </div>
         </div>
 
         <div class="workflow-step" style="margin-bottom: 1rem;">
             <div class="workflow-number">4</div>
+            <div class="workflow-content">
+                <h3>Write conjecture TOML</h3>
+                <p>Each conjecture is a TOML file with the required fields:</p>
+<pre><code>id = "fin_binom_001_lean4"
+title = "Risk-neutral probability lies in (0,1)"
+difficulty = "medium"
+prover = "lean4"
+status = "open"
+preamble = "import Mathlib.Tactic"
+lemma_statement = "theorem binomial_risk_neutral ..."
+skeleton = "theorem binomial_risk_neutral ...\n  sorry"
+hints = [
+    "The numerator is positive by hypothesis",
+]
+
+[dependencies]
+lean_toolchain = "leanprover/lean4:v4.16.0"
+lake_packages = ["mathlib"]</code></pre>
+                <p>For Rocq conjectures, use <code>rocq_version</code> and <code>opam_packages</code> under <code>[dependencies]</code>.</p>
+            </div>
+        </div>
+
+        <div class="workflow-step" style="margin-bottom: 1rem;">
+            <div class="workflow-number">5</div>
             <div class="workflow-content">
                 <h3>Submit</h3>
                 <p>Submit a directory, tar.gz, or git URL. The CLI auto-seals with submitter NFT metadata:</p>
@@ -59,7 +83,7 @@
         </div>
 
         <div class="workflow-step" style="margin-bottom: 1rem;">
-            <div class="workflow-number">5</div>
+            <div class="workflow-number">6</div>
             <div class="workflow-content">
                 <h3>View your NFT credit</h3>
                 <p>Your submitter NFT is generated immediately. Browse the gallery to see it.</p>

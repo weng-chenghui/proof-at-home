@@ -1,0 +1,19 @@
+id = "fin_pcp_001_lean4"
+title = "Put-Call Parity: payoff identity"
+difficulty = "easy"
+prover = "lean4"
+status = "open"
+preamble = "import Mathlib.Tactic"
+lemma_statement = "theorem put_call_parity (S K : ℝ) :\n    max (S - K) 0 + K = max (K - S) 0 + S := by"
+skeleton = "theorem put_call_parity (S K : ℝ) :\n    max (S - K) 0 + K = max (K - S) 0 + S := by\n  sorry"
+hints = [
+    "Use rcases le_or_lt S K to case split",
+    "In each case, simp [max_eq_left, max_eq_right] with the appropriate inequality",
+    "linarith or omega may close the arithmetic goals",
+]
+
+[dependencies]
+lean_toolchain = "leanprover/lean4:v4.16.0"
+lake_packages = [
+    "mathlib",
+]

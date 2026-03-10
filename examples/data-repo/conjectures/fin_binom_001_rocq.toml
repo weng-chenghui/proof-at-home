@@ -1,0 +1,17 @@
+id = "fin_binom_001_rocq"
+title = "Risk-neutral probability lies in (0,1)"
+difficulty = "medium"
+prover = "rocq"
+status = "open"
+preamble = "Require Import Reals.\nRequire Import Lra.\nOpen Scope R_scope."
+lemma_statement = "Lemma binomial_risk_neutral : forall u d r : R,\n  d < u -> d < 1 + r -> 1 + r < u ->\n  let q := (1 + r - d) / (u - d) in\n  0 < q /\\ q < 1."
+skeleton = "Lemma binomial_risk_neutral : forall u d r : R,\n  d < u -> d < 1 + r -> 1 + r < u ->\n  let q := (1 + r - d) / (u - d) in\n  0 < q /\\ q < 1.\nProof.\n  (* your proof here *)\nAdmitted."
+hints = [
+    "Split into two subgoals: 0 < q and q < 1",
+    "For 0 < q, use Rdiv_pos_pos with positive numerator and denominator",
+    "For q < 1, show (1+r-d) < (u-d) using the third hypothesis, then use Rdiv_lt_1",
+]
+
+[dependencies]
+rocq_version = "9.0"
+opam_packages = []

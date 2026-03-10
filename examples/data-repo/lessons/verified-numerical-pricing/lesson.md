@@ -3,7 +3,7 @@ lesson_id: verified-numerical-pricing
 title: "Verified Numerical Pricing with Interval Arithmetic"
 topic: mathematical-finance
 difficulty: hard
-conjecture_ids: [fin_num_001, fin_num_002]
+conjecture_ids: [fin_num_001_rocq, fin_num_001_lean4, fin_num_002_rocq, fin_num_002_lean4]
 published: true
 ai_annotations:
   - zone: "## The Problem with Floating-Point"
@@ -69,7 +69,7 @@ The `interval` tactic evaluates the expression using verified interval arithmeti
 
 ## Verified Bounds on a Call Price
 
-**Conjecture `fin_num_001`:** *Interval bounds on discounted call intrinsic value.*
+**Conjecture `fin_num_001_rocq`:** *Interval bounds on discounted call intrinsic value.*
 
 ```rocq
 Require Import Reals.
@@ -85,6 +85,14 @@ Lemma call_price_bound : forall S K r T sigma : R,
 Proof.
   (* Substitute concrete values, then lra *)
 Admitted.
+```
+
+```lean4
+theorem call_price_bound (S K r T sigma : ℝ)
+    (hS : S = 100) (hK : K = 100) (hr : r = 5/100) (hT : T = 1) (hsig : sigma = 20/100) :
+    let price := S - K / (1 + r)
+    0 < price := by
+  sorry
 ```
 
 This simplified example verifies that the discounted intrinsic value $S - K/(1+r)$ is positive — a basic sanity check on the price bounds. The full version would define `black_scholes_call` using exp, $\Phi$, and the other components, then use `interval` to automatically verify that the computed price lies within specified bounds.
@@ -110,7 +118,7 @@ $$\text{Vega} = \frac{\partial C}{\partial \sigma} > 0$$
 
 In the binomial model, increasing the up-factor $u$ (with $d = 1/u$) spreads the payoff distribution while keeping the mean fixed. The call payoff in the up state increases, while the down-state payoff remains zero.
 
-**Conjecture `fin_num_002`:** *The call price is increasing in the up-factor.*
+**Conjecture `fin_num_002_rocq`:** *The call price is increasing in the up-factor.*
 
 ```rocq
 Require Import Reals.
@@ -135,6 +143,19 @@ Proof.
 Admitted.
 ```
 
+```lean4
+noncomputable def binomial_call (S K u r : ℝ) : ℝ :=
+  let d := 1 / u
+  let q := ((1 + r) - d) / (u - d)
+  (q * max (S * u - K) 0 + (1 - q) * max (S * d - K) 0) / (1 + r)
+
+theorem call_increasing_in_u (S K u1 u2 r : ℝ)
+    (hS : 0 < S) (hK : 0 < K) (hu1 : 1 < u1) (hu2 : u1 < u2)
+    (hr : 0 < r) (hd2 : 1 / u2 < 1 + r) (hu1r : 1 + r < u1) :
+    binomial_call S K u1 r ≤ binomial_call S K u2 r := by
+  sorry
+```
+
 The proof requires case analysis on whether $S \cdot u - K$ and $S \cdot d - K$ are positive, followed by algebraic manipulation of the pricing formula. The `Admitted` marks this as an open formalization goal.
 
 ## Practical Implications
@@ -151,8 +172,8 @@ The gap between current practice (testing, code review) and formal verification 
 
 | Conjecture | Statement | Key Technique |
 |---|---|---|
-| `fin_num_001` | Interval bounds on discounted call intrinsic value | Substitution, `lra` / CoqInterval `interval` |
-| `fin_num_002` | Call price increasing in up-factor | Case analysis, algebraic comparison |
+| `fin_num_001_rocq` | Interval bounds on discounted call intrinsic value | Substitution, `lra` / CoqInterval `interval` |
+| `fin_num_002_rocq` | Call price increasing in up-factor | Case analysis, algebraic comparison |
 
 ## Further Reading
 

@@ -1,0 +1,17 @@
+id = "fin_mart_002_rocq"
+title = "Discounted binomial price is a martingale under Q"
+difficulty = "hard"
+prover = "rocq"
+status = "open"
+preamble = "Require Import Reals.\nRequire Import Lra.\nOpen Scope R_scope."
+lemma_statement = "Lemma discounted_martingale : forall S0 u d r : R,\n  d < u -> d < 1 + r -> 1 + r < u -> 0 < 1 + r ->\n  let q := (1 + r - d) / (u - d) in\n  (q * (S0 * u) + (1 - q) * (S0 * d)) / (1 + r) = S0."
+skeleton = "Lemma discounted_martingale : forall S0 u d r : R,\n  d < u -> d < 1 + r -> 1 + r < u -> 0 < 1 + r ->\n  let q := (1 + r - d) / (u - d) in\n  (q * (S0 * u) + (1 - q) * (S0 * d)) / (1 + r) = S0.\nProof.\n  (* your proof here *)\nAdmitted."
+hints = [
+    "Expand q and simplify the numerator",
+    "field_simp to clear denominators, then ring",
+    "You need u - d <> 0 and 1 + r <> 0",
+]
+
+[dependencies]
+rocq_version = "9.0"
+opam_packages = []

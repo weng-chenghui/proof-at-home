@@ -93,7 +93,7 @@ The body supports standard Markdown with:
 - **Math:** Inline `$x + y$` and display `$$\forall x. P(x)$$`
 - **Code blocks:** Use ` ```rocq ` or ` ```lean4 ` for proof snippets
 - **Tables, lists, headings** -- all standard Markdown
-- **Conjecture references:** Mention conjecture IDs like `newman_001` in the text
+- **Conjecture references:** Mention conjecture IDs like `newman_001_rocq` in the text
 
 ### AI Annotations
 
@@ -114,7 +114,7 @@ The CLI fetches conjecture data from the server, sends it to an AI provider, and
 
 ```bash
 pah lesson create --topic rewriting-systems \
-  --conjectures newman_001,newman_002,newman_003
+  --conjectures newman_001_rocq,newman_002_rocq,newman_003_rocq
 ```
 
 ### 2. Pair-Proved
@@ -123,7 +123,7 @@ For users who have access to Claude or ChatGPT but no API key configured:
 
 ```bash
 # Step 1: Export the prompt
-pah lesson export --conjectures newman_001,newman_002,newman_003 > prompt.txt
+pah lesson export --conjectures newman_001_rocq,newman_002_rocq,newman_003_rocq > prompt.txt
 
 # Step 2: Paste prompt.txt into Claude, get lesson.md back
 
@@ -168,7 +168,7 @@ pah series create --lessons how-to-create-a-lesson,newman-lemma
 
 The `newman-lemma` lesson in this repository demonstrates every feature:
 
-1. **Three conjectures** of increasing difficulty (`newman_001`, `newman_002`, `newman_003`)
+1. **Three conjectures** of increasing difficulty (`newman_001_rocq`, `newman_002_rocq`, `newman_003_rocq`)
 2. **Proof strategy walkthrough** before the formal proof
 3. **A counterexample** showing why termination is necessary
 4. **AI annotations** on the key sections
@@ -186,7 +186,7 @@ pah conjecture list
 pah lesson get newman-lemma
 
 # Export the lesson creation prompt
-pah lesson export --conjectures newman_001,newman_002,newman_003 --topic rewriting-systems
+pah lesson export --conjectures newman_001_rocq,newman_002_rocq,newman_003_rocq --topic rewriting-systems
 ```
 
 ## Summary

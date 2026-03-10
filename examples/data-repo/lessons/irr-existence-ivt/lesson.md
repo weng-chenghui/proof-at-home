@@ -3,7 +3,7 @@ lesson_id: irr-existence-ivt
 title: "Time Value of Money — Existence of IRR via IVT"
 topic: mathematical-finance
 difficulty: medium
-conjecture_ids: [fin_irr_002, fin_irr_001]
+conjecture_ids: [fin_irr_002_lean4, fin_irr_002_rocq, fin_irr_001_lean4, fin_irr_001_rocq]
 published: true
 ai_annotations:
   - zone: "## Net Present Value"
@@ -56,12 +56,21 @@ Note that this definition is well-defined for all $r \neq -1$. At $r = 0$, each 
 
 To apply IVT, we first need to show that NPV is **continuous** as a function of the discount rate $r$.
 
-**Conjecture `fin_irr_002`:** *NPV is continuous in the discount rate.*
+**Conjecture `fin_irr_002_lean4`:** *NPV is continuous in the discount rate.*
 
 ```lean4
 theorem npv_continuous (n : ℕ) (cf : Fin n → ℝ) :
     Continuous (fun r : ℝ => ∑ i : Fin n, cf i / (1 + r) ^ (i : ℕ)) := by
   sorry
+```
+
+```rocq
+(** Simplified: NPV of a single cash flow is continuous. *)
+Lemma npv_continuous_simple : forall C : R,
+  continuity (fun r => C / (1 + r)).
+Proof.
+  (* your proof here *)
+Admitted.
 ```
 
 ### Proof Strategy
@@ -87,7 +96,7 @@ Consider a typical investment: an initial outlay $c_0 < 0$ (you pay money upfron
 
 Since NPV is continuous and changes sign on $(0, \infty)$, by the **Intermediate Value Theorem** there exists some $r^* > 0$ with $\text{NPV}(r^*) = 0$.
 
-**Conjecture `fin_irr_001`:** *Existence of IRR via the Intermediate Value Theorem.*
+**Conjecture `fin_irr_001_lean4`:** *Existence of IRR via the Intermediate Value Theorem.*
 
 ```lean4
 theorem exists_irr (n : ℕ) (cf : Fin (n+1) → ℝ)
@@ -95,6 +104,16 @@ theorem exists_irr (n : ℕ) (cf : Fin (n+1) → ℝ)
     (h_neg : ∃ R : ℝ, 0 < R ∧ ∑ i : Fin (n+1), cf i / (1 + R) ^ (i : ℕ) < 0) :
     ∃ r : ℝ, 0 < r ∧ ∑ i : Fin (n+1), cf i / (1 + r) ^ (i : ℕ) = 0 := by
   sorry
+```
+
+```rocq
+(** Simplified version: NPV changes sign between two rates. *)
+Lemma irr_existence_simple : forall C0 C1 : R,
+  C0 < 0 -> C1 > 0 -> 0 < C0 + C1 ->
+  exists r : R, 0 < r /\ C0 + C1 / (1 + r) = 0.
+Proof.
+  (* your proof here *)
+Admitted.
 ```
 
 ### Proof Strategy
@@ -117,8 +136,8 @@ Note that we prove *existence* but not *uniqueness* of the IRR. In general, IRR 
 
 | Conjecture | Statement | Key Technique |
 |---|---|---|
-| `fin_irr_002` | NPV is continuous in $r$ | `continuous_finset_sum`, `Continuous.div`, `Continuous.pow` |
-| `fin_irr_001` | IRR exists when $c_0 < 0$ and $\sum c_i > 0$ | Intermediate Value Theorem on continuous NPV |
+| `fin_irr_002_lean4` | NPV is continuous in $r$ | `continuous_finset_sum`, `Continuous.div`, `Continuous.pow` |
+| `fin_irr_001_lean4` | IRR exists when $c_0 < 0$ and $\sum c_i > 0$ | Intermediate Value Theorem on continuous NPV |
 
 The progression mirrors how one builds a mathematical proof: first establish the regularity of the function (continuity), then apply a topological theorem (IVT) to deduce existence. This pattern — *regularity then application* — recurs throughout mathematical finance, from option pricing (continuity of payoff functions) to equilibrium theory (fixed-point theorems).
 

@@ -809,6 +809,32 @@
             .ai-sidebar.open { right: 0; }
             body.sidebar-open .container { margin-right: 0; }
         }
+
+        /* ── Language toggle ────────────────────────── */
+        .lang-toggle {
+            display: inline-flex;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+            font-size: 0.8rem;
+            margin-bottom: 1rem;
+        }
+        .lang-toggle button {
+            padding: 0.35rem 0.75rem;
+            border: none;
+            background: var(--surface);
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-weight: 500;
+            transition: all var(--transition);
+            border-right: 1px solid var(--border);
+        }
+        .lang-toggle button:last-child { border-right: none; }
+        .lang-toggle button:hover { background: var(--accent-subtle); color: var(--text); }
+        .lang-toggle button.active {
+            background: var(--accent);
+            color: #fff;
+        }
     </style>
 </head>
 <body>
@@ -2065,9 +2091,17 @@
                     conjHtml = '<h2>Conjectures</h2><div class="conj-list" id="conj-list"></div>';
                 }
 
+                // Language toggle
+                const langToggleHtml = `<div class="lang-toggle" id="lang-toggle" style="display:none">
+                    <button data-lang="lean4">Lean 4</button>
+                    <button data-lang="rocq">Rocq</button>
+                    <button data-lang="both">Both</button>
+                </div>`;
+
                 document.getElementById('content').innerHTML = `
                     <h1>${escapeHtml(lessonTitle)}</h1>
                     ${metaHtml}
+                    ${langToggleHtml}
                     ${bodyHtml}
                     ${conjHtml}
                 `;
@@ -2116,7 +2150,7 @@
                         const cid = conjIds[i];
                         if (r.status === 'fulfilled') {
                             const c = r.value;
-                            return `<a class="conj-item" href="/conjecture.html?id=${encodeURIComponent(cid)}">
+                            return `<a class="conj-item" href="/conjecture.html?id=${encodeURIComponent(cid)}" data-prover="${escapeHtml(c.prover || '')}">
                                 <div class="conj-item-num">${i + 1}</div>
                                 <div class="conj-item-info">
                                     <div class="conj-item-title">${escapeHtml(c.title || cid)}</div>
@@ -2150,6 +2184,65 @@
                         ],
                         throwOnError: false
                     });
+                }
+
+                // ── Language filter ──
+                function applyLanguageFilter(lang) {
+                    // Filter code blocks
+                    document.querySelectorAll('.lesson-body pre').forEach(pre => {
+                        const code = pre.querySelector('code');
+                        if (!code) return;
+                        const classes = code.className || '';
+                        const isLean = classes.includes('language-lean4') || classes.includes('language-lean');
+                        const isRocq = classes.includes('language-rocq') || classes.includes('language-coq');
+                        if (!isLean && !isRocq) return; // non-prover code blocks always visible
+                        if (lang === 'both') {
+                            pre.style.display = '';
+                        } else if (lang === 'lean4') {
+                            pre.style.display = isLean ? '' : 'none';
+                        } else if (lang === 'rocq') {
+                            pre.style.display = isRocq ? '' : 'none';
+                        }
+                    });
+                    // Filter conjecture items
+                    document.querySelectorAll('.conj-item[data-prover]').forEach(el => {
+                        const prover = el.getAttribute('data-prover');
+                        if (!prover) return;
+                        if (lang === 'both') {
+                            el.style.display = '';
+                        } else {
+                            el.style.display = (prover === lang) ? '' : 'none';
+                        }
+                    });
+                }
+
+                // Detect languages present
+                const langSet = new Set();
+                document.querySelectorAll('.lesson-body pre code').forEach(code => {
+                    const cls = code.className || '';
+                    if (cls.includes('language-lean4') || cls.includes('language-lean')) langSet.add('lean4');
+                    if (cls.includes('language-rocq') || cls.includes('language-coq')) langSet.add('rocq');
+                });
+                document.querySelectorAll('.conj-item[data-prover]').forEach(el => {
+                    const p = el.getAttribute('data-prover');
+                    if (p === 'lean4' || p === 'rocq') langSet.add(p);
+                });
+
+                if (langSet.size >= 2) {
+                    const toggle = document.getElementById('lang-toggle');
+                    toggle.style.display = '';
+                    const saved = localStorage.getItem('pah-preferred-lang') || 'both';
+                    toggle.querySelectorAll('button').forEach(btn => {
+                        if (btn.dataset.lang === saved) btn.classList.add('active');
+                        btn.addEventListener('click', () => {
+                            toggle.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+                            btn.classList.add('active');
+                            const lang = btn.dataset.lang;
+                            localStorage.setItem('pah-preferred-lang', lang);
+                            applyLanguageFilter(lang);
+                        });
+                    });
+                    applyLanguageFilter(saved);
                 }
 
                 // Load notes

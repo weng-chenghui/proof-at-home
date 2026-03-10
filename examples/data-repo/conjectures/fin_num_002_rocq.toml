@@ -1,0 +1,17 @@
+id = "fin_num_002_rocq"
+title = "Vega positivity: call price increases in volatility"
+difficulty = "medium"
+prover = "rocq"
+status = "open"
+preamble = "Require Import Reals.\nRequire Import Lra.\nOpen Scope R_scope."
+lemma_statement = "(* Simplified monotonicity: in a one-period binomial model,\n   the call price is increasing in the up-factor u when d < 1+r < u. *)\nLemma call_price_increasing_u : forall S K d r u1 u2 : R,\n  0 < S -> 0 < K -> d < 1 + r -> 1 + r < u1 -> u1 < u2 ->\n  let q1 := (1 + r - d) / (u1 - d) in\n  let q2 := (1 + r - d) / (u2 - d) in\n  let c1 := (q1 * Rmax (S * u1 - K) 0 + (1 - q1) * Rmax (S * d - K) 0) / (1 + r) in\n  let c2 := (q2 * Rmax (S * u2 - K) 0 + (1 - q2) * Rmax (S * d - K) 0) / (1 + r) in\n  c1 <= c2."
+skeleton = "Lemma call_price_increasing_u : forall S K d r u1 u2 : R,\n  0 < S -> 0 < K -> d < 1 + r -> 1 + r < u1 -> u1 < u2 ->\n  let q1 := (1 + r - d) / (u1 - d) in\n  let q2 := (1 + r - d) / (u2 - d) in\n  let c1 := (q1 * Rmax (S * u1 - K) 0 + (1 - q1) * Rmax (S * d - K) 0) / (1 + r) in\n  let c2 := (q2 * Rmax (S * u2 - K) 0 + (1 - q2) * Rmax (S * d - K) 0) / (1 + r) in\n  c1 <= c2.\nProof.\n  (* your proof here *)\nAdmitted."
+hints = [
+    "Case split on whether S*u1 - K and S*u2 - K are positive",
+    "Note that q decreases in u while the up-state payoff increases",
+    "The net effect is that the call price increases",
+]
+
+[dependencies]
+rocq_version = "9.0"
+opam_packages = []

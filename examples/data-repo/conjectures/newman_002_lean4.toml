@@ -1,0 +1,18 @@
+id = "newman_002_lean4"
+title = "Confluence implies joinability"
+difficulty = "easy"
+prover = "lean4"
+status = "open"
+preamble = "import Mathlib.Order.RelClasses\nimport Mathlib.Tactic"
+lemma_statement = "theorem confluence_joinable {α : Type*} {R : α → α → Prop}\n    (hCR : ∀ a b c, Relation.ReflTransGen R a b → Relation.ReflTransGen R a c →\n      ∃ d, Relation.ReflTransGen R b d ∧ Relation.ReflTransGen R c d)\n    {a b c : α}\n    (hab : Relation.ReflTransGen R a b)\n    (hac : Relation.ReflTransGen R a c) :\n    ∃ d, Relation.ReflTransGen R b d ∧ Relation.ReflTransGen R c d := by"
+skeleton = "theorem confluence_joinable {α : Type*} {R : α → α → Prop}\n    (hCR : ∀ a b c, Relation.ReflTransGen R a b → Relation.ReflTransGen R a c →\n      ∃ d, Relation.ReflTransGen R b d ∧ Relation.ReflTransGen R c d)\n    {a b c : α}\n    (hab : Relation.ReflTransGen R a b)\n    (hac : Relation.ReflTransGen R a c) :\n    ∃ d, Relation.ReflTransGen R b d ∧ Relation.ReflTransGen R c d := by\n  sorry"
+hints = [
+    "This follows directly from the confluence hypothesis hCR",
+    "exact hCR a b c hab hac",
+]
+
+[dependencies]
+lean_toolchain = "leanprover/lean4:v4.16.0"
+lake_packages = [
+    "mathlib",
+]

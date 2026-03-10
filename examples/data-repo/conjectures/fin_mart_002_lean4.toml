@@ -1,0 +1,19 @@
+id = "fin_mart_002_lean4"
+title = "Discounted binomial price is a martingale under Q"
+difficulty = "hard"
+prover = "lean4"
+status = "open"
+preamble = "import Mathlib.Tactic"
+lemma_statement = "-- In a single-period binomial model, the discounted expected value under Q\n-- equals the current price. This is the discrete martingale property.\ntheorem discounted_martingale (S₀ u d r : ℝ) (hdu : d < u)\n    (hr1 : d < 1 + r) (hr2 : 1 + r < u) (hr_pos : 0 < 1 + r) :\n    let q := (1 + r - d) / (u - d)\n    (q * (S₀ * u) + (1 - q) * (S₀ * d)) / (1 + r) = S₀ := by"
+skeleton = "theorem discounted_martingale (S₀ u d r : ℝ) (hdu : d < u)\n    (hr1 : d < 1 + r) (hr2 : 1 + r < u) (hr_pos : 0 < 1 + r) :\n    let q := (1 + r - d) / (u - d)\n    (q * (S₀ * u) + (1 - q) * (S₀ * d)) / (1 + r) = S₀ := by\n  sorry"
+hints = [
+    "Expand q and simplify",
+    "field_simp to clear denominators",
+    "ring should close the goal",
+]
+
+[dependencies]
+lean_toolchain = "leanprover/lean4:v4.16.0"
+lake_packages = [
+    "mathlib",
+]

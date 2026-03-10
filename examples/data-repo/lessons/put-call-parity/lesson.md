@@ -3,7 +3,7 @@ lesson_id: put-call-parity
 title: "Static Replication & Put-Call Parity"
 topic: mathematical-finance
 difficulty: easy
-conjecture_ids: [fin_pcp_002, fin_pcp_001]
+conjecture_ids: [fin_pcp_002_rocq, fin_pcp_002_lean4, fin_pcp_001_rocq, fin_pcp_001_lean4]
 published: true
 ai_annotations:
   - zone: "## Options and Payoffs"
@@ -49,13 +49,18 @@ Definition call_payoff (S K : R) : R := Rmax (S - K) 0.
 Definition put_payoff (S K : R) : R := Rmax (K - S) 0.
 ```
 
-**Conjecture `fin_pcp_002`:** *Call payoff is non-negative.*
+**Conjecture `fin_pcp_002_rocq`:** *Call payoff is non-negative.*
 
 ```rocq
 Lemma call_payoff_nonneg : forall S K : R, 0 <= Rmax (S - K) 0.
 Proof.
   (* your proof here *)
 Admitted.
+```
+
+```lean4
+theorem call_payoff_nonneg (S K : ℝ) : 0 ≤ max (S - K) 0 := by
+  sorry
 ```
 
 This warm-up follows directly from the definition of `Rmax`: since $\max(S-K, 0) \geq 0$ by construction (the maximum of anything with zero is at least zero), the result is immediate. In Rocq, `Rmax_r` with the fact that $0 \leq 0$ suffices.
@@ -77,7 +82,7 @@ Both portfolios have the **same payoff in every state of the world**:
 
 By the **Law of One Price**, two portfolios with identical payoffs in all states must have the same price today. This is an arbitrage argument — if prices differed, you could buy the cheap portfolio and sell the expensive one for a risk-free profit.
 
-**Conjecture `fin_pcp_001`:** *Put-Call Parity: payoff identity.*
+**Conjecture `fin_pcp_001_rocq`:** *Put-Call Parity: payoff identity.*
 
 ```rocq
 Lemma put_call_parity : forall S K : R,
@@ -85,6 +90,12 @@ Lemma put_call_parity : forall S K : R,
 Proof.
   (* your proof here *)
 Admitted.
+```
+
+```lean4
+theorem put_call_parity (S K : ℝ) :
+    max (S - K) 0 + K = max (K - S) 0 + S := by
+  sorry
 ```
 
 Note that this is a *pointwise* identity — it holds for every value of $S$. No assumptions about probability distributions, volatility, or interest rates are needed at the payoff level.
@@ -111,8 +122,8 @@ The `lra` tactic is particularly well-suited here: once the `Rmax` terms are res
 
 | Conjecture | Statement | Key Technique |
 |---|---|---|
-| `fin_pcp_002` | Call payoff $\geq 0$ | Definition of `Rmax` |
-| `fin_pcp_001` | $\max(S-K,0) + K = \max(K-S,0) + S$ | Case split on $S \leq K$, then `lra` |
+| `fin_pcp_002_rocq` | Call payoff $\geq 0$ | Definition of `Rmax` |
+| `fin_pcp_001_rocq` | $\max(S-K,0) + K = \max(K-S,0) + S$ | Case split on $S \leq K$, then `lra` |
 
 This payoff identity extends naturally to the **pricing equation** when we introduce discounting. In continuous time with risk-free rate $r$ and time to expiry $T$:
 

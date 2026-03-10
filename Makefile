@@ -1,4 +1,4 @@
-.PHONY: build build-client build-server build-pocketbase clean run-server run-pocketbase run-init run-donate run-prove run-status test test-integration test-integration-pocketbase conjectures help dev-setup dev-run dev-clean dev-reset setup-github setup-gitlab test-docker test-docker-install test-docker-tools test-docker-require
+.PHONY: build build-client build-server build-pocketbase clean run-server run-pocketbase run-init run-donate run-prove run-status test test-integration test-integration-pocketbase conjectures help dev-setup dev-run dev-clean dev-reset setup-github setup-gitlab test-docker test-docker-install test-docker-tools test-docker-require install-hooks check-conjectures
 
 # Paths
 CLIENT_BIN = target/release/proof-at-home
@@ -111,6 +111,13 @@ conjectures: ## List conjectures from the server
 fmt: ## Format Rust and Go code
 	cargo fmt
 	gofmt -w src/server/
+
+install-hooks: ## Install git pre-commit hooks
+	cp scripts/pre-commit-conjectures .git/hooks/pre-commit
+	chmod +x .git/hooks/pre-commit
+
+check-conjectures: ## Validate conjecture naming convention
+	./scripts/check-conjectures.sh
 
 # ── Docker Tests ──────────────────────────────────────
 

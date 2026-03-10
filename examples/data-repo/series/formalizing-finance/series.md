@@ -80,19 +80,19 @@ By completing this series, you will be able to:
 
 | ID | Title | Prover | Difficulty |
 |----|-------|--------|------------|
-| `fin_irr_002` | NPV is continuous in the discount rate | Lean 4 | Easy |
-| `fin_irr_001` | Existence of IRR via IVT | Lean 4 | Medium |
-| `fin_pcp_002` | Call payoff is non-negative | Rocq | Easy |
-| `fin_pcp_001` | Put-Call Parity: payoff identity | Rocq | Easy |
-| `fin_binom_001` | Risk-neutral probability lies in (0,1) | Lean 4 | Medium |
-| `fin_binom_002` | Law of One Price | Lean 4 | Medium |
-| `fin_delta_001` | Delta hedge replicates derivative payoff | Lean 4 | Medium |
-| `fin_multi_001` | Backward induction pricing | Lean 4 | Easy |
-| `fin_multi_002` | Self-financing portfolio identity | Lean 4 | Medium |
-| `fin_mart_001` | Symmetric random walk is a martingale | Lean 4 | Easy |
-| `fin_mart_002` | Discounted binomial price is martingale under Q | Lean 4 | Hard |
-| `fin_ftap_001` | FTAP (two-state): no-arbitrage ⇒ risk-neutral probability | Lean 4 | Hard |
-| `fin_ftap_002` | FTAP: risk-neutral measure ⇒ no-arbitrage | Lean 4 | Medium |
-| `fin_crr_001` | CRR convergence to Black-Scholes *(bonus, placeholder)* | Lean 4 | Hard (placeholder) |
-| `fin_num_001` | Interval bounds on discounted call intrinsic value | Rocq | Hard |
-| `fin_num_002` | Vega positivity (call price increasing in vol) | Rocq | Medium |
+| `fin_irr_002_lean4` | NPV is continuous in the discount rate | Lean 4 | Easy |
+| `fin_irr_001_lean4` | Existence of IRR via IVT | Lean 4 | Medium |
+| `fin_pcp_002_rocq` | Call payoff is non-negative | Rocq | Easy |
+| `fin_pcp_001_rocq` | Put-Call Parity: payoff identity | Rocq | Easy |
+| `fin_binom_001_lean4` | Risk-neutral probability lies in (0,1) | Lean 4 | Medium |
+| `fin_binom_002_lean4` | Law of One Price | Lean 4 | Medium |
+| `fin_delta_001_lean4` | Delta hedge replicates derivative payoff | Lean 4 | Medium |
+| `fin_multi_001_lean4` | Backward induction pricing | Lean 4 | Easy |
+| `fin_multi_002_lean4` | Self-financing portfolio identity | Lean 4 | Medium |
+| `fin_mart_001_lean4` | Symmetric random walk is a martingale | Lean 4 | Easy |
+| `fin_mart_002_lean4` | Discounted binomial price is martingale under Q | Lean 4 | Hard |
+| `fin_ftap_001_lean4` | FTAP (two-state): no-arbitrage ⇒ risk-neutral probability | Lean 4 | Hard |
+| `fin_ftap_002_lean4` | FTAP: risk-neutral measure ⇒ no-arbitrage | Lean 4 | Medium |
+| `fin_crr_001_lean4` | CRR convergence to Black-Scholes *(bonus, placeholder)* | Lean 4 | Hard (placeholder) |
+| `fin_num_001_rocq` | Interval bounds on discounted call intrinsic value | Rocq | Hard |
+| `fin_num_002_rocq` | Vega positivity (call price increasing in vol) | Rocq | Medium |

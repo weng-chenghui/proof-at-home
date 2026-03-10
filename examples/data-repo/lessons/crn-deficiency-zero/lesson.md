@@ -3,7 +3,7 @@ lesson_id: crn-deficiency-zero
 title: "The Deficiency Zero Theorem"
 topic: chemical-reaction-networks
 difficulty: hard
-conjecture_ids: [crn_dzt_001, crn_dzt_002]
+conjecture_ids: [crn_dzt_001_lean4, crn_dzt_002_rocq]
 published: true
 ai_annotations:
   - zone: "## Statement of the Theorem"
@@ -79,7 +79,7 @@ To get a weakly reversible version, we would need to close the cycle, e.g., $E +
 
 For the conjectures, we work with the fully reversible variant to demonstrate the DZT.
 
-**Conjecture `crn_dzt_001`:** *State the Deficiency Zero Theorem: for a weakly reversible, deficiency-zero CRN, a positive equilibrium exists.*
+**Conjecture `crn_dzt_001_lean4`:** *State the Deficiency Zero Theorem: for a weakly reversible, deficiency-zero CRN, a positive equilibrium exists.*
 
 ```lean4
 -- Placeholder: stating the DZT requires defining CRN, mass-action kinetics,
@@ -94,7 +94,7 @@ theorem deficiency_zero_theorem
 
 This is a **placeholder conjecture** — the full formalization requires substantial infrastructure. The value is in building the type-level statement correctly.
 
-**Conjecture `crn_dzt_002`:** *For the fully reversible enzymatic network (deficiency 0, weakly reversible), mass-action kinetics yields a unique equilibrium.*
+**Conjecture `crn_dzt_002_rocq`:** *For the fully reversible enzymatic network (deficiency 0, weakly reversible), mass-action kinetics yields a unique equilibrium.*
 
 ```rocq
 (* Simplified: verify the algebraic conditions for uniqueness *)
@@ -125,8 +125,8 @@ A full formal proof would be a major achievement — it requires Perron-Frobeniu
 
 | Conjecture | Statement | Key Technique |
 |---|---|---|
-| `crn_dzt_001` | DZT: positive equilibrium exists | Type-level statement (placeholder) |
-| `crn_dzt_002` | Enzymatic network satisfies DZT conditions | `lra`, `omega` |
+| `crn_dzt_001_lean4` | DZT: positive equilibrium exists | Type-level statement (placeholder) |
+| `crn_dzt_002_rocq` | Enzymatic network satisfies DZT conditions | `lra`, `omega` |
 
 ## Further Reading
 

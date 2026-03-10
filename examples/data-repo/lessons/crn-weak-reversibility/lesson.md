@@ -3,7 +3,7 @@ lesson_id: crn-weak-reversibility
 title: "Graph Topology & Weak Reversibility"
 topic: chemical-reaction-networks
 difficulty: medium
-conjecture_ids: [crn_graph_001, crn_graph_002]
+conjecture_ids: [crn_graph_001_rocq, crn_graph_002_lean4]
 published: true
 ai_annotations:
   - zone: "## The Reaction Graph"
@@ -71,7 +71,7 @@ In the network $A \to B \to C \to A$:
 
 Every vertex can reach every other vertex, so the graph is strongly connected, hence the network is weakly reversible.
 
-**Conjecture `crn_graph_001`:** *The 3-cycle A → B → C → A is strongly connected.*
+**Conjecture `crn_graph_001_rocq`:** *The 3-cycle A → B → C → A is strongly connected.*
 
 ```rocq
 (* Uses rocq-community/graph-theory and rocq-community/tarjan *)
@@ -86,7 +86,7 @@ Lemma three_cycle_strongly_connected :
 
 This is a concrete verification: we define the 3-cycle as an adjacency predicate on `'I_3` and prove reachability for all pairs.
 
-**Conjecture `crn_graph_002`:** *In a simple reaction graph, vertex 0 can reach vertex 2.*
+**Conjecture `crn_graph_002_lean4`:** *In a simple reaction graph, vertex 0 can reach vertex 2.*
 
 ```lean4
 theorem reachability_0_to_2 :
@@ -114,8 +114,8 @@ Weak reversibility is one of the two hypotheses of the **Deficiency Zero Theorem
 
 | Conjecture | Statement | Key Technique |
 |---|---|---|
-| `crn_graph_001` | 3-cycle is strongly connected | `connect`, `tarjan` library, `by decide` |
-| `crn_graph_002` | Reachability via `TransGen` | `Relation.TransGen`, constructive path |
+| `crn_graph_001_rocq` | 3-cycle is strongly connected | `connect`, `tarjan` library, `by decide` |
+| `crn_graph_002_lean4` | Reachability via `TransGen` | `Relation.TransGen`, constructive path |
 
 ## Further Reading
 

@@ -3,7 +3,7 @@ lesson_id: crr-convergence
 title: "CRR Convergence: Binomial to Black-Scholes"
 topic: mathematical-finance
 difficulty: hard
-conjecture_ids: [fin_crr_001]
+conjecture_ids: [fin_crr_001_lean4, fin_crr_001_rocq]
 published: true
 ai_annotations:
   - zone: "## The CRR Parametrization"
@@ -70,7 +70,7 @@ This is the precise sense in which the binomial model "becomes" the Black-Schole
 
 ## Formalization Status
 
-**Conjecture `fin_crr_001`:** *CRR binomial prices converge to the Black-Scholes price.*
+**Conjecture `fin_crr_001_lean4`:** *CRR binomial prices converge to the Black-Scholes price.*
 
 ```lean4
 /-- Placeholder: CRR convergence to Black-Scholes.
@@ -88,6 +88,16 @@ theorem crr_convergence_statement (S K r σ T : ℝ)
     True := by trivial
 ```
 
+```rocq
+(** Placeholder: CRR convergence to Black-Scholes in Rocq.
+    Full formalization requires the CLT and real analysis libraries. *)
+Lemma crr_convergence_statement : forall S K r sigma T : R,
+  0 < S -> 0 < K -> 0 < sigma -> 0 < T -> True.
+Proof.
+  intros. exact I.
+Qed.
+```
+
 This conjecture is currently a **placeholder** stating `True`. The comment shows the intended real statement: `Filter.Tendsto` of the CRR call price sequence to the Black-Scholes price. A full formalization would require:
 
 - **Central Limit Theorem** in Mathlib (available via `ProbabilityTheory.IdentDistrib` and related results, though the full CLT with Lindeberg condition is still under development).
@@ -101,7 +111,7 @@ This is a stretch goal that will ship when Mathlib's probability theory library 
 
 | Conjecture | Statement | Status |
 |---|---|---|
-| `fin_crr_001` | CRR converges to Black-Scholes | Placeholder (`True`) — see intended statement in comment |
+| `fin_crr_001_lean4` | CRR converges to Black-Scholes | Placeholder (`True`) — see intended statement in comment |
 
 The CRR convergence result is both practically and theoretically important. Practically, it justifies using binomial trees as numerical approximations to Black-Scholes prices. Theoretically, it shows that the continuous-time theory emerges as a limit of the discrete-time theory, providing a rigorous foundation for the Black-Scholes formula without stochastic calculus.
 

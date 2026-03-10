@@ -3,7 +3,7 @@ lesson_id: crn-invariance
 title: "Stoichiometric Compatibility Classes"
 topic: chemical-reaction-networks
 difficulty: medium
-conjecture_ids: [crn_inv_001, crn_inv_002]
+conjecture_ids: [crn_inv_001_lean4, crn_inv_002_rocq]
 published: true
 ai_annotations:
   - zone: "## The Stoichiometric Compatibility Class"
@@ -70,7 +70,7 @@ $$a_C^T \cdot S = 1 \cdot (-1) + 0 \cdot (-2) + 1 \cdot 1 + 0 \cdot 2 = 0$$
 
 So $a_C \in \ker(S^T)$, confirming carbon conservation. If we start with 5 carbon atoms (e.g., 5 moles of CH₄), we will always have exactly 5 carbon atoms distributed among CH₄ and CO₂. We cannot reach a state with 10 carbon atoms.
 
-**Conjecture `crn_inv_001`:** *The concentration vector stays in its stoichiometric compatibility class.*
+**Conjecture `crn_inv_001_lean4`:** *The concentration vector stays in its stoichiometric compatibility class.*
 
 ```lean4
 theorem compatibility_class_invariant
@@ -81,7 +81,7 @@ theorem compatibility_class_invariant
   sorry
 ```
 
-**Conjecture `crn_inv_002`:** *Carbon count is invariant under methane combustion.*
+**Conjecture `crn_inv_002_rocq`:** *Carbon count is invariant under methane combustion.*
 
 ```rocq
 Lemma carbon_invariant :
@@ -102,8 +102,8 @@ This is the set of concentration vectors that are both stoichiometrically compat
 
 | Conjecture | Statement | Key Technique |
 |---|---|---|
-| `crn_inv_001` | $c(t) - c(0) \in \text{im}(S)$ | `AffineSubspace`, `Set.range` |
-| `crn_inv_002` | Carbon count is conserved | MathComp matrix multiplication |
+| `crn_inv_001_lean4` | $c(t) - c(0) \in \text{im}(S)$ | `AffineSubspace`, `Set.range` |
+| `crn_inv_002_rocq` | Carbon count is conserved | MathComp matrix multiplication |
 
 ## Further Reading
 

@@ -1,0 +1,18 @@
+id = "newman_001_lean4"
+title = "Reflexive-transitive closure is transitive"
+difficulty = "easy"
+prover = "lean4"
+status = "open"
+preamble = "import Mathlib.Order.RelClasses\nimport Mathlib.Tactic"
+lemma_statement = "theorem refl_trans_closure_trans {α : Type*} {R : α → α → Prop}\n    {x y z : α}\n    (hxy : Relation.ReflTransGen R x y)\n    (hyz : Relation.ReflTransGen R y z) :\n    Relation.ReflTransGen R x z := by"
+skeleton = "theorem refl_trans_closure_trans {α : Type*} {R : α → α → Prop}\n    {x y z : α}\n    (hxy : Relation.ReflTransGen R x y)\n    (hyz : Relation.ReflTransGen R y z) :\n    Relation.ReflTransGen R x z := by\n  sorry"
+hints = [
+    "Use Relation.ReflTransGen.trans or induction on hxy",
+    "exact hxy.trans hyz works directly",
+]
+
+[dependencies]
+lean_toolchain = "leanprover/lean4:v4.16.0"
+lake_packages = [
+    "mathlib",
+]

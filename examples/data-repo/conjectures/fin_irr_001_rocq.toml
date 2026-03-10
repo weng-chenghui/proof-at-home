@@ -1,0 +1,16 @@
+id = "fin_irr_001_rocq"
+title = "Existence of IRR via IVT"
+difficulty = "medium"
+prover = "rocq"
+status = "open"
+preamble = "Require Import Reals.\nRequire Import Lra.\nOpen Scope R_scope."
+lemma_statement = "(** Simplified version: NPV changes sign between two rates. *)\nLemma irr_existence_simple : forall C0 C1 : R,\n  C0 < 0 -> C1 > 0 -> 0 < C0 + C1 ->\n  exists r : R, 0 < r /\\ C0 + C1 / (1 + r) = 0."
+skeleton = "(** Simplified version: NPV changes sign between two rates. *)\nLemma irr_existence_simple : forall C0 C1 : R,\n  C0 < 0 -> C1 > 0 -> 0 < C0 + C1 ->\n  exists r : R, 0 < r /\\ C0 + C1 / (1 + r) = 0.\nProof.\n  (* your proof here *)\nAdmitted."
+hints = [
+    "The IRR is r = -C1/C0 - 1 (solve C0 + C1/(1+r) = 0 for r)",
+    "Use exists with the explicit value, then verify with field_simp and lra",
+]
+
+[dependencies]
+rocq_version = "9.0"
+opam_packages = []

@@ -79,13 +79,13 @@ By completing this series, you will be able to:
 
 | ID | Title | Prover | Difficulty |
 |----|-------|--------|------------|
-| `crn_stoich_001` | H-atom conservation for water formation | Lean 4 | Easy |
-| `crn_stoich_002` | O-atom conservation for water formation | Rocq | Easy |
-| `crn_graph_001` | 3-cycle is strongly connected | Rocq | Easy |
-| `crn_graph_002` | Reachability in a simple reaction graph | Lean 4 | Medium |
-| `crn_def_001` | Deficiency is non-negative | Lean 4 | Medium |
-| `crn_def_002` | Deficiency zero for enzymatic reaction | Rocq | Hard |
-| `crn_inv_001` | Concentration stays in compatibility class | Lean 4 | Medium |
-| `crn_inv_002` | Carbon-count invariant | Rocq | Easy |
-| `crn_dzt_001` | Positive equilibrium exists (DZT) | Lean 4 | Hard |
-| `crn_dzt_002` | Unique equilibrium for enzymatic network | Rocq | Medium |
+| `crn_stoich_001_lean4` | H-atom conservation for water formation | Lean 4 | Easy |
+| `crn_stoich_002_rocq` | O-atom conservation for water formation | Rocq | Easy |
+| `crn_graph_001_rocq` | 3-cycle is strongly connected | Rocq | Easy |
+| `crn_graph_002_lean4` | Reachability in a simple reaction graph | Lean 4 | Medium |
+| `crn_def_001_lean4` | Deficiency is non-negative | Lean 4 | Medium |
+| `crn_def_002_rocq` | Deficiency zero for enzymatic reaction | Rocq | Hard |
+| `crn_inv_001_lean4` | Concentration stays in compatibility class | Lean 4 | Medium |
+| `crn_inv_002_rocq` | Carbon-count invariant | Rocq | Easy |
+| `crn_dzt_001_lean4` | Positive equilibrium exists (DZT) | Lean 4 | Hard |
+| `crn_dzt_002_rocq` | Unique equilibrium for enzymatic network | Rocq | Medium |

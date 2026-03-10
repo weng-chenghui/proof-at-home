@@ -3,7 +3,7 @@ lesson_id: crn-deficiency
 title: "The Deficiency Formula"
 topic: chemical-reaction-networks
 difficulty: hard
-conjecture_ids: [crn_def_001, crn_def_002]
+conjecture_ids: [crn_def_001_lean4, crn_def_002_rocq]
 published: true
 ai_annotations:
   - zone: "## Defining the Deficiency"
@@ -71,7 +71,7 @@ Note that column 2 = −column 1 (the reverse reaction), so the rank is determin
 
 **Deficiency:** $\delta = 3 - 1 - 2 = 0$. This is the classic deficiency-zero case!
 
-**Conjecture `crn_def_001`:** *The deficiency δ = n − ℓ − s is non-negative for any CRN.*
+**Conjecture `crn_def_001_lean4`:** *The deficiency δ = n − ℓ − s is non-negative for any CRN.*
 
 ```lean4
 theorem deficiency_nonneg (n ℓ s : ℕ) (h : s ≤ n - ℓ) :
@@ -81,7 +81,7 @@ theorem deficiency_nonneg (n ℓ s : ℕ) (h : s ≤ n - ℓ) :
 
 Note: the full formalization requires defining CRN structures and proving $s \leq n - \ell$. This conjecture focuses on the arithmetic core.
 
-**Conjecture `crn_def_002`:** *The enzymatic reaction E + S ⇌ ES → E + P has deficiency zero.*
+**Conjecture `crn_def_002_rocq`:** *The enzymatic reaction E + S ⇌ ES → E + P has deficiency zero.*
 
 ```rocq
 Lemma enzymatic_deficiency_zero :
@@ -107,8 +107,8 @@ The remarkable fact is that a purely structural quantity (depending only on the 
 
 | Conjecture | Statement | Key Technique |
 |---|---|---|
-| `crn_def_001` | δ ≥ 0 for any CRN | `Nat` subtraction, `omega` |
-| `crn_def_002` | δ = 0 for enzymatic reaction | `native_decide` or `norm_num` |
+| `crn_def_001_lean4` | δ ≥ 0 for any CRN | `Nat` subtraction, `omega` |
+| `crn_def_002_rocq` | δ = 0 for enzymatic reaction | `native_decide` or `norm_num` |
 
 ## Further Reading
 

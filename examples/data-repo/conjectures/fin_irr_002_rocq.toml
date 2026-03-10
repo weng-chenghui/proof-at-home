@@ -1,0 +1,16 @@
+id = "fin_irr_002_rocq"
+title = "NPV is continuous in the discount rate"
+difficulty = "easy"
+prover = "rocq"
+status = "open"
+preamble = "Require Import Reals.\nRequire Import Lra.\nOpen Scope R_scope."
+lemma_statement = "(** Simplified: NPV of a single cash flow is continuous. *)\nLemma npv_continuous_simple : forall C : R,\n  continuity (fun r => C / (1 + r))."
+skeleton = "(** Simplified: NPV of a single cash flow is continuous. *)\nLemma npv_continuous_simple : forall C : R,\n  continuity (fun r => C / (1 + r)).\nProof.\n  (* your proof here *)\nAdmitted."
+hints = [
+    "Use continuity lemmas for division: continuity_div",
+    "The denominator 1+r is continuous and nonzero on suitable intervals",
+]
+
+[dependencies]
+rocq_version = "9.0"
+opam_packages = []

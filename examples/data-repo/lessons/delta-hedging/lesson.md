@@ -3,7 +3,7 @@ lesson_id: delta-hedging
 title: "Delta Hedging & Market Completeness"
 topic: mathematical-finance
 difficulty: medium
-conjecture_ids: [fin_delta_001]
+conjecture_ids: [fin_delta_001_lean4, fin_delta_001_rocq]
 published: true
 ai_annotations:
   - zone: "## The Replicating Portfolio"
@@ -42,7 +42,7 @@ This is the **hedge ratio** or **delta** of the derivative. Substituting back:
 
 $$B = \frac{V_d - \Delta \cdot S_0 \cdot d}{1 + r} = \frac{u \cdot V_d - d \cdot V_u}{(u - d)(1 + r)}$$
 
-**Conjecture `fin_delta_001`:** *The delta hedge replicates any derivative payoff.*
+**Conjecture `fin_delta_001_lean4`:** *The delta hedge replicates any derivative payoff.*
 
 ```lean4
 theorem delta_hedge_replicates (S₀ u d r Vu Vd : ℝ)
@@ -51,6 +51,18 @@ theorem delta_hedge_replicates (S₀ u d r Vu Vd : ℝ)
     let B := (Vd - Δ * S₀ * d) / (1 + r)
     Δ * S₀ * u + B * (1 + r) = Vu ∧ Δ * S₀ * d + B * (1 + r) = Vd := by
   sorry
+```
+
+```rocq
+Lemma delta_hedge_replicates : forall S0 u d r Vu Vd : R,
+  S0 <> 0 -> d < u -> 1 + r <> 0 ->
+  let D := (Vu - Vd) / (S0 * (u - d)) in
+  let B := (Vd - D * S0 * d) / (1 + r) in
+  D * S0 * u + B * (1 + r) = Vu /\
+  D * S0 * d + B * (1 + r) = Vd.
+Proof.
+  (* your proof here *)
+Admitted.
 ```
 
 The proof is pleasingly short: once we unfold the definitions of $\Delta$ and $B$, the tactic `field_simp` clears the denominators and `ring` verifies the resulting polynomial identities. This is a case where the algebra is straightforward but tedious by hand -- exactly the kind of verification where a proof assistant shines.
@@ -109,7 +121,7 @@ The digital delta is always positive and inversely proportional to $S_0(u - d)$.
 
 | Conjecture | Statement | Key Technique |
 |---|---|---|
-| `fin_delta_001` | Delta hedge replicates any payoff | `field_simp`, `ring` |
+| `fin_delta_001_lean4` | Delta hedge replicates any payoff | `field_simp`, `ring` |
 
 The replicating portfolio formula gives us both a pricing method (the initial cost $\Delta S_0 + B$ is the no-arbitrage price) and a hedging strategy (hold $\Delta$ shares and $B$ bonds). Market completeness ensures that this works for every possible derivative payoff.
 

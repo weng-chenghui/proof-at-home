@@ -1,0 +1,15 @@
+id = "fin_mart_001_rocq"
+title = "Symmetric random walk is a martingale"
+difficulty = "easy"
+prover = "rocq"
+status = "open"
+preamble = "Require Import Reals.\nRequire Import Lra.\nOpen Scope R_scope."
+lemma_statement = "Lemma symmetric_rw_martingale : forall x : R,\n  let p := 1/2 in\n  p * (x + 1) + (1 - p) * (x - 1) = x."
+skeleton = "Lemma symmetric_rw_martingale : forall x : R,\n  let p := 1/2 in\n  p * (x + 1) + (1 - p) * (x - 1) = x.\nProof.\n  (* your proof here *)\nAdmitted."
+hints = [
+    "Unfold p, then lra or field_simp; ring",
+]
+
+[dependencies]
+rocq_version = "9.0"
+opam_packages = []
