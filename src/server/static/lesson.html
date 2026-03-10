@@ -135,29 +135,38 @@
             transform: none;
         }
 
-        /* ── Floating Ask AI button ────────────────────── */
-        #ai-ask-float {
+        /* ── Floating selection toolbar ────────────────── */
+        #selection-toolbar {
             position: fixed;
             z-index: 45;
             display: none;
-            padding: 0.3rem 0.7rem;
+            opacity: 0;
+            transition: opacity 0.15s ease;
+            white-space: nowrap;
+        }
+        #selection-toolbar.visible {
+            display: flex;
+            opacity: 1;
+            gap: 2px;
+        }
+        #selection-toolbar button {
+            padding: 0.3rem 0.6rem;
             font-size: 0.75rem;
             font-weight: 600;
             background: var(--nav-bg);
             color: #e2e8f0;
             border: none;
-            border-radius: 6px;
             cursor: pointer;
             box-shadow: var(--shadow-md);
-            opacity: 0;
-            transition: opacity 0.15s ease;
-            white-space: nowrap;
+            min-width: 32px;
+            min-height: 32px;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
         }
-        #ai-ask-float.visible {
-            display: block;
-            opacity: 1;
-        }
-        #ai-ask-float:hover {
+        #selection-toolbar button:first-child { border-radius: 6px 0 0 6px; }
+        #selection-toolbar button:last-child { border-radius: 0 6px 6px 0; }
+        #selection-toolbar button:hover {
             background: var(--accent);
             color: #fff;
             box-shadow: var(--shadow-lg);
@@ -208,6 +217,232 @@
             color: var(--text);
             box-shadow: none;
             transform: none;
+        }
+
+        /* ── Sidebar tab bar ──────────────────────────── */
+        .sidebar-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+        .sidebar-tab {
+            flex: 1;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-align: center;
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all var(--transition);
+        }
+        .sidebar-tab:hover {
+            color: var(--text);
+            box-shadow: none;
+            transform: none;
+        }
+        .sidebar-tab.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+        }
+        .sidebar-panel { display: none; flex-direction: column; flex: 1; min-height: 0; }
+        .sidebar-panel.active { display: flex; }
+
+        /* ── Notes panel ──────────────────────────────── */
+        .notes-header-bar {
+            display: flex;
+            align-items: center;
+            gap: 0.375rem;
+            padding: 0.5rem 0.875rem;
+            border-bottom: 1px solid var(--border-light);
+            flex-shrink: 0;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+        .notes-toggle-others {
+            margin-left: auto;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            padding: 0.15rem 0.3rem;
+            border-radius: 4px;
+            transition: all var(--transition);
+        }
+        .notes-toggle-others:hover { color: var(--text); box-shadow: none; transform: none; }
+        .notes-toggle-others.active { color: var(--accent); }
+        .notes-new-note {
+            padding: 0.75rem 0.875rem;
+            border-bottom: 1px solid var(--border-light);
+            flex-shrink: 0;
+            display: none;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .notes-new-note.open { display: flex; }
+        .notes-anchor-preview {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            background: var(--code-bg);
+            padding: 0.35rem 0.5rem;
+            border-radius: 4px;
+            max-height: 3rem;
+            overflow: hidden;
+            line-height: 1.4;
+        }
+        .notes-color-row {
+            display: flex;
+            align-items: center;
+            gap: 0.375rem;
+        }
+        .notes-color-dot {
+            width: 1.25rem;
+            height: 1.25rem;
+            border-radius: 50%;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: border-color var(--transition);
+        }
+        .notes-color-dot:hover, .notes-color-dot.selected {
+            border-color: var(--text);
+        }
+        .notes-new-note textarea {
+            width: 100%;
+            padding: 0.4rem 0.625rem;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            font-size: 0.8rem;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 3rem;
+            outline: none;
+            background: var(--surface);
+            color: var(--text);
+        }
+        .notes-new-note textarea:focus { border-color: var(--accent); }
+        .notes-new-note .notes-save-btn {
+            align-self: flex-end;
+            padding: 0.35rem 0.75rem;
+            font-size: 0.8rem;
+        }
+        .notes-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0.5rem 0.875rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .note-card {
+            display: flex;
+            gap: 0;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            background: var(--surface);
+            overflow: hidden;
+            font-size: 0.8rem;
+        }
+        .note-card-color-bar {
+            width: 4px;
+            flex-shrink: 0;
+        }
+        .note-card-body {
+            flex: 1;
+            padding: 0.5rem 0.625rem;
+            min-width: 0;
+        }
+        .note-card-anchor {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-bottom: 0.25rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .note-card-content {
+            line-height: 1.5;
+            overflow-wrap: break-word;
+        }
+        .note-card-content p { margin: 0 0 0.3rem; }
+        .note-card-content p:last-child { margin: 0; }
+        .note-card-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 0.375rem;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+        .note-card-kebab {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--text-muted);
+            font-size: 1rem;
+            padding: 0 0.25rem;
+            line-height: 1;
+        }
+        .note-card-kebab:hover { color: var(--text); box-shadow: none; transform: none; }
+        .note-card-menu {
+            position: absolute;
+            right: 0.5rem;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-md);
+            z-index: 10;
+            font-size: 0.75rem;
+            overflow: hidden;
+        }
+        .note-card-menu button {
+            display: block;
+            width: 100%;
+            padding: 0.4rem 0.75rem;
+            background: none;
+            border: none;
+            text-align: left;
+            cursor: pointer;
+            color: var(--text);
+            font-size: 0.75rem;
+        }
+        .note-card-menu button:hover { background: var(--accent-subtle); box-shadow: none; transform: none; }
+        .note-card-menu button.danger { color: var(--red); }
+        .note-card-menu button.danger:hover { background: var(--red-subtle); }
+        .note-card.orphaned { opacity: 0.7; }
+        .note-orphan-badge {
+            display: inline-block;
+            font-size: 0.65rem;
+            background: #fef3c7;
+            color: #92400e;
+            padding: 0.1rem 0.35rem;
+            border-radius: 3px;
+            font-weight: 600;
+        }
+        .notes-empty {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.825rem;
+            padding: 2rem 1.5rem;
+            line-height: 1.6;
+        }
+
+        /* ── Highlights ───────────────────────────────── */
+        mark.note-highlight {
+            background: var(--hl-color, rgba(255, 224, 130, 0.2));
+            cursor: pointer;
+            border-radius: 2px;
+            padding: 0 1px;
+        }
+        .note-highlight-others {
+            border-bottom: 2px dotted var(--hl-color, #FFE082);
+            cursor: pointer;
         }
 
         /* ── Settings bar ──────────────────────────────── */
@@ -547,31 +782,58 @@
         <div id="series-nav-bottom"></div>
     </div>
 
-    <button id="ai-ask-float">Ask AI</button>
+    <div id="selection-toolbar">
+        <button id="sel-note-btn" onclick="onSelNote()">&#9998; Note</button>
+        <button id="sel-ai-btn" onclick="onSelAI()">&#10024; Ask AI</button>
+    </div>
 
     <div id="ai-sidebar" class="ai-sidebar">
         <div class="ai-sidebar-header">
-            <span>AI Tutor</span>
+            <span id="sidebar-title">AI Tutor</span>
             <button class="ai-sidebar-close" onclick="closeSidebar()">&times;</button>
         </div>
-        <div class="ai-settings-bar">
-            <select id="ai-key-select" onchange="onKeyChange()"></select>
-            <select id="ai-model-select" onchange="onModelChange()"></select>
-            <button class="ai-add-key-btn" id="ai-add-key-btn" onclick="toggleKeyForm()" title="Manage keys">+</button>
+        <div class="sidebar-tabs">
+            <button class="sidebar-tab active" data-tab="notes" onclick="switchTab('notes')">Notes</button>
+            <button class="sidebar-tab" data-tab="ai" onclick="switchTab('ai')">AI Chat</button>
         </div>
-        <div id="ai-key-form" class="ai-key-form"></div>
-        <div id="ai-key-error" class="ai-key-error-banner" style="display:none;"></div>
-        <div id="ai-webllm-progress" class="ai-webllm-progress">
-            <div class="ai-webllm-progress-label" id="ai-webllm-label">Loading model...</div>
-            <div class="ai-webllm-progress-bar"><div class="ai-webllm-progress-fill" id="ai-webllm-fill"></div></div>
+
+        <!-- Notes panel -->
+        <div id="notes-panel" class="sidebar-panel active">
+            <div class="notes-header-bar">
+                <span id="notes-count">0 notes</span>
+                <button class="notes-toggle-others active" id="notes-toggle-others" onclick="toggleOthersHighlights()" title="Show others' highlights">&#128065;</button>
+            </div>
+            <div id="notes-new-note" class="notes-new-note">
+                <div class="notes-anchor-preview" id="notes-anchor-preview"></div>
+                <div class="notes-color-row" id="notes-color-row"></div>
+                <textarea id="notes-input" placeholder="Write a note... (LaTeX supported: $...$)" rows="3"></textarea>
+                <button class="notes-save-btn btn" id="notes-save-btn" onclick="saveNote()">Save</button>
+            </div>
+            <div id="notes-list" class="notes-list"></div>
+            <div id="notes-empty" class="notes-empty">Select text and click Note to annotate.</div>
         </div>
-        <div id="ai-sidebar-zone"></div>
-        <div id="ai-suggestions" class="ai-sidebar-suggestions"></div>
-        <div id="ai-no-key" class="ai-no-key-msg" style="display:none;">Add an API key to start chatting.</div>
-        <div id="ai-messages" class="ai-sidebar-messages"></div>
-        <div class="ai-sidebar-input">
-            <textarea id="ai-input" placeholder="Ask a question..." rows="2"></textarea>
-            <button id="ai-send" onclick="sendCurrentMessage()">Send</button>
+
+        <!-- AI Chat panel -->
+        <div id="ai-panel" class="sidebar-panel">
+            <div class="ai-settings-bar">
+                <select id="ai-key-select" onchange="onKeyChange()"></select>
+                <select id="ai-model-select" onchange="onModelChange()"></select>
+                <button class="ai-add-key-btn" id="ai-add-key-btn" onclick="toggleKeyForm()" title="Manage keys">+</button>
+            </div>
+            <div id="ai-key-form" class="ai-key-form"></div>
+            <div id="ai-key-error" class="ai-key-error-banner" style="display:none;"></div>
+            <div id="ai-webllm-progress" class="ai-webllm-progress">
+                <div class="ai-webllm-progress-label" id="ai-webllm-label">Loading model...</div>
+                <div class="ai-webllm-progress-bar"><div class="ai-webllm-progress-fill" id="ai-webllm-fill"></div></div>
+            </div>
+            <div id="ai-sidebar-zone"></div>
+            <div id="ai-suggestions" class="ai-sidebar-suggestions"></div>
+            <div id="ai-no-key" class="ai-no-key-msg" style="display:none;">Add an API key to start chatting.</div>
+            <div id="ai-messages" class="ai-sidebar-messages"></div>
+            <div class="ai-sidebar-input">
+                <textarea id="ai-input" placeholder="Ask a question..." rows="2"></textarea>
+                <button id="ai-send" onclick="sendCurrentMessage()">Send</button>
+            </div>
         </div>
     </div>
 
@@ -582,11 +844,31 @@
         let currentAnnotationMap = null;
         let chatHistory = [];
         let lessonTitle = '';
+        let lessonId = '';
         let sending = false;
         let keyErrorState = false;
         let selectedText = '';
         let webllmEngine = null;
         let webllmLoading = false;
+        let activeTab = 'notes';
+        let notesData = [];
+        let showOthersHighlights = localStorage.getItem('pah_notes_show_others') !== 'false';
+        let noteAnchorText = '';
+        let noteSelectedColor = localStorage.getItem('pah_notes_color') || '#FFE082';
+        const NOTE_COLORS = [
+            { name: 'Yellow', hex: '#FFE082' },
+            { name: 'Green', hex: '#A5D6A7' },
+            { name: 'Blue', hex: '#90CAF9' },
+            { name: 'Pink', hex: '#F48FB1' },
+            { name: 'Purple', hex: '#CE93D8' },
+        ];
+        // Fake user for unauthenticated demo
+        const currentUserId = localStorage.getItem('pah_notes_user_id') || (() => {
+            const id = crypto.randomUUID();
+            localStorage.setItem('pah_notes_user_id', id);
+            return id;
+        })();
+        const currentUsername = localStorage.getItem('pah_notes_username') || 'anonymous';
 
         // ── localStorage helpers (multi-key) ──
         const BROWSER_DEMO_KEY = { id: 'browser-demo', label: 'Browser (Free)', provider: 'browser', key: '' };
@@ -887,6 +1169,7 @@
             document.getElementById('ai-key-error').style.display = 'none';
             document.getElementById('ai-sidebar').classList.add('open');
             document.body.classList.add('sidebar-open');
+            switchTab('ai');
 
             // Zone / selection context display
             const zoneEl = document.getElementById('ai-sidebar-zone');
@@ -925,52 +1208,359 @@
             document.getElementById('ai-key-form').classList.remove('open');
         }
 
-        // ── Floating button ──
-        function initFloatingButton() {
-            const floatBtn = document.getElementById('ai-ask-float');
+        // ── Tab switching ──
+        function switchTab(tab) {
+            activeTab = tab;
+            document.querySelectorAll('.sidebar-tab').forEach(t => {
+                t.classList.toggle('active', t.dataset.tab === tab);
+            });
+            document.getElementById('notes-panel').classList.toggle('active', tab === 'notes');
+            document.getElementById('ai-panel').classList.toggle('active', tab === 'ai');
+            document.getElementById('sidebar-title').textContent = tab === 'notes' ? 'Notes' : 'AI Tutor';
+        }
+
+        // ── Selection toolbar handlers ──
+        function onSelNote() {
+            const toolbar = document.getElementById('selection-toolbar');
+            toolbar.classList.remove('visible');
+            if (!selectedText) return;
+            noteAnchorText = selectedText;
+            openSidebarToNotes();
+        }
+
+        function onSelAI() {
+            const toolbar = document.getElementById('selection-toolbar');
+            toolbar.classList.remove('visible');
+            if (!selectedText) return;
+            const context = resolveSelectionContext(selectedText);
+            switchTab('ai');
+            openSidebar(context);
+        }
+
+        function openSidebarToNotes() {
+            document.getElementById('ai-sidebar').classList.add('open');
+            document.body.classList.add('sidebar-open');
+            switchTab('notes');
+            showNewNoteForm(noteAnchorText);
+        }
+
+        function showNewNoteForm(anchor) {
+            const form = document.getElementById('notes-new-note');
+            const preview = document.getElementById('notes-anchor-preview');
+            preview.textContent = anchor.length > 200 ? anchor.slice(0, 200) + '...' : anchor;
+            renderColorDots();
+            document.getElementById('notes-input').value = '';
+            form.classList.add('open');
+            document.getElementById('notes-input').focus();
+        }
+
+        function renderColorDots() {
+            const row = document.getElementById('notes-color-row');
+            row.innerHTML = NOTE_COLORS.map(c =>
+                `<span class="notes-color-dot ${c.hex === noteSelectedColor ? 'selected' : ''}"
+                      style="background:${c.hex};"
+                      onclick="selectNoteColor('${c.hex}')"
+                      title="${c.name}"></span>`
+            ).join('');
+        }
+
+        function selectNoteColor(hex) {
+            noteSelectedColor = hex;
+            localStorage.setItem('pah_notes_color', hex);
+            renderColorDots();
+        }
+
+        // ── Notes CRUD ──
+        async function saveNote() {
+            const content = document.getElementById('notes-input').value.trim();
+            if (!content) return;
+
+            const btn = document.getElementById('notes-save-btn');
+            btn.disabled = true;
+
+            try {
+                const note = {
+                    lesson_id: lessonId,
+                    anchor_text: noteAnchorText,
+                    content: content,
+                    highlight_color: noteSelectedColor,
+                    user_id: currentUserId,
+                    username: currentUsername,
+                    status: 'active',
+                };
+                await api('POST', '/lessons/' + encodeURIComponent(lessonId) + '/notes', note);
+                document.getElementById('notes-new-note').classList.remove('open');
+                await loadNotes();
+            } catch (e) {
+                console.error('Failed to save note', e);
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        async function deleteNote(noteId) {
+            try {
+                await api('DELETE', '/notes/' + encodeURIComponent(noteId));
+                await loadNotes();
+            } catch (e) {
+                console.error('Failed to delete note', e);
+            }
+        }
+
+        async function loadNotes() {
+            if (!lessonId) return;
+            try {
+                const notes = await api('GET', '/lessons/' + encodeURIComponent(lessonId) + '/notes');
+                notesData = notes || [];
+            } catch (e) {
+                notesData = [];
+            }
+            renderNotesList();
+            renderHighlights();
+        }
+
+        function renderNotesList() {
+            const list = document.getElementById('notes-list');
+            const empty = document.getElementById('notes-empty');
+            const count = document.getElementById('notes-count');
+
+            count.textContent = notesData.length + ' note' + (notesData.length !== 1 ? 's' : '');
+
+            if (notesData.length === 0) {
+                list.innerHTML = '';
+                empty.style.display = 'flex';
+                return;
+            }
+            empty.style.display = 'none';
+
+            const activeNotes = notesData.filter(n => n.status !== 'orphaned');
+            const orphanedNotes = notesData.filter(n => n.status === 'orphaned');
+
+            let html = activeNotes.map(n => renderNoteCard(n)).join('');
+            if (orphanedNotes.length > 0) {
+                html += `<div style="font-size:0.7rem;color:var(--text-muted);margin-top:0.5rem;font-weight:600;">Orphaned notes</div>`;
+                html += orphanedNotes.map(n => renderNoteCard(n, true)).join('');
+            }
+            list.innerHTML = html;
+
+            // Render KaTeX in note cards
+            list.querySelectorAll('.note-card-content').forEach(el => {
+                el.innerHTML = renderAIContent(el.textContent);
+            });
+        }
+
+        function renderNoteCard(n, orphaned = false) {
+            const isOwn = n.user_id === currentUserId;
+            const anchorPreview = (n.anchor_text || '').slice(0, 80) + (n.anchor_text?.length > 80 ? '...' : '');
+            const timeAgo = formatTimeAgo(n.created_at);
+            const kebab = isOwn ? `
+                <span style="position:relative;">
+                    <button class="note-card-kebab" onclick="toggleNoteMenu(this, '${escapeAttr(n.note_id)}')">&#8942;</button>
+                </span>` : '';
+            const orphanBadge = orphaned ? ' <span class="note-orphan-badge">orphaned</span>' : '';
+
+            return `<div class="note-card ${orphaned ? 'orphaned' : ''}" data-note-id="${escapeAttr(n.note_id)}" onclick="scrollToHighlight('${escapeAttr(n.note_id)}')">
+                <div class="note-card-color-bar" style="background:${escapeAttr(n.highlight_color)};"></div>
+                <div class="note-card-body">
+                    <div class="note-card-anchor">${escapeHtml(anchorPreview)}${orphanBadge}</div>
+                    <div class="note-card-content">${escapeHtml(n.content)}</div>
+                    <div class="note-card-footer">
+                        <span>${escapeHtml(n.username || 'anonymous')}, ${timeAgo}</span>
+                        ${kebab}
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        function toggleNoteMenu(btn, noteId) {
+            event.stopPropagation();
+            // Remove existing menus
+            document.querySelectorAll('.note-card-menu').forEach(m => m.remove());
+            const menu = document.createElement('div');
+            menu.className = 'note-card-menu';
+            menu.innerHTML = `
+                <button onclick="event.stopPropagation(); deleteNote('${escapeAttr(noteId)}');" class="danger">Delete</button>
+            `;
+            btn.parentElement.appendChild(menu);
+            // Close on outside click
+            setTimeout(() => {
+                document.addEventListener('click', function handler() {
+                    menu.remove();
+                    document.removeEventListener('click', handler);
+                }, { once: true });
+            }, 0);
+        }
+
+        function scrollToHighlight(noteId) {
+            const mark = document.querySelector(`mark[data-note-id="${noteId}"], .note-highlight-others[data-note-id="${noteId}"]`);
+            if (mark) {
+                mark.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                mark.style.outline = '2px solid var(--accent)';
+                setTimeout(() => { mark.style.outline = ''; }, 1500);
+            }
+        }
+
+        function scrollToNoteCard(noteId) {
+            switchTab('notes');
+            const card = document.querySelector(`.note-card[data-note-id="${noteId}"]`);
+            if (card) {
+                card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                card.style.outline = '2px solid var(--accent)';
+                setTimeout(() => { card.style.outline = ''; }, 1500);
+            }
+        }
+
+        function formatTimeAgo(dateStr) {
+            if (!dateStr) return '';
+            const date = new Date(dateStr + (dateStr.endsWith('Z') ? '' : 'Z'));
+            const diff = Date.now() - date.getTime();
+            const mins = Math.floor(diff / 60000);
+            if (mins < 1) return 'just now';
+            if (mins < 60) return mins + 'm ago';
+            const hours = Math.floor(mins / 60);
+            if (hours < 24) return hours + 'h ago';
+            const days = Math.floor(hours / 24);
+            return days + 'd ago';
+        }
+
+        // ── Highlight rendering ──
+        function renderHighlights() {
+            // Remove existing highlights
+            document.querySelectorAll('mark.note-highlight, span.note-highlight-others').forEach(el => {
+                const parent = el.parentNode;
+                while (el.firstChild) parent.insertBefore(el.firstChild, el);
+                parent.removeChild(el);
+                parent.normalize();
+            });
+
             const lessonBody = document.querySelector('.lesson-body');
-            console.log('[AskAI] initFloatingButton', { lessonBody: !!lessonBody });
+            if (!lessonBody || notesData.length === 0) return;
+
+            requestAnimationFrame(() => {
+                for (const note of notesData) {
+                    if (note.status === 'orphaned' || !note.anchor_text) continue;
+                    const isOwn = note.user_id === currentUserId;
+                    if (!isOwn && !showOthersHighlights) continue;
+                    highlightText(lessonBody, note.anchor_text, note, isOwn);
+                }
+            });
+        }
+
+        function highlightText(root, text, note, isOwn) {
+            const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+                acceptNode(node) {
+                    // Skip KaTeX and code blocks
+                    if (node.parentElement.closest('.katex, pre, code')) return NodeFilter.FILTER_REJECT;
+                    return NodeFilter.FILTER_ACCEPT;
+                }
+            });
+
+            // Collect text nodes and their content
+            const textNodes = [];
+            let node;
+            while (node = walker.nextNode()) {
+                textNodes.push(node);
+            }
+
+            // Simple approach: find the anchor text in concatenated text
+            const fullText = textNodes.map(n => n.textContent).join('');
+            const idx = fullText.indexOf(text);
+            if (idx === -1) return;
+
+            // Find which text nodes contain the range
+            let pos = 0;
+            let startNode = null, startOffset = 0, endNode = null, endOffset = 0;
+            for (const tn of textNodes) {
+                const len = tn.textContent.length;
+                if (!startNode && pos + len > idx) {
+                    startNode = tn;
+                    startOffset = idx - pos;
+                }
+                if (pos + len >= idx + text.length) {
+                    endNode = tn;
+                    endOffset = idx + text.length - pos;
+                    break;
+                }
+                pos += len;
+            }
+
+            if (!startNode || !endNode) return;
+
+            try {
+                const range = document.createRange();
+                range.setStart(startNode, startOffset);
+                range.setEnd(endNode, endOffset);
+
+                if (isOwn) {
+                    const mark = document.createElement('mark');
+                    mark.className = 'note-highlight';
+                    mark.dataset.noteId = note.note_id;
+                    mark.style.setProperty('--hl-color', note.highlight_color + '33');
+                    mark.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        openSidebarToNotesOnly();
+                        scrollToNoteCard(note.note_id);
+                    });
+                    range.surroundContents(mark);
+                } else {
+                    const span = document.createElement('span');
+                    span.className = 'note-highlight-others';
+                    span.dataset.noteId = note.note_id;
+                    span.style.setProperty('--hl-color', note.highlight_color);
+                    span.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        openSidebarToNotesOnly();
+                        scrollToNoteCard(note.note_id);
+                    });
+                    range.surroundContents(span);
+                }
+            } catch (e) {
+                // surroundContents can fail if range crosses element boundaries
+                console.debug('Highlight failed for note', note.note_id, e.message);
+            }
+        }
+
+        function openSidebarToNotesOnly() {
+            document.getElementById('ai-sidebar').classList.add('open');
+            document.body.classList.add('sidebar-open');
+            switchTab('notes');
+        }
+
+        function toggleOthersHighlights() {
+            showOthersHighlights = !showOthersHighlights;
+            localStorage.setItem('pah_notes_show_others', showOthersHighlights);
+            document.getElementById('notes-toggle-others').classList.toggle('active', showOthersHighlights);
+            renderHighlights();
+        }
+
+        // ── Floating toolbar ──
+        function initFloatingButton() {
+            const toolbar = document.getElementById('selection-toolbar');
+            const lessonBody = document.querySelector('.lesson-body');
             if (!lessonBody) return;
 
             let selDebounce = null;
 
-            // selectionchange fires on every caret/selection change — debounce it
             document.addEventListener('selectionchange', () => {
                 clearTimeout(selDebounce);
                 selDebounce = setTimeout(() => {
                     const sel = window.getSelection();
                     if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
-                        console.log('[AskAI] skip: no selection or collapsed', {
-                            sel: !!sel,
-                            rangeCount: sel?.rangeCount,
-                            isCollapsed: sel?.isCollapsed
-                        });
-                        floatBtn.classList.remove('visible');
+                        toolbar.classList.remove('visible');
                         return;
                     }
                     const text = sel.toString().trim();
                     if (!text) {
-                        console.log('[AskAI] skip: empty text');
-                        floatBtn.classList.remove('visible');
+                        toolbar.classList.remove('visible');
                         return;
                     }
 
-                    // Check if either endpoint is inside .lesson-body
                     const anchorEl = sel.anchorNode?.nodeType === Node.TEXT_NODE ? sel.anchorNode.parentElement : sel.anchorNode;
                     const focusEl = sel.focusNode?.nodeType === Node.TEXT_NODE ? sel.focusNode.parentElement : sel.focusNode;
                     const anchorIn = anchorEl?.closest('.lesson-body');
                     const focusIn = focusEl?.closest('.lesson-body');
                     if (!anchorIn && !focusIn) {
-                        console.log('[AskAI] skip: not in .lesson-body', {
-                            anchorTag: anchorEl?.tagName,
-                            anchorClass: anchorEl?.className,
-                            anchorClosest: anchorEl?.closest('[class]')?.className,
-                            focusTag: focusEl?.tagName,
-                            focusClass: focusEl?.className,
-                            focusClosest: focusEl?.closest('[class]')?.className,
-                            text: text.slice(0, 60)
-                        });
-                        floatBtn.classList.remove('visible');
+                        toolbar.classList.remove('visible');
                         return;
                     }
 
@@ -978,46 +1568,27 @@
                     const range = sel.getRangeAt(0);
                     const rect = range.getBoundingClientRect();
                     if (!rect.width && !rect.height) {
-                        console.log('[AskAI] skip: zero-size rect', { rect });
-                        floatBtn.classList.remove('visible');
+                        toolbar.classList.remove('visible');
                         return;
                     }
 
-                    // Position above-right of selection, clamped to viewport
-                    // Button is position:fixed so use viewport-relative coords (no scroll offset)
-                    let top = rect.top - 32;
+                    let top = rect.top - 36;
                     if (top < 4) top = rect.bottom + 4;
                     let left = rect.right + 8;
-                    const btnWidth = 70;
+                    const btnWidth = 150;
                     if (left + btnWidth > window.innerWidth) {
                         left = rect.left - btnWidth - 8;
                     }
                     if (left < 4) left = 4;
-                    console.log('[AskAI] SHOW button', {
-                        text: text.slice(0, 60),
-                        rect: { top: rect.top, left: rect.left, w: rect.width, h: rect.height },
-                        btnPos: { top, left },
-                        viewport: { w: window.innerWidth, h: window.innerHeight }
-                    });
-                    floatBtn.style.top = top + 'px';
-                    floatBtn.style.left = left + 'px';
-                    floatBtn.classList.add('visible');
+                    toolbar.style.top = top + 'px';
+                    toolbar.style.left = left + 'px';
+                    toolbar.classList.add('visible');
                 }, 80);
             });
 
-            // Hide on pointerdown anywhere except the float button itself
             document.addEventListener('pointerdown', (e) => {
-                if (e.target === floatBtn || floatBtn.contains(e.target)) return;
-                floatBtn.classList.remove('visible');
-            });
-
-            floatBtn.addEventListener('click', () => {
-                floatBtn.classList.remove('visible');
-                if (!selectedText) return;
-
-                // Check if selection is within an annotated zone
-                const context = resolveSelectionContext(selectedText);
-                openSidebar(context);
+                if (e.target.closest('#selection-toolbar')) return;
+                toolbar.classList.remove('visible');
             });
         }
 
@@ -1289,6 +1860,7 @@
                 return;
             }
 
+            lessonId = id;
             migrateOldSchema();
 
             try {
@@ -1415,6 +1987,9 @@
                         throwOnError: false
                     });
                 }
+
+                // Load notes
+                loadNotes();
             } catch (e) {
                 showMsg('msg', 'Failed to load lesson: ' + (e.error || e.message || 'not found'), true);
             }

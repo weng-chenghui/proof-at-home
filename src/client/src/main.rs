@@ -417,6 +417,30 @@ enum LessonAction {
         #[arg(long)]
         topic: Option<String>,
     },
+    /// Manage lesson notes (list, revise, merge)
+    Notes {
+        #[command(subcommand)]
+        action: LessonNotesAction,
+    },
+}
+
+#[derive(Subcommand)]
+enum LessonNotesAction {
+    /// List notes for a lesson
+    List {
+        /// Lesson ID
+        id: String,
+    },
+    /// AI-suggest revisions based on user notes
+    Revise {
+        /// Lesson ID
+        id: String,
+    },
+    /// AI-merge notes into lesson content
+    Merge {
+        /// Lesson ID
+        id: String,
+    },
 }
 
 // ── Series ──
@@ -756,6 +780,11 @@ async fn main() {
             LessonAction::Export { conjectures, topic } => {
                 commands::lesson::cmd_export(conjectures.as_deref(), topic.as_deref()).await
             }
+            LessonAction::Notes { action } => match action {
+                LessonNotesAction::List { id } => commands::lesson::cmd_notes_list(&id).await,
+                LessonNotesAction::Revise { id } => commands::lesson::cmd_notes_revise(&id).await,
+                LessonNotesAction::Merge { id } => commands::lesson::cmd_notes_merge(&id).await,
+            },
         },
         Resource::Series { action } => match action {
             SeriesAction::List => commands::series::cmd_list().await,

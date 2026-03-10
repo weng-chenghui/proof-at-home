@@ -275,6 +275,150 @@ pub async fn cmd_export(conjectures: Option<&str>, topic: Option<&str>) -> Resul
     Ok(())
 }
 
+pub async fn cmd_notes_list(id: &str) -> Result<()> {
+    let cfg = Config::load_or_default();
+    let client = ServerClient::new(&cfg.server_url(), &cfg.api.auth_token);
+    let notes = client.fetch_notes(id).await?;
+
+    if notes.is_empty() {
+        println!("No notes found for lesson {}.", id);
+        return Ok(());
+    }
+
+    println!(
+        "{:<38} {:<30} {:<12} {:<10} {:<8}",
+        "Note ID", "Anchor Text", "Author", "Status", "Color"
+    );
+    println!("{}", "\u{2500}".repeat(98));
+
+    for n in &notes {
+        let anchor = if n.anchor_text.len() > 28 {
+            format!("{}...", &n.anchor_text[..25])
+        } else {
+            n.anchor_text.clone()
+        };
+        println!(
+            "{:<38} {:<30} {:<12} {:<10} {:<8}",
+            n.note_id, anchor, n.username, n.status, n.highlight_color,
+        );
+    }
+
+    println!("\nTotal: {}", notes.len());
+    Ok(())
+}
+
+pub async fn cmd_notes_revise(id: &str) -> Result<()> {
+    let cfg = Config::load_or_default();
+    cfg.require_login()?;
+    let client = ServerClient::new(&cfg.server_url(), &cfg.api.auth_token);
+
+    let lesson = client.fetch_lesson(id).await?;
+    let notes = client.fetch_notes(id).await?;
+
+    if notes.is_empty() {
+        println!("No notes found for lesson {}. Nothing to revise.", id);
+        return Ok(());
+    }
+
+    // Build prompt
+    let mut notes_text = String::new();
+    for n in &notes {
+        notes_text.push_str(&format!(
+            "- [{}] \"{}\" \u{2192} {}\n",
+            n.highlight_color, n.anchor_text, n.content
+        ));
+    }
+
+    let prompt = format!(
+        "Here is lesson content:\n\n{}\n\nUser notes and highlights:\n{}\n\nBased on these notes, suggest specific revisions to improve the lesson. For each suggestion, reference the relevant section and explain the improvement.",
+        lesson.content, notes_text
+    );
+
+    let has_api_key = !cfg.api_key().is_empty();
+    if !has_api_key {
+        eprintln!(
+            "{}: No AI provider configured. Printing prompt instead.",
+            "Info".cyan()
+        );
+        println!("{}", prompt);
+        return Ok(());
+    }
+
+    println!("{}", "Generating revision suggestions...".cyan());
+    let provider = crate::ai::create_provider(&cfg)?;
+    let model = cfg.model();
+    let response = provider.complete(&prompt, &model, 8192).await?;
+    println!("{}", response.text);
+    println!("\nCost: ${:.4}", response.cost_usd);
+
+    Ok(())
+}
+
+pub async fn cmd_notes_merge(id: &str) -> Result<()> {
+    let cfg = Config::load_or_default();
+    cfg.require_login()?;
+    let client = ServerClient::new(&cfg.server_url(), &cfg.api.auth_token);
+
+    let lesson = client.fetch_lesson(id).await?;
+    let notes = client.fetch_notes(id).await?;
+
+    if notes.is_empty() {
+        println!("No notes found for lesson {}. Nothing to merge.", id);
+        return Ok(());
+    }
+
+    // Build prompt
+    let mut notes_text = String::new();
+    for n in &notes {
+        notes_text.push_str(&format!(
+            "- [{}] \"{}\" \u{2192} {}\n",
+            n.highlight_color, n.anchor_text, n.content
+        ));
+    }
+
+    let prompt = format!(
+        "Here is lesson content:\n\n{}\n\nUser notes and highlights:\n{}\n\nMerge these notes into the lesson content. Output the complete revised lesson content in the same format (with YAML frontmatter). Incorporate the feedback naturally into the text.",
+        lesson.content, notes_text
+    );
+
+    let has_api_key = !cfg.api_key().is_empty();
+    if !has_api_key {
+        eprintln!(
+            "{}: No AI provider configured. Printing prompt instead.",
+            "Info".cyan()
+        );
+        println!("{}", prompt);
+        return Ok(());
+    }
+
+    println!("{}", "Merging notes into lesson content...".cyan());
+    let provider = crate::ai::create_provider(&cfg)?;
+    let model = cfg.model();
+    let response = provider.complete(&prompt, &model, 16384).await?;
+
+    println!("{}", response.text);
+    println!("\nCost: ${:.4}", response.cost_usd);
+
+    // Mark merged notes as 'merged'
+    for n in &notes {
+        if let Err(e) = client.update_note_status(&n.note_id, "merged").await {
+            eprintln!(
+                "{}: Could not mark note {} as merged: {}",
+                "Warning".yellow(),
+                n.note_id,
+                e
+            );
+        }
+    }
+    println!(
+        "{} {} notes marked as merged.",
+        "\u{2713}".green(),
+        notes.len()
+    );
+
+    Ok(())
+}
+
 /// Parse YAML frontmatter from lesson.md to extract key fields.
 /// Simple parser — doesn't require a YAML library.
 pub fn parse_lesson_frontmatter(

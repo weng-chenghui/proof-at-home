@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	toml "github.com/pelletier/go-toml/v2"
 	"github.com/proof-at-home/server/src/server/data"
@@ -18,16 +19,22 @@ import (
 // All write operations create branches, commit files, and push.
 // Read operations are served from the SQLite cache (not this struct).
 type GitStore struct {
-	mu        sync.Mutex
-	repoPath  string
-	repoURL   string
-	forge     ForgeClient
-	rebuildFn func(repoPath string) error
+	mu            sync.Mutex
+	repoPath      string
+	repoURL       string
+	forge         ForgeClient
+	rebuildFn     func(repoPath string) error
+	postRebuildFn func()
 }
 
 // SetRebuildFn sets the callback invoked after each merge to rebuild the read cache.
 func (gs *GitStore) SetRebuildFn(fn func(repoPath string) error) {
 	gs.rebuildFn = fn
+}
+
+// SetPostRebuildFn sets a callback invoked after each rebuild completes.
+func (gs *GitStore) SetPostRebuildFn(fn func()) {
+	gs.postRebuildFn = fn
 }
 
 // triggerRebuild runs the rebuild callback (if set) outside the git mutex.
@@ -37,6 +44,9 @@ func (gs *GitStore) triggerRebuild() {
 		if err := gs.rebuildFn(gs.repoPath); err != nil {
 			slog.Error("GitStore: cache rebuild failed", "error", err)
 		}
+	}
+	if gs.postRebuildFn != nil {
+		gs.postRebuildFn()
 	}
 }
 
@@ -570,6 +580,59 @@ func (gs *GitStore) UpdateSeries(id string, s data.Series) (string, error) {
 	return sha, nil
 }
 
+// ── Note export ──
+
+// NoteExport wraps notes for TOML serialization.
+type NoteExport struct {
+	Notes []data.Note `toml:"notes"`
+}
+
+// ExportNotesToGit writes all notes to a "notes" orphan branch in the data repo.
+func (gs *GitStore) ExportNotesToGit(notes []data.Note) error {
+	gs.mu.Lock()
+	defer gs.mu.Unlock()
+
+	// Try to checkout existing notes branch; create orphan if it doesn't exist
+	if err := gs.gitInRepo("checkout", "notes"); err != nil {
+		if err := gs.gitInRepo("checkout", "--orphan", "notes"); err != nil {
+			return fmt.Errorf("creating orphan notes branch: %w", err)
+		}
+		// Remove all tracked files from the orphan branch
+		gs.gitInRepo("rm", "-rf", ".")
+	}
+
+	// Clear existing notes/ directory
+	notesDir := filepath.Join(gs.repoPath, "notes")
+	os.RemoveAll(notesDir)
+
+	// Group notes by lesson_id
+	grouped := make(map[string][]data.Note)
+	for _, n := range notes {
+		grouped[n.LessonID] = append(grouped[n.LessonID], n)
+	}
+
+	// Write each group as notes/{lesson_id}.toml
+	for lessonID, lessonNotes := range grouped {
+		export := NoteExport{Notes: lessonNotes}
+		if err := gs.writeTOML(filepath.Join("notes", lessonID+".toml"), export); err != nil {
+			return fmt.Errorf("writing notes for lesson %s: %w", lessonID, err)
+		}
+	}
+
+	// Commit and push
+	msg := fmt.Sprintf("Export notes snapshot %s", time.Now().UTC().Format(time.RFC3339))
+	if err := gs.commitAndPush("notes", msg); err != nil {
+		return fmt.Errorf("committing notes export: %w", err)
+	}
+
+	// Return to main branch
+	if err := gs.gitInRepo("checkout", "main"); err != nil {
+		slog.Warn("ExportNotesToGit: failed to checkout main after export", "error", err)
+	}
+
+	return nil
+}
+
 // ── Cache rebuild ──
 
 // PullAndRebuild pulls latest main and calls the rebuild function.
@@ -694,6 +757,16 @@ func (gs *GitStore) commitAndPush(branch, message string) error {
 
 func (gs *GitStore) getHeadSHA() (string, error) {
 	return gs.gitOutput("rev-parse", "HEAD")
+}
+
+// MainHeadSHA returns the current HEAD SHA of the main branch.
+func (gs *GitStore) MainHeadSHA() string {
+	sha, err := gs.gitOutput("rev-parse", "main")
+	if err != nil {
+		slog.Warn("MainHeadSHA: failed to get main HEAD", "error", err)
+		return ""
+	}
+	return sha
 }
 
 func (gs *GitStore) writeLessonMD(relPath string, l data.Lesson) error {

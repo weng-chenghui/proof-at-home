@@ -80,6 +80,15 @@ func New(cfg *config.Config) (*App, error) {
 		gs.SetRebuildFn(lite.RebuildFromDir)
 	}
 
+	gs.SetPostRebuildFn(func() {
+		notes := lite.ListAllNotes()
+		if len(notes) > 0 {
+			if err := gs.ExportNotesToGit(notes); err != nil {
+				slog.Error("notes git export failed", "error", err)
+			}
+		}
+	})
+
 	// Initialize handlers
 	conjectureHandler := &handlers.ConjectureHandler{Store: lite}
 	contributionHandler := &handlers.ContributionHandler{Store: lite, GitStore: gs}
@@ -89,6 +98,7 @@ func New(cfg *config.Config) (*App, error) {
 	strategyWriteHandler := &handlers.StrategyWriteHandler{GitStore: gs}
 	expositionHandler := &handlers.ExpositionHandler{Store: lite, GitStore: gs}
 	lessonHandler := &handlers.LessonHandler{Store: lite, GitStore: gs}
+	noteHandler := &handlers.NoteHandler{Store: lite}
 	seriesHandler := &handlers.SeriesHandler{Store: lite, GitStore: gs}
 	aiChatHandler := &handlers.AIChatHandler{Config: cfg}
 	webhookHandler := &handlers.WebhookHandler{
@@ -132,6 +142,7 @@ func New(cfg *config.Config) (*App, error) {
 	r.Get("/expositions/{id}", expositionHandler.Get)
 	r.Get("/lessons", lessonHandler.List)
 	r.Get("/lessons/{id}", lessonHandler.Get)
+	r.Get("/lessons/{id}/notes", noteHandler.ListNotes)
 	r.Get("/series", seriesHandler.List)
 	r.Get("/series/{id}", seriesHandler.Get)
 
@@ -166,6 +177,9 @@ func New(cfg *config.Config) (*App, error) {
 		r.Post("/expositions/{id}/seal", expositionHandler.SealExposition)
 		r.Post("/lessons", lessonHandler.Create)
 		r.Patch("/lessons/{id}", lessonHandler.Update)
+		r.Post("/lessons/{id}/notes", noteHandler.CreateNote)
+		r.Patch("/notes/{noteId}", noteHandler.UpdateNote)
+		r.Delete("/notes/{noteId}", noteHandler.DeleteNote)
 		r.Post("/series", seriesHandler.Create)
 		r.Patch("/series/{id}", seriesHandler.Update)
 		r.Post("/strategies", strategyWriteHandler.Submit)

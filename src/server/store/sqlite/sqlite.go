@@ -34,6 +34,9 @@ var migration005SQL string
 //go:embed migrations/006_lesson_content_and_series.sql
 var migration006SQL string
 
+//go:embed migrations/007_notes.sql
+var migration007SQL string
+
 type SQLiteStore struct {
 	db *sql.DB
 }
@@ -78,6 +81,10 @@ func (s *SQLiteStore) Migrate() error {
 	_, err = s.db.Exec(migration006SQL)
 	if err != nil {
 		return fmt.Errorf("running migration 006: %w", err)
+	}
+	_, err = s.db.Exec(migration007SQL)
+	if err != nil {
+		return fmt.Errorf("running migration 007: %w", err)
 	}
 	slog.Info("SQLite migration completed")
 	return nil
@@ -867,6 +874,97 @@ func parseCommandFile(raw []byte) (data.Strategy, error) {
 		}
 	}
 	return cmd, nil
+}
+
+// ── Note CRUD (persistent user data, not rebuilt from git) ──
+
+func (s *SQLiteStore) ListNotes(lessonID string) []data.Note {
+	rows, err := s.db.Query(
+		`SELECT note_id, lesson_id, content_hash, anchor_text, line_start, line_end,
+		 content, highlight_color, user_id, username, status, created_at, updated_at
+		 FROM notes WHERE lesson_id = ? ORDER BY line_start, created_at`, lessonID)
+	if err != nil {
+		slog.Error("ListNotes query failed", "error", err)
+		return nil
+	}
+	defer rows.Close()
+
+	var notes []data.Note
+	for rows.Next() {
+		var n data.Note
+		if err := rows.Scan(&n.NoteID, &n.LessonID, &n.ContentHash, &n.AnchorText,
+			&n.LineStart, &n.LineEnd, &n.Content, &n.HighlightColor,
+			&n.UserID, &n.Username, &n.Status, &n.CreatedAt, &n.UpdatedAt); err != nil {
+			slog.Error("ListNotes scan failed", "error", err)
+			continue
+		}
+		notes = append(notes, n)
+	}
+	return notes
+}
+
+func (s *SQLiteStore) GetNote(noteID string) (data.Note, bool) {
+	var n data.Note
+	err := s.db.QueryRow(
+		`SELECT note_id, lesson_id, content_hash, anchor_text, line_start, line_end,
+		 content, highlight_color, user_id, username, status, created_at, updated_at
+		 FROM notes WHERE note_id = ?`, noteID,
+	).Scan(&n.NoteID, &n.LessonID, &n.ContentHash, &n.AnchorText,
+		&n.LineStart, &n.LineEnd, &n.Content, &n.HighlightColor,
+		&n.UserID, &n.Username, &n.Status, &n.CreatedAt, &n.UpdatedAt)
+	if err != nil {
+		return data.Note{}, false
+	}
+	return n, true
+}
+
+func (s *SQLiteStore) CreateNote(note data.Note) error {
+	_, err := s.db.Exec(
+		`INSERT INTO notes (note_id, lesson_id, content_hash, anchor_text, line_start, line_end,
+		 content, highlight_color, user_id, username, status)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		note.NoteID, note.LessonID, note.ContentHash, note.AnchorText,
+		note.LineStart, note.LineEnd, note.Content, note.HighlightColor,
+		note.UserID, note.Username, note.Status)
+	return err
+}
+
+func (s *SQLiteStore) UpdateNote(note data.Note) error {
+	_, err := s.db.Exec(
+		`UPDATE notes SET content = ?, highlight_color = ?, status = ?, updated_at = datetime('now')
+		 WHERE note_id = ?`,
+		note.Content, note.HighlightColor, note.Status, note.NoteID)
+	return err
+}
+
+func (s *SQLiteStore) DeleteNote(noteID string) error {
+	_, err := s.db.Exec(`DELETE FROM notes WHERE note_id = ?`, noteID)
+	return err
+}
+
+func (s *SQLiteStore) ListAllNotes() []data.Note {
+	rows, err := s.db.Query(
+		`SELECT note_id, lesson_id, content_hash, anchor_text, line_start, line_end,
+		 content, highlight_color, user_id, username, status, created_at, updated_at
+		 FROM notes WHERE status = 'active' ORDER BY lesson_id, line_start`)
+	if err != nil {
+		slog.Error("ListAllNotes query failed", "error", err)
+		return nil
+	}
+	defer rows.Close()
+
+	var notes []data.Note
+	for rows.Next() {
+		var n data.Note
+		if err := rows.Scan(&n.NoteID, &n.LessonID, &n.ContentHash, &n.AnchorText,
+			&n.LineStart, &n.LineEnd, &n.Content, &n.HighlightColor,
+			&n.UserID, &n.Username, &n.Status, &n.CreatedAt, &n.UpdatedAt); err != nil {
+			slog.Error("ListAllNotes scan failed", "error", err)
+			continue
+		}
+		notes = append(notes, n)
+	}
+	return notes
 }
 
 // RebuildFromDir rebuilds the entire SQLite cache from the git data repo directory.

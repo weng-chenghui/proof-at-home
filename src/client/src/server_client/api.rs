@@ -862,3 +862,60 @@ impl ServerClient {
         Ok(result)
     }
 }
+
+// ── Note endpoints ──
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NoteRecord {
+    pub note_id: String,
+    pub lesson_id: String,
+    #[serde(default)]
+    pub anchor_text: String,
+    #[serde(default)]
+    pub content: String,
+    #[serde(default)]
+    pub highlight_color: String,
+    #[serde(default)]
+    pub user_id: String,
+    #[serde(default)]
+    pub username: String,
+    #[serde(default)]
+    pub status: String,
+    #[serde(default)]
+    pub created_at: String,
+    #[serde(default)]
+    pub updated_at: String,
+}
+
+impl ServerClient {
+    /// Fetch all notes for a lesson.
+    pub async fn fetch_notes(&self, lesson_id: &str) -> Result<Vec<NoteRecord>> {
+        let items: Vec<NoteRecord> = self
+            .client
+            .get(format!("{}/lessons/{}/notes", self.base_url, lesson_id))
+            .send()
+            .await
+            .context("Failed to fetch notes")?
+            .json()
+            .await?;
+        Ok(items)
+    }
+
+    /// Update a note's status (or other fields).
+    pub async fn update_note_status(&self, note_id: &str, status: &str) -> Result<()> {
+        let resp = self
+            .authed(
+                self.client
+                    .patch(format!("{}/notes/{}", self.base_url, note_id)),
+            )
+            .json(&serde_json::json!({"status": status}))
+            .send()
+            .await
+            .context("Failed to update note")?;
+        if !resp.status().is_success() {
+            let body = resp.text().await.unwrap_or_default();
+            anyhow::bail!("Server returned error: {}", body);
+        }
+        Ok(())
+    }
+}

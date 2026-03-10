@@ -20,5 +20,11 @@ type Store interface {
 	GetLesson(id string) (data.Lesson, bool)
 	ListSeries() []data.Series
 	GetSeries(id string) (data.Series, bool)
+	ListNotes(lessonID string) []data.Note
+	GetNote(noteID string) (data.Note, bool)
+	CreateNote(note data.Note) error
+	UpdateNote(note data.Note) error
+	DeleteNote(noteID string) error
+	ListAllNotes() []data.Note
 	RebuildFromDir(repoPath string) error
 }

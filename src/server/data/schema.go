@@ -122,6 +122,24 @@ type Lesson struct {
 	AIAnnotations  []AIAnnotation `json:"ai_annotations,omitempty" yaml:"ai_annotations,omitempty"`
 }
 
+// ── Note types ──
+
+type Note struct {
+	NoteID         string `json:"note_id" toml:"note_id"`
+	LessonID       string `json:"lesson_id" toml:"lesson_id"`
+	ContentHash    string `json:"content_hash" toml:"content_hash"`
+	AnchorText     string `json:"anchor_text" toml:"anchor_text"`
+	LineStart      int    `json:"line_start" toml:"line_start"`
+	LineEnd        int    `json:"line_end" toml:"line_end"`
+	Content        string `json:"content" toml:"content"`
+	HighlightColor string `json:"highlight_color" toml:"highlight_color"`
+	UserID         string `json:"user_id" toml:"user_id"`
+	Username       string `json:"username" toml:"username"`
+	Status         string `json:"status" toml:"status"`
+	CreatedAt      string `json:"created_at" toml:"created_at"`
+	UpdatedAt      string `json:"updated_at" toml:"updated_at"`
+}
+
 // ── Series types ──
 
 type Series struct {

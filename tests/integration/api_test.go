@@ -1062,3 +1062,105 @@ func TestConjectureAuthorFlow(t *testing.T) {
 		}
 	}
 }
+
+func deleteRequest(t *testing.T, path string) int {
+	t.Helper()
+	req, err := http.NewRequest("DELETE", serverURL+path, nil)
+	if err != nil {
+		t.Fatalf("DELETE %s: %v", path, err)
+	}
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		t.Fatalf("DELETE %s: %v", path, err)
+	}
+	defer resp.Body.Close()
+	return resp.StatusCode
+}
+
+func TestNotesCRUD(t *testing.T) {
+	// Use an existing lesson from seed data or create one for the test
+	lessonID := "test-lesson-notes"
+	// Create a lesson for this test
+	lessonBody := map[string]any{
+		"lesson_id":       lessonID,
+		"author_username": "test-notes-user",
+		"title":           "Test Lesson for Notes",
+		"topic":           "testing",
+		"difficulty":      "easy",
+		"conjecture_ids":  []string{},
+		"published":       true,
+		"content":         "Line 1\nLine 2\nLine 3\n",
+	}
+	postJSON(t, "/lessons", lessonBody)
+
+	// 1. POST note -> 201
+	note := map[string]any{
+		"anchor_text":     "Line 2",
+		"content":         "This is important!",
+		"highlight_color": "yellow",
+		"line_start":      2,
+		"line_end":        2,
+		"content_hash":    "abc123",
+		"user_id":         "test-user",
+		"username":        "tester",
+	}
+	status, resp := postJSON(t, fmt.Sprintf("/lessons/%s/notes", lessonID), note)
+	if status != http.StatusCreated {
+		t.Fatalf("POST note: status %d, body %v", status, resp)
+	}
+	noteID, ok := resp["note_id"].(string)
+	if !ok || noteID == "" {
+		t.Fatal("response missing note_id")
+	}
+
+	// 2. GET notes -> verify note appears
+	var notes []map[string]any
+	getJSON(t, fmt.Sprintf("/lessons/%s/notes", lessonID), &notes)
+	if len(notes) < 1 {
+		t.Fatalf("GET notes: got %d, want >= 1", len(notes))
+	}
+	var found bool
+	for _, n := range notes {
+		if n["note_id"] == noteID {
+			found = true
+			if n["content"] != "This is important!" {
+				t.Errorf("content = %q, want %q", n["content"], "This is important!")
+			}
+			break
+		}
+	}
+	if !found {
+		t.Errorf("note %s not found in GET response", noteID)
+	}
+
+	// 3. PATCH note -> update content
+	patch := map[string]any{
+		"content":         "Updated note content",
+		"highlight_color": "blue",
+	}
+	status, resp = patchJSON(t, fmt.Sprintf("/notes/%s", noteID), patch)
+	if status != http.StatusOK {
+		t.Fatalf("PATCH note: status %d, body %v", status, resp)
+	}
+	if resp["content"] != "Updated note content" {
+		t.Errorf("updated content = %q, want %q", resp["content"], "Updated note content")
+	}
+	if resp["highlight_color"] != "blue" {
+		t.Errorf("updated color = %q, want %q", resp["highlight_color"], "blue")
+	}
+
+	// 4. DELETE note -> 204
+	status = deleteRequest(t, fmt.Sprintf("/notes/%s", noteID))
+	if status != http.StatusNoContent {
+		t.Fatalf("DELETE note: status %d, want 204", status)
+	}
+
+	// 5. GET notes -> verify empty
+	var notesAfter []map[string]any
+	getJSON(t, fmt.Sprintf("/lessons/%s/notes", lessonID), &notesAfter)
+	for _, n := range notesAfter {
+		if n["note_id"] == noteID {
+			t.Errorf("note %s still present after DELETE", noteID)
+		}
+	}
+}
