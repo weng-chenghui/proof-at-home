@@ -1436,6 +1436,17 @@ func registerRoutes(se *core.ServeEvent, app core.App, cfg *config.Config) {
 		return e.JSON(http.StatusOK, map[string]any{"models": models})
 	})
 
+	// Serve lesson.html for series-scoped lesson URLs
+	se.Router.GET("/series/{seriesId}/lessons/{lessonId}", func(e *core.RequestEvent) error {
+		f, err := static.Files.ReadFile("lesson.html")
+		if err != nil {
+			return e.NotFoundError("", nil)
+		}
+		e.Response.Header().Set("Content-Type", "text/html; charset=utf-8")
+		e.Response.Write(f)
+		return nil
+	})
+
 	// Serve embedded static files (web UI)
 	fileServer := http.FileServer(http.FS(static.Files))
 	se.Router.GET("/{path...}", func(e *core.RequestEvent) error {

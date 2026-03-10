@@ -174,6 +174,17 @@ func New(cfg *config.Config) (*App, error) {
 		r.Post("/ai/models", aiChatHandler.Models)
 	})
 
+	// Serve lesson.html for series-scoped lesson URLs
+	r.Get("/series/{seriesId}/lessons/{lessonId}", func(w http.ResponseWriter, r *http.Request) {
+		f, err := static.Files.ReadFile("lesson.html")
+		if err != nil {
+			http.Error(w, "not found", 404)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Write(f)
+	})
+
 	// Serve embedded static files
 	fileServer := http.FileServer(http.FS(static.Files))
 	r.Handle("/*", fileServer)

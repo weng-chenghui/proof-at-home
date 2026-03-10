@@ -158,9 +158,12 @@
         let allLessons = [];
         let allSeries = [];
 
-        function lessonCard(l, seq) {
+        function lessonCard(l, seq, seriesId) {
             const prefix = seq != null ? `${seq}. ` : '';
-            return `<a class="lesson-card" href="/lesson.html?id=${encodeURIComponent(l.lesson_id)}">
+            const href = seriesId
+                ? `/series/${encodeURIComponent(seriesId)}/lessons/${encodeURIComponent(l.lesson_id)}`
+                : `/lesson.html?id=${encodeURIComponent(l.lesson_id)}`;
+            return `<a class="lesson-card" href="${href}">
                 <h3>${prefix}${escapeHtml(l.title || l.lesson_id)}</h3>
                 <div class="lesson-card-meta">
                     ${l.difficulty ? difficultyBadge(l.difficulty) : ''}
@@ -205,7 +208,7 @@
                         ${s.description ? `<p>${escapeHtml(s.description)}</p>` : ''}
                     </summary>
                     <div class="card-grid" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));">
-                        ${seriesLessons.map((l, i) => lessonCard(l, i + 1)).join('')}
+                        ${seriesLessons.map((l, i) => lessonCard(l, i + 1, s.series_id)).join('')}
                     </div>
                 </details>`;
             }

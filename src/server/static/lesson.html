@@ -18,6 +18,33 @@
     <script src="https://cdn.jsdelivr.net/npm/marked@15.0.0/marked.min.js"></script>
     <style>
         pre code.hljs { background: var(--code-bg); padding: 0; }
+        .series-nav {
+            background: var(--accent-subtle);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 0.5rem 1rem;
+            margin-bottom: 1rem;
+            font-size: 0.85rem;
+        }
+        .series-nav-title {
+            font-weight: 600;
+            color: var(--accent);
+        }
+        .series-nav-pos {
+            color: var(--text-secondary);
+            margin-left: 0.5rem;
+        }
+        .series-nav-links {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 0.35rem;
+        }
+        .series-nav-links a {
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .series-nav-links a:hover { text-decoration: underline; }
         .lesson-meta {
             background: var(--code-bg);
             border: 1px solid var(--border);
@@ -513,9 +540,11 @@
 <body>
     <nav id="navbar"></nav>
     <div class="container">
-        <p><a href="/lessons.html">&larr; Back to Lessons</a></p>
+        <p id="back-link"><a href="/lessons.html">&larr; Back to Lessons</a></p>
+        <div id="series-nav-top"></div>
         <div id="msg" class="msg" style="display:none"></div>
         <div id="content"></div>
+        <div id="series-nav-bottom"></div>
     </div>
 
     <button id="ai-ask-float">Ask AI</button>
@@ -1227,9 +1256,34 @@
             }
         }
 
+        function buildSeriesNav(series, lessonIds, currentId) {
+            const idx = lessonIds.indexOf(currentId);
+            if (idx === -1) return '';
+            const pos = `Lesson ${idx + 1} of ${lessonIds.length}`;
+            const sid = encodeURIComponent(series.series_id);
+            const prevLink = idx > 0
+                ? `<a href="/series/${sid}/lessons/${encodeURIComponent(lessonIds[idx - 1])}">&larr; Previous</a>`
+                : '<span></span>';
+            const nextLink = idx < lessonIds.length - 1
+                ? `<a href="/series/${sid}/lessons/${encodeURIComponent(lessonIds[idx + 1])}">Next &rarr;</a>`
+                : '<span></span>';
+            return `<div class="series-nav">
+                <span class="series-nav-title">${escapeHtml(series.title)}</span>
+                <span class="series-nav-pos">&middot; ${pos}</span>
+                <div class="series-nav-links">${prevLink}${nextLink}</div>
+            </div>`;
+        }
+
         // ── Lesson loading ──
         async function load() {
-            const id = new URLSearchParams(window.location.search).get('id');
+            let id, seriesId;
+            const pathMatch = window.location.pathname.match(/^\/series\/([^/]+)\/lessons\/([^/]+)$/);
+            if (pathMatch) {
+                seriesId = decodeURIComponent(pathMatch[1]);
+                id = decodeURIComponent(pathMatch[2]);
+            } else {
+                id = new URLSearchParams(window.location.search).get('id');
+            }
             if (!id) {
                 showMsg('msg', 'No lesson ID specified.', true);
                 return;
@@ -1239,6 +1293,20 @@
 
             try {
                 const lesson = await api('GET', '/lessons/' + encodeURIComponent(id));
+
+                // Series navigation
+                if (seriesId) {
+                    try {
+                        const series = await api('GET', '/series/' + encodeURIComponent(seriesId));
+                        const lessonIds = series.lesson_ids || [];
+                        const navHtml = buildSeriesNav(series, lessonIds, id);
+                        document.getElementById('series-nav-top').innerHTML = navHtml;
+                        document.getElementById('series-nav-bottom').innerHTML = navHtml;
+                        // Update back link to point to lessons with series context
+                        document.getElementById('back-link').innerHTML =
+                            `<a href="/lessons.html">&larr; Back to ${escapeHtml(series.title)}</a>`;
+                    } catch (_) { /* series fetch failed, skip nav */ }
+                }
                 lessonTitle = lesson.title || lesson.lesson_id;
                 document.title = lessonTitle + ' — Proof@Home';
 
