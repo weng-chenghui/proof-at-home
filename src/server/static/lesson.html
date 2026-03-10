@@ -816,11 +816,11 @@
             border: 1px solid var(--border);
             border-radius: var(--radius);
             overflow: hidden;
-            font-size: 0.8rem;
-            margin-bottom: 1rem;
+            font-size: 0.75rem;
+            margin-bottom: 0.5rem;
         }
         .lang-toggle button {
-            padding: 0.35rem 0.75rem;
+            padding: 0.25rem 0.6rem;
             border: none;
             background: var(--surface);
             color: var(--text-secondary);
@@ -2091,17 +2091,9 @@
                     conjHtml = '<h2>Conjectures</h2><div class="conj-list" id="conj-list"></div>';
                 }
 
-                // Language toggle
-                const langToggleHtml = `<div class="lang-toggle" id="lang-toggle" style="display:none">
-                    <button data-lang="lean4">Lean 4</button>
-                    <button data-lang="rocq">Rocq</button>
-                    <button data-lang="both">Both</button>
-                </div>`;
-
                 document.getElementById('content').innerHTML = `
                     <h1>${escapeHtml(lessonTitle)}</h1>
                     ${metaHtml}
-                    ${langToggleHtml}
                     ${bodyHtml}
                     ${conjHtml}
                 `;
@@ -2186,63 +2178,98 @@
                     });
                 }
 
-                // ── Language filter ──
-                function applyLanguageFilter(lang) {
-                    // Filter code blocks
-                    document.querySelectorAll('.lesson-body pre').forEach(pre => {
-                        const code = pre.querySelector('code');
-                        if (!code) return;
-                        const classes = code.className || '';
-                        const isLean = classes.includes('language-lean4') || classes.includes('language-lean');
-                        const isRocq = classes.includes('language-rocq') || classes.includes('language-coq');
-                        if (!isLean && !isRocq) return; // non-prover code blocks always visible
+                // ── Per-block language toggles ──
+                function getProverLang(pre) {
+                    const code = pre.querySelector('code');
+                    if (!code) return null;
+                    const cls = code.className || '';
+                    if (cls.includes('language-lean4') || cls.includes('language-lean')) return 'lean4';
+                    if (cls.includes('language-rocq') || cls.includes('language-coq')) return 'rocq';
+                    return null;
+                }
+
+                function applyToggle(toggle, lang) {
+                    toggle.querySelectorAll('button').forEach(b => {
+                        b.classList.toggle('active', b.dataset.lang === lang);
+                    });
+                    const pres = toggle._pres || [];
+                    pres.forEach(pre => {
+                        const preLang = getProverLang(pre);
                         if (lang === 'both') {
                             pre.style.display = '';
-                        } else if (lang === 'lean4') {
-                            pre.style.display = isLean ? '' : 'none';
-                        } else if (lang === 'rocq') {
-                            pre.style.display = isRocq ? '' : 'none';
+                        } else {
+                            pre.style.display = (preLang === lang) ? '' : 'none';
                         }
                     });
-                    // Filter conjecture items
+                    localStorage.setItem('pah-preferred-lang', lang);
+                    // Sync all toggles to same preference
+                    document.querySelectorAll('.lang-toggle').forEach(t => {
+                        if (t === toggle) return;
+                        t.querySelectorAll('button').forEach(b => {
+                            b.classList.toggle('active', b.dataset.lang === lang);
+                        });
+                        (t._pres || []).forEach(pre => {
+                            const preLang = getProverLang(pre);
+                            if (lang === 'both') {
+                                pre.style.display = '';
+                            } else {
+                                pre.style.display = (preLang === lang) ? '' : 'none';
+                            }
+                        });
+                    });
+                    // Also filter conjecture items
                     document.querySelectorAll('.conj-item[data-prover]').forEach(el => {
-                        const prover = el.getAttribute('data-prover');
-                        if (!prover) return;
-                        if (lang === 'both') {
-                            el.style.display = '';
-                        } else {
-                            el.style.display = (prover === lang) ? '' : 'none';
-                        }
+                        const p = el.getAttribute('data-prover');
+                        if (!p) return;
+                        el.style.display = (lang === 'both' || p === lang) ? '' : 'none';
                     });
                 }
 
-                // Detect languages present
-                const langSet = new Set();
-                document.querySelectorAll('.lesson-body pre code').forEach(code => {
-                    const cls = code.className || '';
-                    if (cls.includes('language-lean4') || cls.includes('language-lean')) langSet.add('lean4');
-                    if (cls.includes('language-rocq') || cls.includes('language-coq')) langSet.add('rocq');
-                });
-                document.querySelectorAll('.conj-item[data-prover]').forEach(el => {
-                    const p = el.getAttribute('data-prover');
-                    if (p === 'lean4' || p === 'rocq') langSet.add(p);
-                });
-
-                if (langSet.size >= 2) {
-                    const toggle = document.getElementById('lang-toggle');
-                    toggle.style.display = '';
-                    const saved = localStorage.getItem('pah-preferred-lang') || 'both';
-                    toggle.querySelectorAll('button').forEach(btn => {
-                        if (btn.dataset.lang === saved) btn.classList.add('active');
-                        btn.addEventListener('click', () => {
-                            toggle.querySelectorAll('button').forEach(b => b.classList.remove('active'));
-                            btn.classList.add('active');
-                            const lang = btn.dataset.lang;
-                            localStorage.setItem('pah-preferred-lang', lang);
-                            applyLanguageFilter(lang);
+                // Group consecutive prover <pre> blocks and insert toggles
+                const allPres = Array.from(document.querySelectorAll('.lesson-body pre'));
+                const saved = localStorage.getItem('pah-preferred-lang') || 'both';
+                let i = 0;
+                while (i < allPres.length) {
+                    const lang1 = getProverLang(allPres[i]);
+                    if (!lang1) { i++; continue; }
+                    // Collect consecutive prover blocks
+                    const group = [allPres[i]];
+                    let j = i + 1;
+                    while (j < allPres.length && getProverLang(allPres[j])) {
+                        group.push(allPres[j]);
+                        j++;
+                    }
+                    // Only add toggle if group has both languages
+                    const langs = new Set(group.map(getProverLang));
+                    if (langs.size >= 2) {
+                        const toggle = document.createElement('div');
+                        toggle.className = 'lang-toggle';
+                        ['lean4', 'rocq', 'both'].forEach(l => {
+                            const btn = document.createElement('button');
+                            btn.dataset.lang = l;
+                            btn.textContent = l === 'lean4' ? 'Lean 4' : l === 'rocq' ? 'Rocq' : 'Both';
+                            if (l === saved) btn.classList.add('active');
+                            btn.addEventListener('click', () => applyToggle(toggle, l));
+                            toggle.appendChild(btn);
                         });
+                        toggle._pres = group;
+                        group[0].parentNode.insertBefore(toggle, group[0]);
+                        // Apply initial filter
+                        group.forEach(pre => {
+                            const preLang = getProverLang(pre);
+                            if (saved !== 'both') {
+                                pre.style.display = (preLang === saved) ? '' : 'none';
+                            }
+                        });
+                    }
+                    i = j;
+                }
+                // Apply initial conjecture filter
+                if (saved !== 'both') {
+                    document.querySelectorAll('.conj-item[data-prover]').forEach(el => {
+                        const p = el.getAttribute('data-prover');
+                        if (p) el.style.display = (p === saved) ? '' : 'none';
                     });
-                    applyLanguageFilter(saved);
                 }
 
                 // Load notes
