@@ -861,6 +861,147 @@ func registerRoutes(se *core.ServeEvent, app core.App, cfg *config.Config) {
 		})
 	})
 
+	// ── Notes routes ──
+
+	// helper to convert a PocketBase notes record to the API response shape
+	noteRecordToMap := func(r *core.Record) map[string]any {
+		return map[string]any{
+			"note_id":         r.GetString("note_id"),
+			"lesson_id":       r.GetString("lesson_id"),
+			"content_hash":    r.GetString("content_hash"),
+			"anchor_text":     r.GetString("anchor_text"),
+			"line_start":      int(r.GetFloat("line_start")),
+			"line_end":        int(r.GetFloat("line_end")),
+			"content":         r.GetString("content"),
+			"highlight_color": r.GetString("highlight_color"),
+			"user_id":         r.GetString("user_id"),
+			"username":        r.GetString("username"),
+			"status":          r.GetString("status"),
+			"created_at":      r.GetString("created"),
+			"updated_at":      r.GetString("updated"),
+		}
+	}
+
+	// GET /lessons/{id}/notes — list notes for a lesson
+	se.Router.GET("/lessons/{id}/notes", func(e *core.RequestEvent) error {
+		lessonID := e.Request.PathValue("id")
+		records, err := app.FindRecordsByFilter("notes", "lesson_id = {:lid}", "line_start", -1, 0, map[string]any{
+			"lid": lessonID,
+		})
+		if err != nil {
+			return e.JSON(http.StatusOK, []any{})
+		}
+		result := make([]map[string]any, 0, len(records))
+		for _, r := range records {
+			result = append(result, noteRecordToMap(r))
+		}
+		return e.JSON(http.StatusOK, result)
+	})
+
+	// POST /lessons/{id}/notes — create a note
+	se.Router.POST("/lessons/{id}/notes", func(e *core.RequestEvent) error {
+		lessonID := e.Request.PathValue("id")
+
+		var body struct {
+			NoteID         string `json:"note_id"`
+			ContentHash    string `json:"content_hash"`
+			AnchorText     string `json:"anchor_text"`
+			LineStart      int    `json:"line_start"`
+			LineEnd        int    `json:"line_end"`
+			Content        string `json:"content"`
+			HighlightColor string `json:"highlight_color"`
+			UserID         string `json:"user_id"`
+			Username       string `json:"username"`
+			Status         string `json:"status"`
+		}
+		if err := json.NewDecoder(e.Request.Body).Decode(&body); err != nil {
+			return e.JSON(http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
+		}
+
+		if body.NoteID == "" {
+			body.NoteID = uuid.New().String()
+		}
+		if body.Status == "" {
+			body.Status = "active"
+		}
+
+		col, err := app.FindCollectionByNameOrId("notes")
+		if err != nil {
+			return e.JSON(http.StatusInternalServerError, map[string]string{"error": "notes collection not found"})
+		}
+		record := core.NewRecord(col)
+		record.Set("note_id", body.NoteID)
+		record.Set("lesson_id", lessonID)
+		record.Set("content_hash", body.ContentHash)
+		record.Set("anchor_text", body.AnchorText)
+		record.Set("line_start", body.LineStart)
+		record.Set("line_end", body.LineEnd)
+		record.Set("content", body.Content)
+		record.Set("highlight_color", body.HighlightColor)
+		record.Set("user_id", body.UserID)
+		record.Set("username", body.Username)
+		record.Set("status", body.Status)
+
+		if err := app.Save(record); err != nil {
+			return e.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to create note: " + err.Error()})
+		}
+
+		return e.JSON(http.StatusCreated, noteRecordToMap(record))
+	})
+
+	// PATCH /notes/{noteId} — update a note
+	se.Router.PATCH("/notes/{noteId}", func(e *core.RequestEvent) error {
+		noteID := e.Request.PathValue("noteId")
+		record, err := app.FindFirstRecordByFilter("notes", "note_id = {:nid}", map[string]any{
+			"nid": noteID,
+		})
+		if err != nil {
+			return e.JSON(http.StatusNotFound, map[string]string{"error": "not found"})
+		}
+
+		var patch struct {
+			Content        string `json:"content"`
+			HighlightColor string `json:"highlight_color"`
+			Status         string `json:"status"`
+		}
+		if err := json.NewDecoder(e.Request.Body).Decode(&patch); err != nil {
+			return e.JSON(http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
+		}
+
+		if patch.Content != "" {
+			record.Set("content", patch.Content)
+		}
+		if patch.HighlightColor != "" {
+			record.Set("highlight_color", patch.HighlightColor)
+		}
+		if patch.Status != "" {
+			record.Set("status", patch.Status)
+		}
+
+		if err := app.Save(record); err != nil {
+			return e.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to update note: " + err.Error()})
+		}
+
+		return e.JSON(http.StatusOK, noteRecordToMap(record))
+	})
+
+	// DELETE /notes/{noteId} — delete a note
+	se.Router.DELETE("/notes/{noteId}", func(e *core.RequestEvent) error {
+		noteID := e.Request.PathValue("noteId")
+		record, err := app.FindFirstRecordByFilter("notes", "note_id = {:nid}", map[string]any{
+			"nid": noteID,
+		})
+		if err != nil {
+			return e.JSON(http.StatusNotFound, map[string]string{"error": "not found"})
+		}
+
+		if err := app.Delete(record); err != nil {
+			return e.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to delete note: " + err.Error()})
+		}
+
+		return e.NoContent(http.StatusNoContent)
+	})
+
 	// ── Series routes ──
 
 	// GET /series — list series
