@@ -925,6 +925,15 @@ func registerRoutes(se *core.ServeEvent, app core.App, cfg *config.Config) {
 			body.Status = "active"
 		}
 
+		if e.Auth != nil {
+			body.UserID = e.Auth.Id
+			if name := e.Auth.GetString("name"); name != "" {
+				body.Username = name
+			} else if e.Auth.Email() != "" {
+				body.Username = e.Auth.Email()
+			}
+		}
+
 		col, err := app.FindCollectionByNameOrId("notes")
 		if err != nil {
 			return e.JSON(http.StatusInternalServerError, map[string]string{"error": "notes collection not found"})

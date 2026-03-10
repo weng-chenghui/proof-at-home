@@ -862,13 +862,22 @@
             { name: 'Pink', hex: '#F48FB1' },
             { name: 'Purple', hex: '#CE93D8' },
         ];
-        // Fake user for unauthenticated demo
-        const currentUserId = localStorage.getItem('pah_notes_user_id') || (() => {
-            const id = crypto.randomUUID();
-            localStorage.setItem('pah_notes_user_id', id);
-            return id;
+        const currentUserId = (() => {
+            const token = localStorage.getItem('pah_jwt_token');
+            if (token) {
+                try {
+                    const p = JSON.parse(atob(token.split('.')[1]));
+                    if (p.sub) return p.sub;
+                    if (p.id) return p.id;
+                } catch {}
+            }
+            return localStorage.getItem('pah_notes_user_id') || (() => {
+                const id = crypto.randomUUID();
+                localStorage.setItem('pah_notes_user_id', id);
+                return id;
+            })();
         })();
-        const currentUsername = localStorage.getItem('pah_notes_username') || 'anonymous';
+        const currentUsername = getLoggedInUser() || 'anonymous';
 
         // ── localStorage helpers (multi-key) ──
         const BROWSER_DEMO_KEY = { id: 'browser-demo', label: 'Browser (Free)', provider: 'browser', key: '' };
@@ -1446,11 +1455,43 @@
             });
         }
 
+        function wrapRange(range, createWrapper) {
+            // Simple case: start and end in the same text node
+            if (range.startContainer === range.endContainer && range.startContainer.nodeType === Node.TEXT_NODE) {
+                const wrapper = createWrapper();
+                range.surroundContents(wrapper);
+                return;
+            }
+            // Multi-node: collect text nodes in range, then wrap each
+            const startNode = range.startContainer;
+            const endNode = range.endContainer;
+            const nodes = [];
+            const walker = document.createTreeWalker(range.commonAncestorContainer, NodeFilter.SHOW_TEXT);
+            let n;
+            let inRange = false;
+            while (n = walker.nextNode()) {
+                if (n === startNode) inRange = true;
+                if (inRange) nodes.push(n);
+                if (n === endNode) break;
+            }
+            for (let i = 0; i < nodes.length; i++) {
+                let tn = nodes[i];
+                let wrapStart = 0, wrapEnd = tn.textContent.length;
+                if (tn === startNode) wrapStart = range.startOffset;
+                if (tn === endNode) wrapEnd = range.endOffset;
+                if (wrapStart > 0) tn = tn.splitText(wrapStart);
+                if (wrapEnd - wrapStart < tn.textContent.length) tn.splitText(wrapEnd - wrapStart);
+                const wrapper = createWrapper();
+                tn.parentNode.insertBefore(wrapper, tn);
+                wrapper.appendChild(tn);
+            }
+        }
+
         function highlightText(root, text, note, isOwn) {
             const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
                 acceptNode(node) {
-                    // Skip KaTeX and code blocks
-                    if (node.parentElement.closest('.katex, pre, code')) return NodeFilter.FILTER_REJECT;
+                    // Skip hidden MathML copy and code blocks; include visible KaTeX text
+                    if (node.parentElement.closest('.katex-mathml, pre, code')) return NodeFilter.FILTER_REJECT;
                     return NodeFilter.FILTER_ACCEPT;
                 }
             });
@@ -1486,11 +1527,11 @@
 
             if (!startNode || !endNode) return;
 
-            try {
-                const range = document.createRange();
-                range.setStart(startNode, startOffset);
-                range.setEnd(endNode, endOffset);
+            const range = document.createRange();
+            range.setStart(startNode, startOffset);
+            range.setEnd(endNode, endOffset);
 
+            function makeWrapper() {
                 if (isOwn) {
                     const mark = document.createElement('mark');
                     mark.className = 'note-highlight';
@@ -1501,7 +1542,7 @@
                         openSidebarToNotesOnly();
                         scrollToNoteCard(note.note_id);
                     });
-                    range.surroundContents(mark);
+                    return mark;
                 } else {
                     const span = document.createElement('span');
                     span.className = 'note-highlight-others';
@@ -1512,10 +1553,13 @@
                         openSidebarToNotesOnly();
                         scrollToNoteCard(note.note_id);
                     });
-                    range.surroundContents(span);
+                    return span;
                 }
+            }
+
+            try {
+                wrapRange(range, makeWrapper);
             } catch (e) {
-                // surroundContents can fail if range crosses element boundaries
                 console.debug('Highlight failed for note', note.note_id, e.message);
             }
         }
