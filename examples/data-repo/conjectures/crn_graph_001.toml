@@ -1,0 +1,21 @@
+id = "crn_graph_001"
+title = "3-cycle A → B → C → A is strongly connected"
+difficulty = "easy"
+prover = "rocq"
+status = "open"
+preamble = "From mathcomp Require Import all_ssreflect.\nFrom graph_theory Require Import digraph."
+lemma_statement = "Lemma three_cycle_strongly_connected :\n  let adj := fun (x y : 'I_3) =>\n    ((x == ord0) && (y == 1%:R)) ||\n    ((x == 1%:R) && (y == 2%:R)) ||\n    ((x == 2%:R) && (y == ord0)) in\n  forall (u v : 'I_3), connect adj u v."
+skeleton = "Lemma three_cycle_strongly_connected :\n  let adj := fun (x y : 'I_3) =>\n    ((x == ord0) && (y == 1%:R)) ||\n    ((x == 1%:R) && (y == 2%:R)) ||\n    ((x == 2%:R) && (y == ord0)) in\n  forall (u v : 'I_3), connect adj u v.\nProof.\n  (* your proof here *)\nAdmitted."
+hints = [
+    "Enumerate all 9 cases with repeated fin_cases or by (do 3 case)",
+    "For each case, construct an explicit path using connect_trans and connect1",
+    "The reflexive case uses connect0",
+    "native_decide should close this entirely since 'I_3 is finite and decidable",
+]
+
+[dependencies]
+rocq_version = "9.0"
+opam_packages = [
+    "coq-mathcomp-ssreflect",
+    "coq-graph-theory",
+]

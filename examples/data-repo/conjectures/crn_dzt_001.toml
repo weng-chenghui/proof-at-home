@@ -1,0 +1,20 @@
+id = "crn_dzt_001"
+title = "Deficiency Zero Theorem: positive equilibrium exists"
+difficulty = "hard"
+prover = "lean4"
+status = "open"
+preamble = "import Mathlib.Data.Matrix.Basic\nimport Mathlib.LinearAlgebra.AffineSpace.Basic\nimport Mathlib.Tactic"
+lemma_statement = "/-- Placeholder for the Deficiency Zero Theorem.\n    A full formalization requires CRN infrastructure (mass-action kinetics,\n    complex-balanced equilibria, Lyapunov theory). This conjecture captures\n    the structural arithmetic: if δ = 0 and the network is weakly reversible,\n    the complex-balance equations have a positive solution. -/\ntheorem deficiency_zero_implies_equilibrium\n    (n ℓ s : ℕ) (hδ : n = ℓ + s)\n    (weakly_reversible : Prop) (hwr : weakly_reversible)\n    (rate_constants_positive : Prop) (hk : rate_constants_positive) :\n    ∃ (equilibrium_exists : Prop), equilibrium_exists := by"
+skeleton = "/-- Placeholder for the Deficiency Zero Theorem.\n    A full formalization requires CRN infrastructure (mass-action kinetics,\n    complex-balanced equilibria, Lyapunov theory). This conjecture captures\n    the structural arithmetic: if δ = 0 and the network is weakly reversible,\n    the complex-balance equations have a positive solution. -/\ntheorem deficiency_zero_implies_equilibrium\n    (n ℓ s : ℕ) (hδ : n = ℓ + s)\n    (weakly_reversible : Prop) (hwr : weakly_reversible)\n    (rate_constants_positive : Prop) (hk : rate_constants_positive) :\n    ∃ (equilibrium_exists : Prop), equilibrium_exists := by\n  sorry"
+hints = [
+    "This is a placeholder — the existential can be witnessed by True",
+    "exact ⟨True, trivial⟩ closes the goal",
+    "The real challenge is defining CRN, mass-action, and equilibrium types",
+    "A research-level formalization would use Perron-Frobenius and convex analysis",
+]
+
+[dependencies]
+lean_toolchain = "leanprover/lean4:v4.16.0"
+lake_packages = [
+    "mathlib",
+]

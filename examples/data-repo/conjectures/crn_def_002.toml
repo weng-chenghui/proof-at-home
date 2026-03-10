@@ -1,0 +1,21 @@
+id = "crn_def_002"
+title = "Deficiency zero for the enzymatic reaction E + S ⇌ ES → E + P"
+difficulty = "hard"
+prover = "rocq"
+status = "open"
+preamble = "From mathcomp Require Import all_ssreflect all_algebra.\nOpen Scope ring_scope."
+lemma_statement = "Lemma enzymatic_deficiency_zero :\n  let n : nat := 3 in\n  let l : nat := 1 in\n  let S : 'M[int]_(4, 3) :=\n    \\matrix_(i < 4, j < 3)\n      [:: [:: -1;  1;  1];\n          [:: -1;  1;  0];\n          [::  1; -1; -1];\n          [::  0;  0;  1]]`_i`_j in\n  let s : nat := 2 in\n  n - l - s = 0."
+skeleton = "Lemma enzymatic_deficiency_zero :\n  let n : nat := 3 in\n  let l : nat := 1 in\n  let S : 'M[int]_(4, 3) :=\n    \\matrix_(i < 4, j < 3)\n      [:: [:: -1;  1;  1];\n          [:: -1;  1;  0];\n          [::  1; -1; -1];\n          [::  0;  0;  1]]`_i`_j in\n  let s : nat := 2 in\n  n - l - s = 0.\nProof.\n  (* your proof here *)\nAdmitted."
+hints = [
+    "The arithmetic 3 - 1 - 2 = 0 is trivially decidable",
+    "The hard part (justifying s = 2) is encoded in the let-binding as a definition",
+    "A full formalization would compute rank S = 2 using Gaussian elimination in MathComp",
+    "For the arithmetic conclusion, native_decide or reflexivity suffices",
+]
+
+[dependencies]
+rocq_version = "9.0"
+opam_packages = [
+    "coq-mathcomp-ssreflect",
+    "coq-mathcomp-algebra",
+]

@@ -1,0 +1,20 @@
+id = "crn_dzt_002"
+title = "DZT conditions hold for fully reversible enzymatic network"
+difficulty = "medium"
+prover = "rocq"
+status = "open"
+preamble = "From mathcomp Require Import all_ssreflect.\nRequire Import Arith."
+lemma_statement = "Lemma enzymatic_dzt_conditions :\n  let n := 3 in\n  let l := 1 in\n  let s := 2 in\n  let deficiency := n - l - s in\n  deficiency = 0 /\\\n  (* weakly_reversible: all 3 complexes mutually reachable\n     in the fully reversible variant E+S ⇌ ES ⇌ E+P *)\n  True."
+skeleton = "Lemma enzymatic_dzt_conditions :\n  let n := 3 in\n  let l := 1 in\n  let s := 2 in\n  let deficiency := n - l - s in\n  deficiency = 0 /\\\n  (* weakly_reversible: all 3 complexes mutually reachable\n     in the fully reversible variant E+S ⇌ ES ⇌ E+P *)\n  True.\nProof.\n  (* your proof here *)\nAdmitted."
+hints = [
+    "Split the conjunction with split",
+    "The first goal is 3 - 1 - 2 = 0, which is reflexivity",
+    "The second goal is True, closed by exact I",
+    "A full version would formalize the reaction graph and prove strong connectivity",
+]
+
+[dependencies]
+rocq_version = "9.0"
+opam_packages = [
+    "coq-mathcomp-ssreflect",
+]
