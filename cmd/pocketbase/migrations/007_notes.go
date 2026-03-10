@@ -29,8 +29,8 @@ func init() {
 		notes.ViewRule = types.Pointer("")
 		notes.ListRule = types.Pointer("")
 		notes.CreateRule = types.Pointer("@request.auth.id != ''")
-		notes.UpdateRule = types.Pointer("@request.auth.id != '' && @request.data.user_id = user_id")
-		notes.DeleteRule = types.Pointer("@request.auth.id != '' && @request.data.user_id = user_id")
+		notes.UpdateRule = types.Pointer("@request.auth.id != '' && user_id = @request.auth.id")
+		notes.DeleteRule = types.Pointer("@request.auth.id != '' && user_id = @request.auth.id")
 		if err := app.Save(notes); err != nil {
 			return err
 		}
