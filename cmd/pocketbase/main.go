@@ -75,6 +75,42 @@ var (
 	forge gitstore.ForgeClient
 )
 
+// exportNotesToGit collects all notes from PocketBase and exports them to the
+// git "notes" branch. Safe to call from any goroutine (GitStore is mutex-protected).
+func exportNotesToGit(app core.App) {
+	records, err := app.FindAllRecords("notes")
+	if err != nil {
+		slog.Error("notes git export: failed to query notes", "error", err)
+		return
+	}
+	if len(records) == 0 {
+		return
+	}
+	notes := make([]data.Note, 0, len(records))
+	for _, r := range records {
+		notes = append(notes, data.Note{
+			NoteID:         r.GetString("note_id"),
+			LessonID:       r.GetString("lesson_id"),
+			ContentHash:    r.GetString("content_hash"),
+			AnchorText:     r.GetString("anchor_text"),
+			LineStart:      int(r.GetFloat("line_start")),
+			LineEnd:        int(r.GetFloat("line_end")),
+			Content:        r.GetString("content"),
+			HighlightColor: r.GetString("highlight_color"),
+			UserID:         r.GetString("user_id"),
+			Username:       r.GetString("username"),
+			Status:         r.GetString("status"),
+			CreatedAt:      r.GetString("created"),
+			UpdatedAt:      r.GetString("updated"),
+		})
+	}
+	if err := gs.ExportNotesToGit(notes); err != nil {
+		slog.Error("notes git export failed", "error", err)
+	} else {
+		slog.Info("notes git export complete", "count", len(notes))
+	}
+}
+
 func main() {
 	cfg := config.Load()
 	logging.Init(cfg.LogLevel)
@@ -113,40 +149,8 @@ func main() {
 
 	app := pocketbase.New()
 
-	// Wire up post-rebuild callback to export notes to the git "notes" branch.
-	gs.SetPostRebuildFn(func() {
-		records, err := app.FindAllRecords("notes")
-		if err != nil {
-			slog.Error("notes git export: failed to query notes", "error", err)
-			return
-		}
-		if len(records) == 0 {
-			return
-		}
-		notes := make([]data.Note, 0, len(records))
-		for _, r := range records {
-			notes = append(notes, data.Note{
-				NoteID:         r.GetString("note_id"),
-				LessonID:       r.GetString("lesson_id"),
-				ContentHash:    r.GetString("content_hash"),
-				AnchorText:     r.GetString("anchor_text"),
-				LineStart:      int(r.GetFloat("line_start")),
-				LineEnd:        int(r.GetFloat("line_end")),
-				Content:        r.GetString("content"),
-				HighlightColor: r.GetString("highlight_color"),
-				UserID:         r.GetString("user_id"),
-				Username:       r.GetString("username"),
-				Status:         r.GetString("status"),
-				CreatedAt:      r.GetString("created"),
-				UpdatedAt:      r.GetString("updated"),
-			})
-		}
-		if err := gs.ExportNotesToGit(notes); err != nil {
-			slog.Error("notes git export failed", "error", err)
-		} else {
-			slog.Info("notes git export complete", "count", len(notes))
-		}
-	})
+	// Export notes after each webhook-triggered rebuild and after note CRUD.
+	gs.SetPostRebuildFn(func() { exportNotesToGit(app) })
 
 	// Set app name on first serve
 	app.OnServe().BindFunc(func(se *core.ServeEvent) error {
@@ -990,6 +994,7 @@ func registerRoutes(se *core.ServeEvent, app core.App, cfg *config.Config) {
 			return e.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to create note: " + err.Error()})
 		}
 
+		go exportNotesToGit(app)
 		return e.JSON(http.StatusCreated, noteRecordToMap(record))
 	})
 
@@ -1026,6 +1031,7 @@ func registerRoutes(se *core.ServeEvent, app core.App, cfg *config.Config) {
 			return e.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to update note: " + err.Error()})
 		}
 
+		go exportNotesToGit(app)
 		return e.JSON(http.StatusOK, noteRecordToMap(record))
 	})
 
@@ -1043,6 +1049,7 @@ func registerRoutes(se *core.ServeEvent, app core.App, cfg *config.Config) {
 			return e.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to delete note: " + err.Error()})
 		}
 
+		go exportNotesToGit(app)
 		return e.NoContent(http.StatusNoContent)
 	})
 

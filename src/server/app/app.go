@@ -98,7 +98,7 @@ func New(cfg *config.Config) (*App, error) {
 	strategyWriteHandler := &handlers.StrategyWriteHandler{GitStore: gs}
 	expositionHandler := &handlers.ExpositionHandler{Store: lite, GitStore: gs}
 	lessonHandler := &handlers.LessonHandler{Store: lite, GitStore: gs}
-	noteHandler := &handlers.NoteHandler{Store: lite}
+	noteHandler := &handlers.NoteHandler{Store: lite, GitStore: gs}
 	seriesHandler := &handlers.SeriesHandler{Store: lite, GitStore: gs}
 	aiChatHandler := &handlers.AIChatHandler{Config: cfg}
 	webhookHandler := &handlers.WebhookHandler{

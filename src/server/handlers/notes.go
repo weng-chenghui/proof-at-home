@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -12,15 +13,38 @@ import (
 // NoteStore defines the subset of store methods needed by NoteHandler.
 type NoteStore interface {
 	ListNotes(lessonID string) []data.Note
+	ListAllNotes() []data.Note
 	GetNote(noteID string) (data.Note, bool)
 	CreateNote(note data.Note) error
 	UpdateNote(note data.Note) error
 	DeleteNote(noteID string) error
 }
 
+// NoteGitExporter can export notes to a git branch.
+type NoteGitExporter interface {
+	ExportNotesToGit(notes []data.Note) error
+}
+
 // NoteHandler handles CRUD operations for lesson notes and highlights.
 type NoteHandler struct {
-	Store NoteStore
+	Store    NoteStore
+	GitStore NoteGitExporter
+}
+
+// exportNotes exports all notes to git in the background.
+func (h *NoteHandler) exportNotes() {
+	if h.GitStore == nil {
+		return
+	}
+	go func() {
+		notes := h.Store.ListAllNotes()
+		if len(notes) == 0 {
+			return
+		}
+		if err := h.GitStore.ExportNotesToGit(notes); err != nil {
+			log.Printf("notes git export failed: %v", err)
+		}
+	}()
 }
 
 // ListNotes returns all notes for a lesson. GET /lessons/{id}/notes
@@ -74,6 +98,7 @@ func (h *NoteHandler) CreateNote(w http.ResponseWriter, r *http.Request) {
 		note = created
 	}
 
+	h.exportNotes()
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(note)
 }
@@ -122,6 +147,7 @@ func (h *NoteHandler) UpdateNote(w http.ResponseWriter, r *http.Request) {
 		existing = updated
 	}
 
+	h.exportNotes()
 	json.NewEncoder(w).Encode(existing)
 }
 
@@ -146,5 +172,6 @@ func (h *NoteHandler) DeleteNote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.exportNotes()
 	w.WriteHeader(http.StatusNoContent)
 }
