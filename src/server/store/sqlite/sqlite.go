@@ -37,6 +37,9 @@ var migration006SQL string
 //go:embed migrations/007_notes.sql
 var migration007SQL string
 
+//go:embed migrations/008_credits.sql
+var migration008SQL string
+
 type SQLiteStore struct {
 	db *sql.DB
 }
@@ -85,6 +88,10 @@ func (s *SQLiteStore) Migrate() error {
 	_, err = s.db.Exec(migration007SQL)
 	if err != nil {
 		return fmt.Errorf("running migration 007: %w", err)
+	}
+	_, err = s.db.Exec(migration008SQL)
+	if err != nil {
+		return fmt.Errorf("running migration 008: %w", err)
 	}
 	slog.Info("SQLite migration completed")
 	return nil
