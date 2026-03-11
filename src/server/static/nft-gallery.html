@@ -74,6 +74,64 @@
         .nft-card-footer a {
             font-size: 0.75rem;
         }
+        .credit-contributors {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.25rem 0.5rem;
+            margin-bottom: 0.5rem;
+            font-size: 0.8rem;
+        }
+        .credit-role-badge {
+            font-size: 0.65rem;
+            font-weight: 600;
+            padding: 0.1rem 0.4rem;
+            border-radius: 999px;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+        .credit-role-author { background: var(--accent-subtle); color: var(--accent); }
+        .credit-role-editor { background: var(--yellow-subtle); color: var(--yellow); }
+        .credit-role-contributor { background: #e0f2f1; color: #00796b; }
+        .credit-role-reviewer { background: #f3e5f5; color: #7b1fa2; }
+        .edition-timeline {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.25rem;
+            margin-bottom: 0.5rem;
+        }
+        .edition-dot {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            font-size: 0.7rem;
+            padding: 0.15rem 0.5rem;
+            border-radius: 999px;
+            background: var(--code-bg);
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+        }
+        .edition-dot.current {
+            background: var(--accent-subtle);
+            color: var(--accent);
+            border-color: var(--accent);
+            font-weight: 600;
+        }
+        .stale-indicator {
+            background: #fef3cd;
+            border: 1px solid #ffc107;
+            padding: 0.35rem 0.625rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            margin-bottom: 0.5rem;
+        }
+        .badge-edition-sealed {
+            font-size: 0.65rem;
+            font-weight: 600;
+            padding: 0.125rem 0.5rem;
+            border-radius: 999px;
+            background: var(--green-subtle);
+            color: var(--green);
+        }
     </style>
 </head>
 <body>
@@ -87,10 +145,12 @@
             <button onclick="filterTab('contribution', this)">Contributions</button>
             <button onclick="filterTab('certificate', this)">Certificates</button>
             <button onclick="filterTab('exposition', this)">Expositions</button>
+            <button onclick="filterTab('lessons-series', this)">Lessons &amp; Series</button>
         </div>
 
         <div id="msg" class="msg" style="display:none"></div>
         <div id="gallery" class="nft-grid"></div>
+        <div id="lessons-series-gallery" class="nft-grid" style="display:none"></div>
         <div id="empty" class="empty-state" style="display:none">
             <h2>No records yet</h2>
             <p>NFT metadata is generated when contributions and certificates are sealed.</p>
@@ -189,7 +249,141 @@
             currentFilter = type;
             document.querySelectorAll('.tab-bar button').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            renderCards(allCards);
+
+            const gallery = document.getElementById('gallery');
+            const lsGallery = document.getElementById('lessons-series-gallery');
+            const empty = document.getElementById('empty');
+
+            if (type === 'lessons-series') {
+                gallery.style.display = 'none';
+                lsGallery.style.display = '';
+                empty.style.display = 'none';
+                loadLessonsSeries();
+            } else {
+                gallery.style.display = '';
+                lsGallery.style.display = 'none';
+                renderCards(allCards);
+            }
+        }
+
+        let lsLoaded = false;
+
+        async function loadLessonsSeries() {
+            const lsGallery = document.getElementById('lessons-series-gallery');
+            const empty = document.getElementById('empty');
+
+            if (lsLoaded) return; // avoid re-fetching
+
+            lsGallery.innerHTML = '<p style="color:var(--text-muted);font-size:0.85rem;">Loading lessons &amp; series...</p>';
+
+            try {
+                const [lessons, seriesList] = await Promise.all([
+                    api('GET', '/lessons').catch(() => []),
+                    api('GET', '/series').catch(() => [])
+                ]);
+
+                const items = [];
+
+                // Fetch individual lessons for staleness info
+                const lessonDetails = await Promise.allSettled(
+                    (lessons || []).map(l => api('GET', '/lessons/' + encodeURIComponent(l.lesson_id || l.id)))
+                );
+
+                (lessonDetails || []).forEach((result, i) => {
+                    if (result.status !== 'fulfilled') return;
+                    const l = result.value;
+                    if (!l.credits && !l.edition_stale) return; // skip lessons without credits data
+                    items.push({ kind: 'lesson', data: l });
+                });
+
+                // Fetch individual series for staleness info
+                const seriesDetails = await Promise.allSettled(
+                    (seriesList || []).map(s => api('GET', '/series/' + encodeURIComponent(s.series_id || s.id)))
+                );
+
+                (seriesDetails || []).forEach((result, i) => {
+                    if (result.status !== 'fulfilled') return;
+                    const s = result.value;
+                    if (!s.credits && !s.edition_stale) return;
+                    items.push({ kind: 'series', data: s });
+                });
+
+                if (items.length === 0) {
+                    lsGallery.innerHTML = '';
+                    empty.style.display = 'block';
+                    return;
+                }
+                empty.style.display = 'none';
+
+                lsGallery.innerHTML = items.map(item => {
+                    const d = item.data;
+                    const title = d.title || d.lesson_id || d.series_id || 'Untitled';
+                    const kindLabel = item.kind === 'lesson' ? 'Lesson' : 'Series';
+                    const kindBadge = item.kind === 'lesson'
+                        ? '<span class="badge badge-type badge-contribution">Lesson</span>'
+                        : '<span class="badge badge-type badge-exposition">Series</span>';
+
+                    // Contributors
+                    let contribHtml = '';
+                    if (d.credits && d.credits.contributors && d.credits.contributors.length > 0) {
+                        contribHtml = '<div class="credit-contributors">' + d.credits.contributors.map(c => {
+                            const roleClass = c.role ? 'credit-role-' + escapeHtml(c.role) : 'credit-role-contributor';
+                            const roleBadge = c.role ? `<span class="credit-role-badge ${roleClass}">${escapeHtml(c.role)}</span>` : '';
+                            return `<span>${escapeHtml(c.username || c.name || 'Unknown')} ${roleBadge}</span>`;
+                        }).join('') + '</div>';
+                    }
+
+                    // Edition timeline
+                    let editionHtml = '';
+                    if (d.credits && d.credits.edition) {
+                        const ed = d.credits.edition;
+                        const current = ed.current || 1;
+                        const history = ed.history || [];
+                        if (history.length > 0) {
+                            editionHtml = '<div class="edition-timeline">' + history.map((h, idx) => {
+                                const isCurrent = (h.number || idx + 1) === current;
+                                return `<span class="edition-dot${isCurrent ? ' current' : ''}">Ed. ${escapeHtml(String(h.number || idx + 1))}${h.date ? ' &middot; ' + escapeHtml(h.date) : ''}</span>`;
+                            }).join('') + '</div>';
+                        } else {
+                            editionHtml = `<div class="edition-timeline"><span class="edition-dot current">Edition ${escapeHtml(String(current))}</span></div>`;
+                        }
+                    }
+
+                    // Staleness indicator
+                    let staleHtml = '';
+                    if (d.edition_stale) {
+                        const edNum = d.credits && d.credits.edition && d.credits.edition.current ? d.credits.edition.current : '?';
+                        staleHtml = `<div class="stale-indicator">&#9888; Content changed since Edition ${escapeHtml(String(edNum))}</div>`;
+                    }
+
+                    // Sealed badge
+                    let sealedBadge = '';
+                    if (d.credits && d.credits.edition && d.credits.edition.sealed_at) {
+                        const edNum = d.credits.edition.current || '?';
+                        sealedBadge = `<span class="badge-edition-sealed">Edition ${escapeHtml(String(edNum))} sealed</span>`;
+                    }
+
+                    return `
+                        <div class="nft-card">
+                            <div class="nft-card-header">
+                                <h3 title="${escapeHtml(title)}">${escapeHtml(title)}</h3>
+                                ${kindBadge}
+                            </div>
+                            ${staleHtml}
+                            ${contribHtml}
+                            ${editionHtml}
+                            <div class="nft-card-footer">
+                                ${sealedBadge}
+                                ${d.author_username ? '<span>' + escapeHtml(d.author_username) + '</span>' : ''}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                lsLoaded = true;
+            } catch (e) {
+                lsGallery.innerHTML = `<p style="color:#991b1b;font-size:0.85rem;">Failed to load: ${escapeHtml(e.error || e.message || 'unknown error')}</p>`;
+            }
         }
 
         async function load() {

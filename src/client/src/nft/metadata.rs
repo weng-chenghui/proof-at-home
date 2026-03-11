@@ -260,95 +260,70 @@ pub fn generate_exposition_nft_metadata(info: &ExpositionInfo) -> Value {
     })
 }
 
-// ── Agent Memory NFT metadata ──
+// ── Lesson/Series NFT metadata (Dynamic NFT — multi-author, edition-aware) ──
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, JsonSchema)]
-pub struct AgentMemoryInfo {
-    pub author_username: String,
-    pub agent_id: String,
-    pub run_id: String,
-    pub memories_created: u32,
-    pub memories_refined: u32,
-    pub memory_kinds: Vec<String>,
-    pub total_cost_usd: f64,
-    pub content_hash: String,
-    pub git_commit: String,
-    pub git_repository: String,
-    pub public_key: String,
-    pub commit_signature: String,
+pub struct ContributorAttr {
+    pub username: String,
+    pub role: String,
 }
-
-/// Generate OpenSea-compatible NFT metadata JSON for agent memory contribution
-#[allow(dead_code)]
-pub fn generate_agent_memory_nft_metadata(info: &AgentMemoryInfo) -> Value {
-    let date = Utc::now().format("%Y-%m-%d").to_string();
-
-    json!({
-        "name": format!("Proof@Home Agent Memory — {} — {}", info.author_username, date),
-        "description": "Agent memory contribution: reusable knowledge extracted from lesson generation.",
-        "external_url": "",
-        "image": "",
-        "attributes": [
-            {"trait_type": "Author Username", "value": info.author_username},
-            {"trait_type": "Agent ID", "value": info.agent_id},
-            {"trait_type": "Run ID", "value": info.run_id},
-            {"trait_type": "Memories Created", "value": info.memories_created},
-            {"trait_type": "Memories Refined", "value": info.memories_refined},
-            {"trait_type": "Memory Kinds", "value": info.memory_kinds.join(", ")},
-            {"trait_type": "Total Cost (USD)", "value": format!("{:.4}", info.total_cost_usd)},
-            {"trait_type": "Content Hash", "value": info.content_hash},
-            {"trait_type": "Git Commit", "value": info.git_commit},
-            {"trait_type": "Git Repository", "value": info.git_repository},
-            {"trait_type": "Public Key", "value": info.public_key},
-            {"trait_type": "Commit Signature", "value": info.commit_signature}
-        ]
-    })
-}
-
-// ── Series NFT metadata ──
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, JsonSchema)]
-pub struct SeriesInfo {
-    pub author_username: String,
-    pub series_id: String,
+pub struct LessonSeriesNftInfo {
+    pub content_id: String,
+    pub content_type: String, // "lesson" or "series"
     pub title: String,
-    pub lesson_count: u32,
+    pub edition: u32,
+    pub contributors: Vec<ContributorAttr>,
     pub topic: String,
-    pub difficulty_range: String,
+    pub difficulty: String,
     pub total_conjectures: u32,
     pub package_sha256: String,
+    pub license_spdx: String,
     pub git_commit: String,
     pub git_repository: String,
-    pub public_key: String,
-    pub commit_signature: String,
 }
 
-/// Generate OpenSea-compatible NFT metadata JSON for a sealed series
+/// Generate OpenSea-compatible NFT metadata JSON for a lesson or series edition
 #[allow(dead_code)]
-pub fn generate_series_nft_metadata(info: &SeriesInfo) -> Value {
+pub fn generate_lesson_series_nft_metadata(info: &LessonSeriesNftInfo) -> Value {
     let date = Utc::now().format("%Y-%m-%d").to_string();
 
+    let type_label = if info.content_type == "lesson" {
+        "Lesson"
+    } else {
+        "Series"
+    };
+
+    let mut attributes = vec![
+        json!({"trait_type": "Content ID", "value": info.content_id}),
+        json!({"trait_type": "Content Type", "value": info.content_type}),
+        json!({"trait_type": "Title", "value": info.title}),
+        json!({"trait_type": "Edition", "value": info.edition}),
+        json!({"trait_type": "Topic", "value": info.topic}),
+        json!({"trait_type": "Difficulty", "value": info.difficulty}),
+        json!({"trait_type": "Total Conjectures", "value": info.total_conjectures}),
+        json!({"trait_type": "Package SHA256", "value": info.package_sha256}),
+        json!({"trait_type": "License", "value": info.license_spdx}),
+        json!({"trait_type": "Git Commit", "value": info.git_commit}),
+        json!({"trait_type": "Git Repository", "value": info.git_repository}),
+    ];
+
+    for c in &info.contributors {
+        attributes.push(json!({
+            "trait_type": format!("Contributor ({})", c.role),
+            "value": c.username
+        }));
+    }
+
     json!({
-        "name": format!("Proof@Home Series — {} — {}", info.title, date),
-        "description": "Sealed lesson series: a complete curriculum of formally verified mathematics.",
+        "name": format!("Proof@Home {} — {} — Edition {} — {}", type_label, info.title, info.edition, date),
+        "description": format!("Dynamic NFT for a formally verified mathematics {}. Edition {}.", info.content_type, info.edition),
         "external_url": "",
         "image": "",
-        "attributes": [
-            {"trait_type": "Author Username", "value": info.author_username},
-            {"trait_type": "Series ID", "value": info.series_id},
-            {"trait_type": "Title", "value": info.title},
-            {"trait_type": "Lesson Count", "value": info.lesson_count},
-            {"trait_type": "Topic", "value": info.topic},
-            {"trait_type": "Difficulty Range", "value": info.difficulty_range},
-            {"trait_type": "Total Conjectures", "value": info.total_conjectures},
-            {"trait_type": "Package SHA256", "value": info.package_sha256},
-            {"trait_type": "Git Commit", "value": info.git_commit},
-            {"trait_type": "Git Repository", "value": info.git_repository},
-            {"trait_type": "Public Key", "value": info.public_key},
-            {"trait_type": "Commit Signature", "value": info.commit_signature}
-        ]
+        "attributes": attributes
     })
 }
 

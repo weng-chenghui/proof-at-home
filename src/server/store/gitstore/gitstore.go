@@ -15,6 +15,71 @@ import (
 	"github.com/proof-at-home/server/src/server/data"
 )
 
+// ── Credits helpers ──
+
+// initialCredits builds a CREDITS.toml for a newly created lesson or series.
+func initialCredits(authorUsername, commitSHA string) *data.Credits {
+	today := time.Now().UTC().Format("2006-01-02")
+	return &data.Credits{
+		Contributors: []data.CreditEntry{
+			{
+				Username:    authorUsername,
+				Role:        "author",
+				FirstCommit: commitSHA,
+			},
+		},
+		Edition: data.EditionInfo{
+			Current: 1,
+			History: []data.EditionRecord{
+				{Edition: 1, Date: today, Commit: commitSHA, Summary: "Initial release"},
+			},
+		},
+		License: data.LicenseInfo{SPDX: "CC0-1.0"},
+	}
+}
+
+// ensureContributor adds username as a contributor if not already present.
+func ensureContributor(credits *data.Credits, username, commitSHA string) {
+	for _, c := range credits.Contributors {
+		if c.Username == username {
+			return
+		}
+	}
+	credits.Contributors = append(credits.Contributors, data.CreditEntry{
+		Username:    username,
+		Role:        "contributor",
+		FirstCommit: commitSHA,
+	})
+}
+
+// writeCredits writes a CREDITS.toml file into the repo.
+func (gs *GitStore) writeCredits(relPath string, credits *data.Credits) error {
+	absPath := filepath.Join(gs.repoPath, relPath)
+	if err := os.MkdirAll(filepath.Dir(absPath), 0o755); err != nil {
+		return fmt.Errorf("creating directory for %s: %w", relPath, err)
+	}
+	raw, err := data.RenderCreditsFile(credits)
+	if err != nil {
+		return fmt.Errorf("rendering credits: %w", err)
+	}
+	return os.WriteFile(absPath, raw, 0o644)
+}
+
+// readCredits reads and parses CREDITS.toml from the repo, returning nil if not found.
+func (gs *GitStore) readCredits(relPath string) *data.Credits {
+	absPath := filepath.Join(gs.repoPath, relPath)
+	raw, err := os.ReadFile(absPath)
+	if err != nil {
+		return nil
+	}
+	credits, err := data.ParseCreditsFile(raw)
+	if err != nil {
+		slog.Warn("readCredits: failed to parse", "path", relPath, "error", err)
+		return nil
+	}
+	return credits
+}
+
 // GitStore manages a local clone of the data git repo.
 // All write operations create branches, commit files, and push.
 // Read operations are served from the SQLite cache (not this struct).
@@ -462,6 +527,7 @@ func (gs *GitStore) SealExposition(id string, nftMetadata any) (string, error) {
 // ── Lesson operations ──
 
 // AddLesson creates a branch and commits the lesson as lesson.md with YAML frontmatter.
+// Also generates an initial CREDITS.toml crediting the author.
 func (gs *GitStore) AddLesson(l data.Lesson) (string, error) {
 	gs.mu.Lock()
 	defer gs.mu.Unlock()
@@ -486,10 +552,20 @@ func (gs *GitStore) AddLesson(l data.Lesson) (string, error) {
 		return "", err
 	}
 
+	// Generate initial CREDITS.toml
+	credits := initialCredits(l.AuthorUsername, sha)
+	if err := gs.writeCredits(filepath.Join(dir, "CREDITS.toml"), credits); err != nil {
+		slog.Warn("AddLesson: failed to write CREDITS.toml", "error", err)
+	} else {
+		_ = gs.commitAndPush(branch, fmt.Sprintf("Add CREDITS.toml for lesson %s", l.LessonID))
+		sha, _ = gs.getHeadSHA()
+	}
+
 	return sha, nil
 }
 
 // UpdateLesson overwrites the lesson on its branch.
+// If the updating user is not already in CREDITS.toml, they are added as a contributor.
 func (gs *GitStore) UpdateLesson(id string, l data.Lesson) (string, error) {
 	gs.mu.Lock()
 	defer gs.mu.Unlock()
@@ -517,12 +593,23 @@ func (gs *GitStore) UpdateLesson(id string, l data.Lesson) (string, error) {
 		return "", err
 	}
 
+	// Update CREDITS.toml — add updating user as contributor if not present
+	creditsPath := filepath.Join(dir, "CREDITS.toml")
+	if credits := gs.readCredits(creditsPath); credits != nil && l.AuthorUsername != "" {
+		ensureContributor(credits, l.AuthorUsername, sha)
+		if err := gs.writeCredits(creditsPath, credits); err == nil {
+			_ = gs.commitAndPush(branch, fmt.Sprintf("Update CREDITS.toml for lesson %s", id))
+			sha, _ = gs.getHeadSHA()
+		}
+	}
+
 	return sha, nil
 }
 
 // ── Series operations ──
 
 // AddSeries creates a branch and commits the series as series.md with YAML frontmatter.
+// Also generates an initial CREDITS.toml crediting the author.
 func (gs *GitStore) AddSeries(s data.Series) (string, error) {
 	gs.mu.Lock()
 	defer gs.mu.Unlock()
@@ -547,10 +634,20 @@ func (gs *GitStore) AddSeries(s data.Series) (string, error) {
 		return "", err
 	}
 
+	// Generate initial CREDITS.toml
+	credits := initialCredits(s.AuthorUsername, sha)
+	if err := gs.writeCredits(filepath.Join(dir, "CREDITS.toml"), credits); err != nil {
+		slog.Warn("AddSeries: failed to write CREDITS.toml", "error", err)
+	} else {
+		_ = gs.commitAndPush(branch, fmt.Sprintf("Add CREDITS.toml for series %s", s.SeriesID))
+		sha, _ = gs.getHeadSHA()
+	}
+
 	return sha, nil
 }
 
 // UpdateSeries overwrites the series on its branch.
+// If the updating user is not already in CREDITS.toml, they are added as a contributor.
 func (gs *GitStore) UpdateSeries(id string, s data.Series) (string, error) {
 	gs.mu.Lock()
 	defer gs.mu.Unlock()
@@ -577,7 +674,85 @@ func (gs *GitStore) UpdateSeries(id string, s data.Series) (string, error) {
 		return "", err
 	}
 
+	// Update CREDITS.toml — add updating user as contributor if not present
+	creditsPath := filepath.Join(dir, "CREDITS.toml")
+	if credits := gs.readCredits(creditsPath); credits != nil && s.AuthorUsername != "" {
+		ensureContributor(credits, s.AuthorUsername, sha)
+		if err := gs.writeCredits(creditsPath, credits); err == nil {
+			_ = gs.commitAndPush(branch, fmt.Sprintf("Update CREDITS.toml for series %s", id))
+			sha, _ = gs.getHeadSHA()
+		}
+	}
+
 	return sha, nil
+}
+
+// ── Edition bump ──
+
+// EditionBump increments the edition in CREDITS.toml for a lesson or series.
+// kind is "lesson" or "series". Returns the new commit SHA.
+func (gs *GitStore) EditionBump(kind, id, summary string) (string, error) {
+	gs.mu.Lock()
+	defer gs.mu.Unlock()
+
+	branch := fmt.Sprintf("%s/%s", kind, id)
+	var dir string
+	if kind == "lesson" {
+		dir = filepath.Join("lessons", id)
+	} else {
+		dir = filepath.Join("series", id)
+	}
+
+	if err := gs.checkoutBranch(branch); err != nil {
+		if err2 := gs.createBranch(branch); err2 != nil {
+			return "", fmt.Errorf("checking out branch %s: %w", branch, err)
+		}
+	}
+
+	creditsPath := filepath.Join(dir, "CREDITS.toml")
+	credits := gs.readCredits(creditsPath)
+	if credits == nil {
+		return "", fmt.Errorf("CREDITS.toml not found for %s %s", kind, id)
+	}
+
+	// Increment edition
+	credits.Edition.Current++
+	today := time.Now().UTC().Format("2006-01-02")
+
+	// Get HEAD for the commit field (before our bump commit)
+	headSHA, _ := gs.getHeadSHA()
+
+	credits.Edition.History = append(credits.Edition.History, data.EditionRecord{
+		Edition: credits.Edition.Current,
+		Date:    today,
+		Commit:  headSHA,
+		Summary: summary,
+	})
+
+	if err := gs.writeCredits(creditsPath, credits); err != nil {
+		return "", fmt.Errorf("writing CREDITS.toml: %w", err)
+	}
+
+	msg := fmt.Sprintf("Bump %s %s to edition %d: %s", kind, id, credits.Edition.Current, summary)
+	if err := gs.commitAndPush(branch, msg); err != nil {
+		return "", err
+	}
+
+	sha, err := gs.getHeadSHA()
+	if err != nil {
+		return "", err
+	}
+
+	return sha, nil
+}
+
+// BranchHeadSHA returns the HEAD SHA of a specific branch, or "" if the branch doesn't exist.
+func (gs *GitStore) BranchHeadSHA(branch string) string {
+	sha, err := gs.gitOutput("rev-parse", branch)
+	if err != nil {
+		return ""
+	}
+	return sha
 }
 
 // ── Note export ──

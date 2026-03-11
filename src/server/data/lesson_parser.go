@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	toml "github.com/pelletier/go-toml/v2"
 	"gopkg.in/yaml.v3"
 )
 
@@ -102,6 +103,24 @@ func RenderLessonFile(l Lesson) ([]byte, error) {
 		}
 	}
 	return []byte(sb.String()), nil
+}
+
+// ParseCreditsFile parses a CREDITS.toml file into a Credits struct.
+func ParseCreditsFile(raw []byte) (*Credits, error) {
+	var c Credits
+	if err := toml.Unmarshal(raw, &c); err != nil {
+		return nil, fmt.Errorf("parsing CREDITS.toml: %w", err)
+	}
+	return &c, nil
+}
+
+// RenderCreditsFile renders a Credits struct as TOML bytes.
+func RenderCreditsFile(c *Credits) ([]byte, error) {
+	data, err := toml.Marshal(c)
+	if err != nil {
+		return nil, fmt.Errorf("marshalling CREDITS.toml: %w", err)
+	}
+	return data, nil
 }
 
 // RenderSeriesFile renders a Series as a markdown file with YAML frontmatter.

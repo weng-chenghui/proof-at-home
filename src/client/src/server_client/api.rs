@@ -850,6 +850,35 @@ impl ServerClient {
         Ok(item)
     }
 
+    /// Bump the edition for a lesson or series. POST /{kind}s/{id}/edition-bump
+    pub async fn edition_bump(
+        &self,
+        kind: &str,
+        id: &str,
+        summary: &str,
+    ) -> Result<FinalizeResponse> {
+        let resource = if kind == "lesson" {
+            "lessons"
+        } else {
+            "series"
+        };
+        let resp = self
+            .authed(self.client.post(format!(
+                "{}/{}/{}/edition-bump",
+                self.base_url, resource, id
+            )))
+            .json(&serde_json::json!({"summary": summary}))
+            .send()
+            .await
+            .context("Failed to bump edition")?;
+        if !resp.status().is_success() {
+            let body = resp.text().await.unwrap_or_default();
+            anyhow::bail!("Server returned error: {}", body);
+        }
+        let result: FinalizeResponse = resp.json().await?;
+        Ok(result)
+    }
+
     /// Create a series on the server.
     pub async fn create_series(&self, req: &CreateSeriesRequest) -> Result<FinalizeResponse> {
         let resp = self

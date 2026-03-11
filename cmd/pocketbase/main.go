@@ -856,6 +856,22 @@ func registerRoutes(se *core.ServeEvent, app core.App, cfg *config.Config) {
 			"content":         record.GetString("content"),
 			"ai_annotations":  record.Get("ai_annotations"),
 		}
+
+		// Load CREDITS.toml from git repo if available
+		creditsPath := filepath.Join(gs.RepoPath(), "lessons", id, "CREDITS.toml")
+		if raw, err := os.ReadFile(creditsPath); err == nil {
+			if credits, err := data.ParseCreditsFile(raw); err == nil {
+				result["credits"] = credits
+				// Compute edition staleness
+				branch := "lesson/" + id
+				branchHead := gs.BranchHeadSHA(branch)
+				if branchHead != "" && len(credits.Edition.History) > 0 {
+					lastCommit := credits.Edition.History[len(credits.Edition.History)-1].Commit
+					result["edition_stale"] = branchHead != lastCommit
+				}
+			}
+		}
+
 		return e.JSON(http.StatusOK, result)
 	})
 
@@ -896,6 +912,30 @@ func registerRoutes(se *core.ServeEvent, app core.App, cfg *config.Config) {
 
 		return e.JSON(http.StatusOK, map[string]string{
 			"status":     "updated",
+			"commit_sha": sha,
+		})
+	})
+
+	// POST /lessons/{id}/edition-bump — bump edition in CREDITS.toml
+	se.Router.POST("/lessons/{id}/edition-bump", func(e *core.RequestEvent) error {
+		id := e.Request.PathValue("id")
+		var body struct {
+			Summary string `json:"summary"`
+		}
+		if err := json.NewDecoder(e.Request.Body).Decode(&body); err != nil {
+			return e.JSON(http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
+		}
+		if body.Summary == "" {
+			return e.JSON(http.StatusBadRequest, map[string]string{"error": "summary is required"})
+		}
+
+		sha, err := gs.EditionBump("lesson", id, body.Summary)
+		if err != nil {
+			return e.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		}
+
+		return e.JSON(http.StatusOK, map[string]string{
+			"status":     "bumped",
 			"commit_sha": sha,
 		})
 	})
@@ -1107,6 +1147,21 @@ func registerRoutes(se *core.ServeEvent, app core.App, cfg *config.Config) {
 			"published":       record.GetBool("published"),
 			"content":         record.GetString("content"),
 		}
+
+		// Load CREDITS.toml from git repo if available
+		creditsPath := filepath.Join(gs.RepoPath(), "series", id, "CREDITS.toml")
+		if raw, err := os.ReadFile(creditsPath); err == nil {
+			if credits, err := data.ParseCreditsFile(raw); err == nil {
+				result["credits"] = credits
+				branch := "series/" + id
+				branchHead := gs.BranchHeadSHA(branch)
+				if branchHead != "" && len(credits.Edition.History) > 0 {
+					lastCommit := credits.Edition.History[len(credits.Edition.History)-1].Commit
+					result["edition_stale"] = branchHead != lastCommit
+				}
+			}
+		}
+
 		return e.JSON(http.StatusOK, result)
 	})
 
@@ -1147,6 +1202,30 @@ func registerRoutes(se *core.ServeEvent, app core.App, cfg *config.Config) {
 
 		return e.JSON(http.StatusOK, map[string]string{
 			"status":     "updated",
+			"commit_sha": sha,
+		})
+	})
+
+	// POST /series/{id}/edition-bump — bump edition in CREDITS.toml
+	se.Router.POST("/series/{id}/edition-bump", func(e *core.RequestEvent) error {
+		id := e.Request.PathValue("id")
+		var body struct {
+			Summary string `json:"summary"`
+		}
+		if err := json.NewDecoder(e.Request.Body).Decode(&body); err != nil {
+			return e.JSON(http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
+		}
+		if body.Summary == "" {
+			return e.JSON(http.StatusBadRequest, map[string]string{"error": "summary is required"})
+		}
+
+		sha, err := gs.EditionBump("series", id, body.Summary)
+		if err != nil {
+			return e.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		}
+
+		return e.JSON(http.StatusOK, map[string]string{
+			"status":     "bumped",
 			"commit_sha": sha,
 		})
 	})

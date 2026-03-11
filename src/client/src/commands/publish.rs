@@ -24,8 +24,12 @@ pub async fn run_publish(kind: &str, id: &str) -> Result<()> {
             let dir = Config::config_dir()?.join("series").join(id);
             (dir, "series_package.tar.gz", "series_nft_metadata.json")
         }
+        "lesson" => {
+            let dir = Config::config_dir()?.join("lessons").join(id);
+            (dir, "lesson_package.tar.gz", "nft_metadata.json")
+        }
         _ => bail!(
-            "Unknown type '{}'. Use 'contribution', 'certificate', or 'series'.",
+            "Unknown type '{}'. Use 'contribution', 'certificate', 'series', or 'lesson'.",
             kind
         ),
     };
@@ -42,7 +46,8 @@ pub async fn run_publish(kind: &str, id: &str) -> Result<()> {
             match kind {
                 "contribution" => "prove",
                 "certificate" => "certificate seal",
-                "series" => "series seal",
+                "series" => "series edition bump",
+                "lesson" => "lesson edition bump",
                 _ => "appropriate seal command",
             }
         );
@@ -84,6 +89,7 @@ pub async fn run_publish(kind: &str, id: &str) -> Result<()> {
                 "contribution" => "contributions",
                 "certificate" => "certificates",
                 "series" => "series",
+                "lesson" => "lessons",
                 _ => "contributions",
             };
             let permalink = format!("{}/tree/{}/{}/{}", git_repo, git_commit, subdir, id);

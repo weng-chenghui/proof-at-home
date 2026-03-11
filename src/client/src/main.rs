@@ -422,6 +422,23 @@ enum LessonAction {
         #[command(subcommand)]
         action: LessonNotesAction,
     },
+    /// Manage lesson editions (bump)
+    Edition {
+        #[command(subcommand)]
+        action: LessonEditionAction,
+    },
+}
+
+#[derive(Subcommand)]
+enum LessonEditionAction {
+    /// Bump the edition number for a lesson
+    Bump {
+        /// Lesson ID
+        id: String,
+        /// Summary of changes in this edition
+        #[arg(long)]
+        summary: String,
+    },
 }
 
 #[derive(Subcommand)]
@@ -509,6 +526,23 @@ enum SeriesAction {
         /// Output file path for the audit report
         #[arg(long, short)]
         output: Option<String>,
+    },
+    /// Manage series editions (bump)
+    Edition {
+        #[command(subcommand)]
+        action: SeriesEditionAction,
+    },
+}
+
+#[derive(Subcommand)]
+enum SeriesEditionAction {
+    /// Bump the edition number for a series
+    Bump {
+        /// Series ID
+        id: String,
+        /// Summary of changes in this edition
+        #[arg(long)]
+        summary: String,
     },
 }
 
@@ -820,6 +854,11 @@ async fn main() {
                 LessonNotesAction::Revise { id } => commands::lesson::cmd_notes_revise(&id).await,
                 LessonNotesAction::Merge { id } => commands::lesson::cmd_notes_merge(&id).await,
             },
+            LessonAction::Edition { action } => match action {
+                LessonEditionAction::Bump { id, summary } => {
+                    commands::lesson::cmd_edition_bump(&id, &summary).await
+                }
+            },
         },
         Resource::Series { action } => match action {
             SeriesAction::List => commands::series::cmd_list().await,
@@ -852,6 +891,11 @@ async fn main() {
             SeriesAction::Audit { id, output } => {
                 commands::series::cmd_audit(&id, output.as_deref()).await
             }
+            SeriesAction::Edition { action } => match action {
+                SeriesEditionAction::Bump { id, summary } => {
+                    commands::series::cmd_edition_bump(&id, &summary).await
+                }
+            },
         },
         Resource::Agent { action } => match action {
             AgentAction::Run { task } => match task {

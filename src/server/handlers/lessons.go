@@ -46,7 +46,7 @@ func (h *LessonHandler) List(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(lessons)
 }
 
-// Get returns a single lesson by ID. GET /lessons/{id}
+// Get returns a single lesson by ID, including credits and staleness. GET /lessons/{id}
 func (h *LessonHandler) Get(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	id := r.PathValue("id")
@@ -56,6 +56,17 @@ func (h *LessonHandler) Get(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"not found"}`, http.StatusNotFound)
 		return
 	}
+
+	// Compute edition staleness: compare branch HEAD with latest edition commit
+	if l.Credits != nil && h.GitStore != nil {
+		branch := "lesson/" + id
+		branchHead := h.GitStore.BranchHeadSHA(branch)
+		if branchHead != "" && len(l.Credits.Edition.History) > 0 {
+			lastEditionCommit := l.Credits.Edition.History[len(l.Credits.Edition.History)-1].Commit
+			l.EditionStale = branchHead != lastEditionCommit
+		}
+	}
+
 	json.NewEncoder(w).Encode(l)
 }
 
@@ -84,6 +95,35 @@ func (h *LessonHandler) Create(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{
 		"commit_sha": commitSHA,
 		"status":     "accepted",
+	})
+}
+
+// EditionBump increments the edition for a lesson. POST /lessons/{id}/edition-bump
+func (h *LessonHandler) EditionBump(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	id := r.PathValue("id")
+
+	var body struct {
+		Summary string `json:"summary"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
+		return
+	}
+	if body.Summary == "" {
+		http.Error(w, `{"error":"summary is required"}`, http.StatusBadRequest)
+		return
+	}
+
+	commitSHA, err := h.GitStore.EditionBump("lesson", id, body.Summary)
+	if err != nil {
+		http.Error(w, `{"error":"failed to bump edition: `+err.Error()+`"}`, http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]string{
+		"commit_sha": commitSHA,
+		"status":     "bumped",
 	})
 }
 

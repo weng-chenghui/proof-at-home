@@ -682,19 +682,19 @@ func (s *SQLiteStore) ListLessons() []data.Lesson {
 	return results
 }
 
-// GetLesson returns a lesson by ID.
+// GetLesson returns a lesson by ID, including credits if present.
 func (s *SQLiteStore) GetLesson(id string) (data.Lesson, bool) {
 	var l data.Lesson
-	var conjectureIDsStr, aiAnnotationsStr string
+	var conjectureIDsStr, aiAnnotationsStr, creditsStr string
 	var published int
 
 	err := s.db.QueryRow(
 		`SELECT lesson_id, author_username, title, topic, difficulty, description,
-		 prerequisites, conjecture_ids, published, created_at, content, ai_annotations
+		 prerequisites, conjecture_ids, published, created_at, content, ai_annotations, credits_json
 		 FROM lessons WHERE lesson_id = ?`, id,
 	).Scan(&l.LessonID, &l.AuthorUsername, &l.Title, &l.Topic, &l.Difficulty,
 		&l.Description, &l.Prerequisites, &conjectureIDsStr, &published, &l.CreatedAt,
-		&l.Content, &aiAnnotationsStr)
+		&l.Content, &aiAnnotationsStr, &creditsStr)
 
 	if err == sql.ErrNoRows {
 		return data.Lesson{}, false
@@ -705,6 +705,12 @@ func (s *SQLiteStore) GetLesson(id string) (data.Lesson, bool) {
 	}
 	json.Unmarshal([]byte(conjectureIDsStr), &l.ConjectureIDs)
 	json.Unmarshal([]byte(aiAnnotationsStr), &l.AIAnnotations)
+	if creditsStr != "" {
+		var c data.Credits
+		if json.Unmarshal([]byte(creditsStr), &c) == nil {
+			l.Credits = &c
+		}
+	}
 	l.Published = published != 0
 	return l, true
 }
@@ -773,18 +779,18 @@ func (s *SQLiteStore) ListSeries() []data.Series {
 	return results
 }
 
-// GetSeries returns a series by ID.
+// GetSeries returns a series by ID, including credits if present.
 func (s *SQLiteStore) GetSeries(id string) (data.Series, bool) {
 	var sr data.Series
-	var lessonIDsStr string
+	var lessonIDsStr, creditsStr string
 	var published int
 
 	err := s.db.QueryRow(
 		`SELECT series_id, title, author_username, difficulty, description,
-		 lesson_ids, published, created_at, content
+		 lesson_ids, published, created_at, content, credits_json
 		 FROM series WHERE series_id = ?`, id,
 	).Scan(&sr.SeriesID, &sr.Title, &sr.AuthorUsername, &sr.Difficulty,
-		&sr.Description, &lessonIDsStr, &published, &sr.CreatedAt, &sr.Content)
+		&sr.Description, &lessonIDsStr, &published, &sr.CreatedAt, &sr.Content, &creditsStr)
 
 	if err == sql.ErrNoRows {
 		return data.Series{}, false
@@ -794,6 +800,12 @@ func (s *SQLiteStore) GetSeries(id string) (data.Series, bool) {
 		return data.Series{}, false
 	}
 	json.Unmarshal([]byte(lessonIDsStr), &sr.LessonIDs)
+	if creditsStr != "" {
+		var c data.Credits
+		if json.Unmarshal([]byte(creditsStr), &c) == nil {
+			sr.Credits = &c
+		}
+	}
 	sr.Published = published != 0
 	return sr, true
 }
@@ -1343,20 +1355,37 @@ func (s *SQLiteStore) RebuildFromDir(repoPath string) error {
 				continue
 			}
 
+			// Parse CREDITS.toml if present
+			creditsPath := filepath.Join(lessonDir, "CREDITS.toml")
+			if raw, err := os.ReadFile(creditsPath); err == nil {
+				credits, err := data.ParseCreditsFile(raw)
+				if err == nil {
+					l.Credits = credits
+				} else {
+					slog.Warn("RebuildFromDir: failed to parse CREDITS.toml", "dir", entry.Name(), "error", err)
+				}
+			}
+
 			conjectureIDsJSON, _ := json.Marshal(l.ConjectureIDs)
 			aiAnnotationsJSON, _ := json.Marshal(l.AIAnnotations)
+			creditsJSON := ""
+			if l.Credits != nil {
+				if b, err := json.Marshal(l.Credits); err == nil {
+					creditsJSON = string(b)
+				}
+			}
 			published := 0
 			if l.Published {
 				published = 1
 			}
 			_, err = tx.Exec(
 				`INSERT INTO lessons (lesson_id, author_username, title, topic, difficulty, description,
-				 prerequisites, conjecture_ids, published, content, ai_annotations)
-				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				 prerequisites, conjecture_ids, published, content, ai_annotations, credits_json)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 				 ON CONFLICT (lesson_id) DO NOTHING`,
 				l.LessonID, l.AuthorUsername, l.Title, l.Topic, l.Difficulty,
 				l.Description, l.Prerequisites, string(conjectureIDsJSON), published,
-				l.Content, string(aiAnnotationsJSON),
+				l.Content, string(aiAnnotationsJSON), creditsJSON,
 			)
 			if err != nil {
 				slog.Error("RebuildFromDir: failed to insert lesson", "id", l.LessonID, "error", err)
@@ -1381,18 +1410,36 @@ func (s *SQLiteStore) RebuildFromDir(repoPath string) error {
 				slog.Error("RebuildFromDir: failed to parse series.md", "dir", entry.Name(), "error", err)
 				continue
 			}
+
+			// Parse CREDITS.toml if present
+			creditsPath := filepath.Join(seriesDir, entry.Name(), "CREDITS.toml")
+			if raw, err := os.ReadFile(creditsPath); err == nil {
+				credits, err := data.ParseCreditsFile(raw)
+				if err == nil {
+					sr.Credits = credits
+				} else {
+					slog.Warn("RebuildFromDir: failed to parse series CREDITS.toml", "dir", entry.Name(), "error", err)
+				}
+			}
+
 			lessonIDsJSON, _ := json.Marshal(sr.LessonIDs)
+			creditsJSON := ""
+			if sr.Credits != nil {
+				if b, err := json.Marshal(sr.Credits); err == nil {
+					creditsJSON = string(b)
+				}
+			}
 			published := 0
 			if sr.Published {
 				published = 1
 			}
 			_, err = tx.Exec(
 				`INSERT INTO series (series_id, title, author_username, difficulty, description,
-				 lesson_ids, published, content)
-				 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+				 lesson_ids, published, content, credits_json)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 				 ON CONFLICT (series_id) DO NOTHING`,
 				sr.SeriesID, sr.Title, sr.AuthorUsername, sr.Difficulty,
-				sr.Description, string(lessonIDsJSON), published, sr.Content,
+				sr.Description, string(lessonIDsJSON), published, sr.Content, creditsJSON,
 			)
 			if err != nil {
 				slog.Error("RebuildFromDir: failed to insert series", "id", sr.SeriesID, "error", err)

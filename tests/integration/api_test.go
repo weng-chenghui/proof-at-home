@@ -1164,3 +1164,157 @@ func TestNotesCRUD(t *testing.T) {
 		}
 	}
 }
+
+// ── Credits / Edition flow ──
+
+func TestLessonCreditsFlow(t *testing.T) {
+	lessonID := fmt.Sprintf("test-credits-%d", time.Now().UnixNano())
+
+	// 1. POST /lessons → creates lesson with auto-generated CREDITS.toml
+	status, resp := postJSON(t, "/lessons", map[string]any{
+		"lesson_id":       lessonID,
+		"author_username": "alice",
+		"title":           "Test Credits Lesson",
+		"conjecture_ids":  []string{},
+		"published":       true,
+	})
+	if status != http.StatusCreated && status != http.StatusOK {
+		t.Fatalf("POST /lessons: status %d, body %v", status, resp)
+	}
+	if sha, ok := resp["commit_sha"].(string); !ok || sha == "" {
+		t.Errorf("expected non-empty commit_sha, got %v", resp["commit_sha"])
+	}
+
+	// 2. GET /lessons/{id} → verify credits field present
+	waitFor(t, 5*time.Second, "lesson with credits appears", func() bool {
+		var lesson map[string]any
+		body := get(t, fmt.Sprintf("/lessons/%s", lessonID))
+		json.Unmarshal(body, &lesson)
+		_, hasCredits := lesson["credits"]
+		return hasCredits && lesson["credits"] != nil
+	})
+
+	// Verify credits structure
+	var lesson map[string]any
+	getJSON(t, fmt.Sprintf("/lessons/%s", lessonID), &lesson)
+	credits, ok := lesson["credits"].(map[string]any)
+	if !ok {
+		t.Fatalf("credits is not a map: %T", lesson["credits"])
+	}
+
+	contributors, ok := credits["contributors"].([]any)
+	if !ok || len(contributors) == 0 {
+		t.Fatalf("expected non-empty contributors, got %v", credits["contributors"])
+	}
+	first := contributors[0].(map[string]any)
+	if first["username"] != "alice" {
+		t.Errorf("first contributor = %q, want alice", first["username"])
+	}
+	if first["role"] != "author" {
+		t.Errorf("first contributor role = %q, want author", first["role"])
+	}
+
+	edition, ok := credits["edition"].(map[string]any)
+	if !ok {
+		t.Fatalf("edition is not a map: %T", credits["edition"])
+	}
+	if edition["current"] != float64(1) {
+		t.Errorf("edition.current = %v, want 1", edition["current"])
+	}
+
+	// 3. PATCH /lessons/{id} as "bob" → verify bob added as contributor
+	patchJSON(t, fmt.Sprintf("/lessons/%s", lessonID), map[string]any{
+		"author_username": "bob",
+		"title":           "Test Credits Lesson (updated)",
+	})
+
+	// Wait for rebuild and check contributors
+	waitFor(t, 5*time.Second, "bob appears as contributor", func() bool {
+		var l map[string]any
+		body := get(t, fmt.Sprintf("/lessons/%s", lessonID))
+		json.Unmarshal(body, &l)
+		c, ok := l["credits"].(map[string]any)
+		if !ok {
+			return false
+		}
+		contribs, ok := c["contributors"].([]any)
+		if !ok {
+			return false
+		}
+		for _, entry := range contribs {
+			e := entry.(map[string]any)
+			if e["username"] == "bob" {
+				return true
+			}
+		}
+		return false
+	})
+
+	// 4. POST /lessons/{id}/edition-bump → verify edition incremented
+	status, resp = postJSON(t, fmt.Sprintf("/lessons/%s/edition-bump", lessonID), map[string]any{
+		"summary": "Added exercises",
+	})
+	if status != http.StatusOK {
+		t.Fatalf("POST edition-bump: status %d, body %v", status, resp)
+	}
+	if resp["status"] != "bumped" {
+		t.Errorf("status = %q, want bumped", resp["status"])
+	}
+
+	// Verify edition bumped
+	waitFor(t, 5*time.Second, "edition bumped to 2", func() bool {
+		var l map[string]any
+		body := get(t, fmt.Sprintf("/lessons/%s", lessonID))
+		json.Unmarshal(body, &l)
+		c, ok := l["credits"].(map[string]any)
+		if !ok {
+			return false
+		}
+		ed, ok := c["edition"].(map[string]any)
+		if !ok {
+			return false
+		}
+		return ed["current"] == float64(2)
+	})
+}
+
+func TestEditionBumpMissingSummary(t *testing.T) {
+	// edition-bump without summary should fail
+	status, resp := postJSON(t, "/lessons/nonexistent/edition-bump", map[string]any{})
+	if status != http.StatusBadRequest {
+		t.Errorf("expected 400 for missing summary, got %d: %v", status, resp)
+	}
+}
+
+func TestSeriesCreditsFlow(t *testing.T) {
+	seriesID := fmt.Sprintf("test-credits-series-%d", time.Now().UnixNano())
+
+	// 1. POST /series → creates series with auto-generated CREDITS.toml
+	status, resp := postJSON(t, "/series", map[string]any{
+		"series_id":       seriesID,
+		"title":           "Test Credits Series",
+		"author_username": "carol",
+		"lesson_ids":      []string{},
+		"published":       true,
+	})
+	if status != http.StatusCreated && status != http.StatusOK {
+		t.Fatalf("POST /series: status %d, body %v", status, resp)
+	}
+
+	// 2. GET /series/{id} → verify credits
+	waitFor(t, 5*time.Second, "series with credits appears", func() bool {
+		var s map[string]any
+		body := get(t, fmt.Sprintf("/series/%s", seriesID))
+		json.Unmarshal(body, &s)
+		_, hasCredits := s["credits"]
+		return hasCredits && s["credits"] != nil
+	})
+
+	// 3. POST /series/{id}/edition-bump
+	status, resp = postJSON(t, fmt.Sprintf("/series/%s/edition-bump", seriesID), map[string]any{
+		"summary": "Added module 5",
+	})
+	if status != http.StatusOK {
+		t.Fatalf("POST series edition-bump: status %d, body %v", status, resp)
+	}
+}

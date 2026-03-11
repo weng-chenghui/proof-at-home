@@ -624,3 +624,19 @@ pub async fn cmd_audit(id: &str, output: Option<&str>) -> Result<()> {
 
     Ok(())
 }
+
+pub async fn cmd_edition_bump(id: &str, summary: &str) -> Result<()> {
+    let cfg = Config::load_or_default();
+    cfg.require_login()?;
+    let client = ServerClient::new(&cfg.server_url(), &cfg.api.auth_token);
+
+    println!("Bumping edition for series {}...", id.cyan());
+
+    let resp = client.edition_bump("series", id, summary).await?;
+
+    println!("{}", "Edition bumped".bold().green());
+    println!("  Commit: {}", resp.commit_sha.cyan());
+    println!("  Summary: {}", summary);
+
+    Ok(())
+}

@@ -133,6 +133,37 @@ type Reference struct {
 	Publisher      string    `json:"publisher,omitempty" yaml:"publisher,omitempty"`
 }
 
+// ── Credits types (CREDITS.toml — dynamic NFT crediting) ──
+
+type Credits struct {
+	Contributors []CreditEntry `json:"contributors" toml:"contributors"`
+	Edition      EditionInfo   `json:"edition" toml:"edition"`
+	License      LicenseInfo   `json:"license" toml:"license"`
+}
+
+type CreditEntry struct {
+	Username    string `json:"username" toml:"username"`
+	Role        string `json:"role" toml:"role"` // author|editor|contributor|reviewer
+	FirstCommit string `json:"first_commit" toml:"first_commit"`
+	Note        string `json:"note,omitempty" toml:"note,omitempty"`
+}
+
+type EditionInfo struct {
+	Current int             `json:"current" toml:"current"`
+	History []EditionRecord `json:"history" toml:"history"`
+}
+
+type EditionRecord struct {
+	Edition int    `json:"edition" toml:"edition"`
+	Date    string `json:"date" toml:"date"`
+	Commit  string `json:"commit" toml:"commit"`
+	Summary string `json:"summary" toml:"summary"`
+}
+
+type LicenseInfo struct {
+	SPDX string `json:"spdx" toml:"spdx"`
+}
+
 // ── Lesson types ──
 
 type AIAnnotation struct {
@@ -155,6 +186,8 @@ type Lesson struct {
 	Content        string         `json:"content,omitempty" yaml:"-"`
 	AIAnnotations  []AIAnnotation `json:"ai_annotations,omitempty" yaml:"ai_annotations,omitempty"`
 	References     []Reference    `json:"references,omitempty" yaml:"references,omitempty"`
+	Credits        *Credits       `json:"credits,omitempty" yaml:"-"`
+	EditionStale   bool           `json:"edition_stale,omitempty" yaml:"-"`
 }
 
 // ── Note types ──
@@ -187,6 +220,8 @@ type Series struct {
 	Published      bool     `json:"published" yaml:"published"`
 	CreatedAt      string   `json:"created_at,omitempty" yaml:"-"`
 	Content        string   `json:"content,omitempty" yaml:"-"`
+	Credits        *Credits `json:"credits,omitempty" yaml:"-"`
+	EditionStale   bool     `json:"edition_stale,omitempty" yaml:"-"`
 }
 
 // ── Exposition types ──

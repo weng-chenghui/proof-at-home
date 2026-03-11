@@ -2169,6 +2169,32 @@
                     <dt>Conjectures:</dt><dd>${(lesson.conjecture_ids || []).length}</dd>
                 </dl>`;
 
+                // Staleness banner
+                let stalenessHtml = '';
+                if (lesson.edition_stale && lesson.credits) {
+                    const edNum = lesson.credits.edition && lesson.credits.edition.current ? lesson.credits.edition.current : '?';
+                    stalenessHtml = `<div style="background:#fef3cd;border:1px solid #ffc107;padding:12px 16px;border-radius:6px;margin-bottom:16px;font-size:0.85rem;">&#9888; Content has changed since Edition ${escapeHtml(String(edNum))}. Consider running: <code>pah lesson edition bump ${escapeHtml(id)}</code></div>`;
+                }
+
+                // Credits section
+                let creditsHtml = '';
+                if (lesson.credits) {
+                    const cr = lesson.credits;
+                    let contribRows = '';
+                    if (cr.contributors && cr.contributors.length > 0) {
+                        contribRows = cr.contributors.map(c => {
+                            const role = c.role ? `<span class="badge badge-type" style="font-size:0.65rem;padding:0.1rem 0.4rem;background:var(--accent-subtle);color:var(--accent);">${escapeHtml(c.role)}</span>` : '';
+                            return `<li>${escapeHtml(c.username || c.name || 'Unknown')} ${role}${c.edition ? ` <span style="color:var(--text-muted);font-size:0.75rem;">(Edition ${escapeHtml(String(c.edition))})</span>` : ''}</li>`;
+                        }).join('');
+                    }
+                    const edInfo = cr.edition ? `<div style="font-size:0.8rem;color:var(--text-secondary);margin-top:0.5rem;">Edition <strong>${escapeHtml(String(cr.edition.current || '?'))}</strong>${cr.edition.sealed_at ? ` &middot; Sealed ${escapeHtml(cr.edition.sealed_at)}` : ''}</div>` : '';
+                    creditsHtml = `<div style="background:var(--code-bg);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1rem 1.25rem;margin-bottom:1.5rem;font-size:0.85rem;">
+                        <h3 style="margin:0 0 0.5rem;font-size:0.95rem;">Credits</h3>
+                        ${contribRows ? `<ul style="margin:0 0 0.5rem;padding-left:1.25rem;">${contribRows}</ul>` : '<p style="margin:0 0 0.5rem;color:var(--text-muted);">No contributors listed.</p>'}
+                        ${edInfo}
+                    </div>`;
+                }
+
                 let bodyHtml = '';
                 if (lesson.content) {
                     bodyHtml = `<div class="lesson-body">${mathSafeMarkdown(lesson.content)}</div>`;
@@ -2188,6 +2214,8 @@
                 document.getElementById('content').innerHTML = `
                     <h1>${escapeHtml(lessonTitle)}</h1>
                     ${metaHtml}
+                    ${stalenessHtml}
+                    ${creditsHtml}
                     ${bodyHtml}
                     ${refsHtml}
                     ${conjHtml}

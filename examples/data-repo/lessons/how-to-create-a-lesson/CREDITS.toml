@@ -1,0 +1,16 @@
+[[contributors]]
+username = "proof-at-home"
+role = "author"
+first_commit = ""
+
+[edition]
+current = 1
+
+[[edition.history]]
+edition = 1
+date = "2026-03-11"
+commit = ""
+summary = "Initial release"
+
+[license]
+spdx = "CC0-1.0"
