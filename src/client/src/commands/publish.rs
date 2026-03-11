@@ -20,8 +20,12 @@ pub async fn run_publish(kind: &str, id: &str) -> Result<()> {
                 "certification_nft_metadata.json",
             )
         }
+        "series" => {
+            let dir = Config::config_dir()?.join("series").join(id);
+            (dir, "series_package.tar.gz", "series_nft_metadata.json")
+        }
         _ => bail!(
-            "Unknown type '{}'. Use 'contribution' or 'certificate'.",
+            "Unknown type '{}'. Use 'contribution', 'certificate', or 'series'.",
             kind
         ),
     };
@@ -35,10 +39,11 @@ pub async fn run_publish(kind: &str, id: &str) -> Result<()> {
         bail!(
             "NFT metadata not found: {}. Run the {} first.",
             nft_path.display(),
-            if kind == "contribution" {
-                "prove"
-            } else {
-                "certificate seal"
+            match kind {
+                "contribution" => "prove",
+                "certificate" => "certificate seal",
+                "series" => "series seal",
+                _ => "appropriate seal command",
             }
         );
     }
@@ -75,10 +80,11 @@ pub async fn run_publish(kind: &str, id: &str) -> Result<()> {
             .unwrap_or("");
 
         if !git_commit.is_empty() && !git_repo.is_empty() {
-            let subdir = if kind == "contribution" {
-                "contributions"
-            } else {
-                "certificates"
+            let subdir = match kind {
+                "contribution" => "contributions",
+                "certificate" => "certificates",
+                "series" => "series",
+                _ => "contributions",
             };
             let permalink = format!("{}/tree/{}/{}/{}", git_repo, git_commit, subdir, id);
             nft_json["external_url"] = serde_json::Value::String(permalink.clone());

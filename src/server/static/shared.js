@@ -102,14 +102,26 @@ function initNav() {
     nav.innerHTML = `
         <a class="nav-brand" href="/">Proof@Home</a>
         <div class="nav-links">
-            <a href="/how-it-works.html">How It Works</a>
-            <a href="/getting-started.html">Getting Started</a>
-            <a href="/conjectures.html">Conjectures</a>
-            <a href="/certificates.html">Certificates</a>
-            <a href="/lessons.html">Lessons</a>
-            <a href="/expositions.html">Expositions</a>
-            <a href="/strategies.html">Strategies</a>
-            <a href="/nft-gallery.html">NFT Gallery</a>
+            <a href="/lessons.html">Series &amp; Lessons</a>
+            <div class="nav-dropdown">
+                <a href="#" onclick="toggleNavDropdown(event)">Guides &#9662;</a>
+                <div class="nav-dropdown-menu">
+                    <a href="/getting-started.html">Getting Started</a>
+                    <a href="/how-it-works.html">How It Works</a>
+                    <a href="/guide-pair-prover.html">Pair-Prover Guide</a>
+                    <a href="/guide-pipeline.html">Content Pipeline</a>
+                </div>
+            </div>
+            <div class="nav-dropdown">
+                <a href="#" onclick="toggleNavDropdown(event)">Resources &#9662;</a>
+                <div class="nav-dropdown-menu">
+                    <a href="/conjectures.html">Conjectures</a>
+                    <a href="/expositions.html">Expositions</a>
+                    <a href="/certificates.html">Certificates</a>
+                    <a href="/strategies.html">Strategies</a>
+                </div>
+            </div>
+            <a href="/nft-gallery.html">Credits</a>
         </div>
         ${userSection}
     `;

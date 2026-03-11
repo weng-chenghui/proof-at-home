@@ -99,6 +99,40 @@ type ContributionRanking struct {
 	OverallScore              float64 `json:"overall_score"`
 }
 
+// ── Reference types (CSL-JSON compatible subset) ──
+
+// CslName represents an author/editor name per CSL-JSON spec.
+type CslName struct {
+	Family  string `json:"family,omitempty" yaml:"family,omitempty"`
+	Given   string `json:"given,omitempty" yaml:"given,omitempty"`
+	Literal string `json:"literal,omitempty" yaml:"literal,omitempty"` // for organizations
+}
+
+// CslDate represents a date per CSL-JSON spec.
+type CslDate struct {
+	DateParts [][]int `json:"date-parts,omitempty" yaml:"date-parts,omitempty"` // e.g. [[2020, 3, 15]]
+	Literal   string  `json:"literal,omitempty" yaml:"literal,omitempty"`
+}
+
+// Reference is a CSL-JSON compatible bibliographic item.
+// We store the core fields needed for lesson citations; the full CSL-JSON
+// spec has ~60 fields but these cover 95%+ of our use cases.
+type Reference struct {
+	ID             string    `json:"id,omitempty" yaml:"id,omitempty"`
+	Type           string    `json:"type,omitempty" yaml:"type,omitempty"` // article-journal, book, chapter, webpage, paper-conference, thesis, report
+	Title          string    `json:"title" yaml:"title"`
+	Author         []CslName `json:"author,omitempty" yaml:"author,omitempty"`
+	Issued         *CslDate  `json:"issued,omitempty" yaml:"issued,omitempty"`
+	ContainerTitle string    `json:"container-title,omitempty" yaml:"container-title,omitempty"` // journal or book name
+	Volume         string    `json:"volume,omitempty" yaml:"volume,omitempty"`
+	Issue          string    `json:"issue,omitempty" yaml:"issue,omitempty"`
+	Page           string    `json:"page,omitempty" yaml:"page,omitempty"`
+	DOI            string    `json:"DOI,omitempty" yaml:"DOI,omitempty"`
+	URL            string    `json:"URL,omitempty" yaml:"URL,omitempty"`
+	ISBN           string    `json:"ISBN,omitempty" yaml:"ISBN,omitempty"`
+	Publisher      string    `json:"publisher,omitempty" yaml:"publisher,omitempty"`
+}
+
 // ── Lesson types ──
 
 type AIAnnotation struct {
@@ -120,6 +154,7 @@ type Lesson struct {
 	CreatedAt      string         `json:"created_at,omitempty" yaml:"-"`
 	Content        string         `json:"content,omitempty" yaml:"-"`
 	AIAnnotations  []AIAnnotation `json:"ai_annotations,omitempty" yaml:"ai_annotations,omitempty"`
+	References     []Reference    `json:"references,omitempty" yaml:"references,omitempty"`
 }
 
 // ── Note types ──

@@ -475,6 +475,41 @@ enum SeriesAction {
         #[arg(long)]
         lessons: Option<String>,
     },
+    /// Plan a new series from a topic (top-down flow)
+    Plan {
+        /// Topic for the series
+        #[arg(long)]
+        topic: String,
+        /// Number of lessons to plan
+        #[arg(long, default_value = "3")]
+        depth: u32,
+        /// Difficulty range: easy, medium, hard, easy-medium, medium-hard, easy-hard
+        #[arg(long, default_value = "easy-medium")]
+        difficulty: String,
+        /// Budget in USD
+        #[arg(long)]
+        budget: Option<f64>,
+        /// Output file path for the plan JSON
+        #[arg(long, short)]
+        output: Option<String>,
+    },
+    /// Generate lessons from an existing plan file
+    Generate {
+        /// Path to plan.json file (use - for stdin)
+        #[arg(long)]
+        from: String,
+        /// Budget in USD
+        #[arg(long)]
+        budget: Option<f64>,
+    },
+    /// Audit an existing series for quality
+    Audit {
+        /// Series ID to audit
+        id: String,
+        /// Output file path for the audit report
+        #[arg(long, short)]
+        output: Option<String>,
+    },
 }
 
 // ── Exposition ──
@@ -800,6 +835,22 @@ async fn main() {
             }
             SeriesAction::Export { lessons } => {
                 commands::series::cmd_export(lessons.as_deref()).await
+            }
+            SeriesAction::Plan {
+                topic,
+                depth,
+                difficulty,
+                budget,
+                output,
+            } => {
+                commands::series::cmd_plan(&topic, depth, &difficulty, budget, output.as_deref())
+                    .await
+            }
+            SeriesAction::Generate { from, budget } => {
+                commands::series::cmd_generate(&from, budget).await
+            }
+            SeriesAction::Audit { id, output } => {
+                commands::series::cmd_audit(&id, output.as_deref()).await
             }
         },
         Resource::Agent { action } => match action {

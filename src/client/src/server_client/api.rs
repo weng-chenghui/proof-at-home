@@ -705,6 +705,8 @@ pub struct LessonRecord {
     pub content: String,
     #[serde(default)]
     pub ai_annotations: Vec<AIAnnotation>,
+    #[serde(default)]
+    pub references: Vec<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -735,6 +737,8 @@ pub struct CreateLessonRequest {
     pub content: String,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub ai_annotations: Vec<AIAnnotation>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub references: Vec<serde_json::Value>,
 }
 
 impl ServerClient {

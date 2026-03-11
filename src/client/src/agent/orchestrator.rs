@@ -51,8 +51,25 @@ impl AgentOrchestrator {
         })
     }
 
+    /// Set a custom agent ID (default is "lesson-agent").
+    pub fn with_agent_id(mut self, id: &str) -> Self {
+        self.agent_id = id.to_string();
+        self
+    }
+
+    /// Share a budget tracker with child orchestrators.
+    pub fn with_budget(mut self, budget: BudgetTracker) -> Self {
+        self.budget = budget;
+        self
+    }
+
     pub fn run_id(&self) -> &str {
         &self.run_id
+    }
+
+    #[allow(dead_code)]
+    pub fn budget(&self) -> &BudgetTracker {
+        &self.budget
     }
 
     pub fn steps(&self) -> &[AgentStep] {
@@ -64,7 +81,7 @@ impl AgentOrchestrator {
     }
 
     /// Execute a single agent step using the named strategy.
-    async fn execute_step(
+    pub async fn execute_step(
         &mut self,
         step_name: &str,
         strategy_name: &str,
@@ -358,6 +375,368 @@ impl AgentOrchestrator {
         println!();
         Ok(lesson_md)
     }
+
+    /// Run the full series agent pipeline: PLAN -> ASSESS -> GENERATE -> lesson children -> AUDIT -> REFLECT.
+    #[allow(dead_code)]
+    pub async fn run_series(
+        &mut self,
+        topic: &str,
+        depth: Option<u32>,
+        difficulty: Option<&str>,
+    ) -> Result<String> {
+        println!("{}", "Series Agent".bold().cyan());
+        println!("Run ID: {}", self.run_id.dimmed());
+        println!();
+
+        let resource_args = build_series_resource_args(topic, depth, difficulty);
+        let tags: Vec<&str> = vec![topic];
+
+        // Step 1: PLAN
+        println!("{}", "Step 1: Planning series...".dimmed());
+        let plan_result = self
+            .execute_step("plan", "agent-series-plan", &resource_args, "{}", &tags)
+            .await?;
+
+        // Step 2: ASSESS
+        println!("{}", "Step 2: Assessing series...".dimmed());
+        let assess_result = self
+            .execute_step(
+                "assess",
+                "agent-series-assess",
+                &resource_args,
+                &plan_result,
+                &tags,
+            )
+            .await?;
+
+        // Step 3: GENERATE manifest
+        println!("{}", "Step 3: Generating series manifest...".dimmed());
+        let enriched_args = format!(
+            "{}\n\n## Plan\n{}\n\n## Assessment\n{}",
+            resource_args, plan_result, assess_result
+        );
+        let manifest_result = self
+            .execute_step(
+                "generate",
+                "agent-series-generate",
+                &enriched_args,
+                "{}",
+                &tags,
+            )
+            .await?;
+
+        // Parse manifest and generate each lesson
+        let manifest = extract_json_from_response(&manifest_result)
+            .unwrap_or_else(|_| serde_json::json!({"lessons": []}));
+
+        let lessons_arr = manifest
+            .get("lessons")
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default();
+
+        println!(
+            "{}",
+            format!("Step 4: Generating {} lessons...", lessons_arr.len()).dimmed()
+        );
+
+        let mut generated_lessons = Vec::new();
+        for (i, lesson_spec) in lessons_arr.iter().enumerate() {
+            let lesson_topic = lesson_spec
+                .get("topic")
+                .and_then(|v| v.as_str())
+                .unwrap_or(topic);
+            let lesson_difficulty = lesson_spec
+                .get("difficulty")
+                .and_then(|v| v.as_str())
+                .or(difficulty);
+            let lesson_conjectures: Vec<String> = lesson_spec
+                .get("conjecture_ids")
+                .and_then(|v| v.as_array())
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|c| c.as_str().map(String::from))
+                        .collect()
+                })
+                .unwrap_or_default();
+
+            println!(
+                "{}",
+                format!(
+                    "  Lesson {}/{}: {}...",
+                    i + 1,
+                    lessons_arr.len(),
+                    lesson_topic
+                )
+                .dimmed()
+            );
+
+            // Spawn child orchestrator sharing the same budget
+            let mut child = AgentOrchestrator::new(self.config.clone())?
+                .with_agent_id("lesson-agent")
+                .with_budget(self.budget.clone());
+
+            match child
+                .run_lesson(Some(lesson_topic), &lesson_conjectures, lesson_difficulty)
+                .await
+            {
+                Ok(lesson_md) => {
+                    self.total_cost += child.total_cost();
+                    for step in child.steps() {
+                        self.steps.push(step.clone());
+                    }
+                    generated_lessons.push(serde_json::json!({
+                        "topic": lesson_topic,
+                        "difficulty": lesson_difficulty.unwrap_or("medium"),
+                        "content": lesson_md,
+                    }));
+                }
+                Err(e) => {
+                    eprintln!(
+                        "  {}: Lesson generation failed for '{}': {}",
+                        "Warning".yellow(),
+                        lesson_topic,
+                        e
+                    );
+                }
+            }
+        }
+
+        // Build combined content for audit
+        let mut all_lessons_text = String::new();
+        for (i, lesson) in generated_lessons.iter().enumerate() {
+            all_lessons_text.push_str(&format!(
+                "\n\n## Lesson {} — {}\n{}",
+                i + 1,
+                lesson["topic"].as_str().unwrap_or(""),
+                lesson["content"].as_str().unwrap_or(""),
+            ));
+        }
+
+        // Step 5: AUDIT
+        println!("{}", "Step 5: Auditing series...".dimmed());
+        let audit_args = format!(
+            "{}\n\n## Series Manifest\n{}\n\n## Generated Lessons\n{}",
+            resource_args, manifest_result, all_lessons_text
+        );
+        let _audit_result = self
+            .execute_step("audit", "agent-series-audit", &audit_args, "{}", &tags)
+            .await?;
+
+        // Step 6: REFLECT
+        println!("{}", "Step 6: Reflecting...".dimmed());
+        let run_summary = serde_json::json!({
+            "run_id": self.run_id,
+            "topic": topic,
+            "depth": depth,
+            "difficulty": difficulty,
+            "total_cost": self.total_cost,
+            "lessons_generated": generated_lessons.len(),
+            "steps": self.steps.iter().map(|s| {
+                serde_json::json!({
+                    "name": s.name,
+                    "cost": s.cost_usd,
+                })
+            }).collect::<Vec<_>>(),
+        });
+
+        let _reflect_result = self
+            .execute_step(
+                "reflect",
+                "agent-lesson-reflect",
+                &format!("## Series\n{}", all_lessons_text),
+                &run_summary.to_string(),
+                &tags,
+            )
+            .await?;
+
+        // Build final series JSON with all generated content
+        let result = serde_json::json!({
+            "manifest": manifest,
+            "lessons": generated_lessons,
+        });
+
+        println!();
+        Ok(result.to_string())
+    }
+
+    /// Run the series pipeline starting from an existing plan (skipping the PLAN step).
+    pub async fn run_series_from_plan(&mut self, plan: &serde_json::Value) -> Result<String> {
+        let topic = plan
+            .get("topic")
+            .and_then(|v| v.as_str())
+            .unwrap_or("mathematics");
+        let depth = plan.get("depth").and_then(|v| v.as_u64()).map(|d| d as u32);
+        let difficulty = plan.get("difficulty").and_then(|v| v.as_str());
+
+        println!("{}", "Series Agent (from plan)".bold().cyan());
+        println!("Run ID: {}", self.run_id.dimmed());
+        println!();
+
+        let resource_args = build_series_resource_args(topic, depth, difficulty);
+        let tags: Vec<&str> = vec![topic];
+        let plan_str = serde_json::to_string_pretty(plan)?;
+
+        // Step 1: ASSESS
+        println!("{}", "Step 1: Assessing series...".dimmed());
+        let assess_result = self
+            .execute_step(
+                "assess",
+                "agent-series-assess",
+                &resource_args,
+                &plan_str,
+                &tags,
+            )
+            .await?;
+
+        // Step 2: GENERATE manifest
+        println!("{}", "Step 2: Generating series manifest...".dimmed());
+        let enriched_args = format!(
+            "{}\n\n## Plan\n{}\n\n## Assessment\n{}",
+            resource_args, plan_str, assess_result
+        );
+        let manifest_result = self
+            .execute_step(
+                "generate",
+                "agent-series-generate",
+                &enriched_args,
+                "{}",
+                &tags,
+            )
+            .await?;
+
+        // Parse manifest and generate each lesson
+        let manifest = extract_json_from_response(&manifest_result)
+            .unwrap_or_else(|_| serde_json::json!({"lessons": []}));
+
+        let lessons_arr = manifest
+            .get("lessons")
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default();
+
+        println!(
+            "{}",
+            format!("Step 3: Generating {} lessons...", lessons_arr.len()).dimmed()
+        );
+
+        let mut generated_lessons = Vec::new();
+        for (i, lesson_spec) in lessons_arr.iter().enumerate() {
+            let lesson_topic = lesson_spec
+                .get("topic")
+                .and_then(|v| v.as_str())
+                .unwrap_or(topic);
+            let lesson_difficulty = lesson_spec
+                .get("difficulty")
+                .and_then(|v| v.as_str())
+                .or(difficulty);
+            let lesson_conjectures: Vec<String> = lesson_spec
+                .get("conjecture_ids")
+                .and_then(|v| v.as_array())
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|c| c.as_str().map(String::from))
+                        .collect()
+                })
+                .unwrap_or_default();
+
+            println!(
+                "{}",
+                format!(
+                    "  Lesson {}/{}: {}...",
+                    i + 1,
+                    lessons_arr.len(),
+                    lesson_topic
+                )
+                .dimmed()
+            );
+
+            let mut child = AgentOrchestrator::new(self.config.clone())?
+                .with_agent_id("lesson-agent")
+                .with_budget(self.budget.clone());
+
+            match child
+                .run_lesson(Some(lesson_topic), &lesson_conjectures, lesson_difficulty)
+                .await
+            {
+                Ok(lesson_md) => {
+                    self.total_cost += child.total_cost();
+                    for step in child.steps() {
+                        self.steps.push(step.clone());
+                    }
+                    generated_lessons.push(serde_json::json!({
+                        "topic": lesson_topic,
+                        "difficulty": lesson_difficulty.unwrap_or("medium"),
+                        "content": lesson_md,
+                    }));
+                }
+                Err(e) => {
+                    eprintln!(
+                        "  {}: Lesson generation failed for '{}': {}",
+                        "Warning".yellow(),
+                        lesson_topic,
+                        e
+                    );
+                }
+            }
+        }
+
+        // Build combined content for audit
+        let mut all_lessons_text = String::new();
+        for (i, lesson) in generated_lessons.iter().enumerate() {
+            all_lessons_text.push_str(&format!(
+                "\n\n## Lesson {} — {}\n{}",
+                i + 1,
+                lesson["topic"].as_str().unwrap_or(""),
+                lesson["content"].as_str().unwrap_or(""),
+            ));
+        }
+
+        // Step 4: AUDIT
+        println!("{}", "Step 4: Auditing series...".dimmed());
+        let audit_args = format!(
+            "{}\n\n## Series Manifest\n{}\n\n## Generated Lessons\n{}",
+            resource_args, manifest_result, all_lessons_text
+        );
+        let _audit_result = self
+            .execute_step("audit", "agent-series-audit", &audit_args, "{}", &tags)
+            .await?;
+
+        let result = serde_json::json!({
+            "manifest": manifest,
+            "lessons": generated_lessons,
+        });
+
+        println!();
+        Ok(result.to_string())
+    }
+
+    /// Run an audit on existing series content.
+    pub async fn run_audit(&mut self, series_content: &str) -> Result<String> {
+        println!("{}", "Series Audit".bold().cyan());
+        println!("Run ID: {}", self.run_id.dimmed());
+        println!();
+
+        println!("{}", "Auditing series...".dimmed());
+        let result = self
+            .execute_step("audit", "agent-series-audit", series_content, "{}", &[])
+            .await?;
+
+        println!();
+        Ok(result)
+    }
+}
+
+/// Build resource arguments string for series operations.
+fn build_series_resource_args(topic: &str, depth: Option<u32>, difficulty: Option<&str>) -> String {
+    let mut parts = Vec::new();
+    parts.push(format!("**Topic:** {}", topic));
+    parts.push(format!("**Depth:** {} lessons", depth.unwrap_or(3)));
+    parts.push(format!(
+        "**Difficulty:** {}",
+        difficulty.unwrap_or("easy-medium")
+    ));
+    parts.join("\n")
 }
 
 /// Extract a JSON object from an AI response that may contain markdown code blocks.

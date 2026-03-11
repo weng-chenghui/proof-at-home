@@ -28,26 +28,27 @@ pub async fn cmd_run_lesson(
     }
 
     // Parse and submit
-    let (lesson_id, title, parsed_topic, parsed_difficulty, parsed_conjecture_ids) =
-        crate::commands::lesson::parse_lesson_frontmatter(&lesson_md);
+    let parsed = crate::commands::lesson::parse_lesson_frontmatter(&lesson_md);
 
-    let final_topic = parsed_topic
+    let final_topic = parsed
+        .topic
         .or_else(|| topic.map(|s| s.to_string()))
         .unwrap_or_default();
-    let final_difficulty = parsed_difficulty
+    let final_difficulty = parsed
+        .difficulty
         .or_else(|| difficulty.map(|s| s.to_string()))
         .unwrap_or_default();
-    let final_conjecture_ids = if parsed_conjecture_ids.is_empty() {
+    let final_conjecture_ids = if parsed.conjecture_ids.is_empty() {
         conjecture_ids
     } else {
-        parsed_conjecture_ids
+        parsed.conjecture_ids
     };
 
     let client = ServerClient::new(&cfg.server_url(), &cfg.api.auth_token);
     let req = CreateLessonRequest {
-        lesson_id: lesson_id.clone(),
+        lesson_id: parsed.lesson_id.clone(),
         author_username: cfg.identity.username.clone(),
-        title: title.clone(),
+        title: parsed.title.clone(),
         topic: final_topic,
         difficulty: final_difficulty,
         description: String::new(),
@@ -56,6 +57,7 @@ pub async fn cmd_run_lesson(
         published: true,
         content: lesson_md,
         ai_annotations: vec![],
+        references: parsed.references,
     };
 
     print!("Submitting lesson to server... ");
@@ -75,8 +77,8 @@ pub async fn cmd_run_lesson(
     println!("{}", " Agent Run Complete".bold());
     println!("{}", "=".repeat(60).dimmed());
     println!("  Run ID:    {}", agent.run_id());
-    println!("  Lesson:    {}", lesson_id.cyan());
-    println!("  Title:     {}", title);
+    println!("  Lesson:    {}", req.lesson_id.cyan());
+    println!("  Title:     {}", req.title);
     println!("  Steps:     {}", agent.steps().len());
     println!("  Cost:      ${:.4}", agent.total_cost());
     println!();

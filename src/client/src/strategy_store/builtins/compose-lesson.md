@@ -37,10 +37,33 @@ ai_annotations:
     suggestions:
       - "<Suggested question 1>"
       - "<Suggested question 2>"
+references:
+  - type: article-journal
+    title: "Article Title"
+    author:
+      - family: "Smith"
+        given: "John"
+    issued:
+      date-parts: [[2020]]
+    container-title: "Journal Name"
+    DOI: "10.xxxx/xxxxx"
+  - type: book
+    title: "Book Title"
+    author:
+      - family: "Doe"
+        given: "Jane"
+    issued:
+      date-parts: [[2019]]
+    publisher: "Publisher Name"
+    ISBN: "978-xxx"
 ---
 # <Lesson Title>
 
 <Markdown body with sections, math ($...$), code blocks, etc.>
+
+## References
+
+<Numbered list of references in a readable format>
 ```
 
 ### Rules
@@ -53,6 +76,7 @@ ai_annotations:
 - Each annotation should have 2-3 suggestion prompts that a student might ask
 - Keep the tone accessible but rigorous
 - Target 800-1500 words for the body
+- Include 2-5 references in CSL-JSON format (types: article-journal, book, chapter, webpage, paper-conference, thesis, report) with DOIs where available
 
 ### Output
 

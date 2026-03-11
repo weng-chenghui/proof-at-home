@@ -1,5 +1,6 @@
 use anyhow::{bail, Context, Result};
 use colored::Colorize;
+use std::collections::HashMap;
 
 use crate::config::Config;
 use crate::server_client::api::{CreateLessonRequest, ServerClient};
@@ -181,25 +182,26 @@ pub async fn cmd_create(
     }
 
     // Parse the lesson.md to extract metadata
-    let (lesson_id, title, parsed_topic, parsed_difficulty, parsed_conjecture_ids) =
-        parse_lesson_frontmatter(&lesson_md);
+    let parsed = parse_lesson_frontmatter(&lesson_md);
 
-    let final_topic = parsed_topic
+    let final_topic = parsed
+        .topic
         .or_else(|| topic.map(|s| s.to_string()))
         .unwrap_or_default();
-    let final_difficulty = parsed_difficulty
+    let final_difficulty = parsed
+        .difficulty
         .or_else(|| difficulty.map(|s| s.to_string()))
         .unwrap_or_default();
-    let final_conjecture_ids = if parsed_conjecture_ids.is_empty() {
+    let final_conjecture_ids = if parsed.conjecture_ids.is_empty() {
         conjecture_ids
     } else {
-        parsed_conjecture_ids
+        parsed.conjecture_ids
     };
 
     let req = CreateLessonRequest {
-        lesson_id: lesson_id.clone(),
+        lesson_id: parsed.lesson_id.clone(),
         author_username: cfg.identity.username.clone(),
-        title: title.clone(),
+        title: parsed.title.clone(),
         topic: final_topic,
         difficulty: final_difficulty,
         description: String::new(),
@@ -208,6 +210,7 @@ pub async fn cmd_create(
         published: true,
         content: lesson_md.clone(),
         ai_annotations: vec![],
+        references: parsed.references,
     };
 
     print!("Submitting lesson to server... ");
@@ -221,6 +224,9 @@ pub async fn cmd_create(
             eprintln!("{}: Could not submit to server: {}", "Warning".yellow(), e);
         }
     }
+
+    let lesson_id = parsed.lesson_id;
+    let title = parsed.title;
 
     println!();
     println!("{}", "=".repeat(60).dimmed());
@@ -419,66 +425,92 @@ pub async fn cmd_notes_merge(id: &str) -> Result<()> {
     Ok(())
 }
 
+/// Parsed lesson frontmatter fields.
+pub struct ParsedLessonFrontmatter {
+    pub lesson_id: String,
+    pub title: String,
+    pub topic: Option<String>,
+    pub difficulty: Option<String>,
+    pub conjecture_ids: Vec<String>,
+    pub references: Vec<serde_json::Value>,
+}
+
 /// Parse YAML frontmatter from lesson.md to extract key fields.
-/// Simple parser — doesn't require a YAML library.
-pub fn parse_lesson_frontmatter(
-    content: &str,
-) -> (String, String, Option<String>, Option<String>, Vec<String>) {
-    let mut lesson_id = String::new();
-    let mut title = String::new();
-    let mut topic = None;
-    let mut difficulty = None;
-    let mut conjecture_ids = Vec::new();
+/// Uses serde_yaml for full nested structure support (references, etc.).
+pub fn parse_lesson_frontmatter(content: &str) -> ParsedLessonFrontmatter {
+    let default = || ParsedLessonFrontmatter {
+        lesson_id: format!("lesson-{}", &uuid::Uuid::new_v4().to_string()[..8]),
+        title: "Untitled Lesson".to_string(),
+        topic: None,
+        difficulty: None,
+        conjecture_ids: vec![],
+        references: vec![],
+    };
 
     if !content.starts_with("---") {
-        // No frontmatter — generate an ID
-        return (
-            format!("lesson-{}", &uuid::Uuid::new_v4().to_string()[..8]),
-            "Untitled Lesson".to_string(),
-            None,
-            None,
-            vec![],
-        );
+        return default();
     }
 
     let rest = &content[3..];
-    let end = rest.find("\n---");
-    if let Some(end_idx) = end {
-        let frontmatter = &rest[..end_idx];
-        for line in frontmatter.lines() {
-            let line = line.trim();
-            if let Some(val) = line.strip_prefix("lesson_id:") {
-                lesson_id = val.trim().trim_matches('"').to_string();
-            } else if let Some(val) = line.strip_prefix("title:") {
-                title = val.trim().trim_matches('"').to_string();
-            } else if let Some(val) = line.strip_prefix("topic:") {
-                topic = Some(val.trim().trim_matches('"').to_string());
-            } else if let Some(val) = line.strip_prefix("difficulty:") {
-                difficulty = Some(val.trim().trim_matches('"').to_string());
-            } else if let Some(val) = line.strip_prefix("conjecture_ids:") {
-                // Parse inline array: [id1, id2]
-                let val = val.trim();
-                if val.starts_with('[') {
-                    let inner = val.trim_start_matches('[').trim_end_matches(']');
-                    conjecture_ids = inner
-                        .split(',')
-                        .map(|s| s.trim().trim_matches('"').to_string())
-                        .filter(|s| !s.is_empty())
-                        .collect();
-                }
-            } else if line.starts_with("- ") && conjecture_ids.is_empty() && lesson_id.is_empty() {
-                // YAML list item under conjecture_ids
-                // Skip — we handle inline arrays above
-            }
-        }
-    }
+    let end_idx = match rest.find("\n---") {
+        Some(idx) => idx,
+        None => return default(),
+    };
+    let frontmatter = &rest[..end_idx];
 
-    if lesson_id.is_empty() {
-        lesson_id = format!("lesson-{}", &uuid::Uuid::new_v4().to_string()[..8]);
-    }
-    if title.is_empty() {
-        title = "Untitled Lesson".to_string();
-    }
+    // Parse with serde_yaml into a generic map
+    let map: HashMap<String, serde_yaml::Value> = match serde_yaml::from_str(frontmatter) {
+        Ok(m) => m,
+        Err(_) => return default(),
+    };
 
-    (lesson_id, title, topic, difficulty, conjecture_ids)
+    let get_str = |key: &str| -> Option<String> {
+        map.get(key).and_then(|v| match v {
+            serde_yaml::Value::String(s) => Some(s.clone()),
+            _ => None,
+        })
+    };
+
+    let lesson_id = get_str("lesson_id")
+        .unwrap_or_else(|| format!("lesson-{}", &uuid::Uuid::new_v4().to_string()[..8]));
+    let title = get_str("title").unwrap_or_else(|| "Untitled Lesson".to_string());
+    let topic = get_str("topic");
+    let difficulty = get_str("difficulty");
+
+    let conjecture_ids = map
+        .get("conjecture_ids")
+        .and_then(|v| match v {
+            serde_yaml::Value::Sequence(seq) => Some(
+                seq.iter()
+                    .filter_map(|item| match item {
+                        serde_yaml::Value::String(s) => Some(s.clone()),
+                        _ => None,
+                    })
+                    .collect(),
+            ),
+            _ => None,
+        })
+        .unwrap_or_default();
+
+    // Parse references as generic JSON values (CSL-JSON compatible)
+    let references = map
+        .get("references")
+        .and_then(|v| {
+            // Convert serde_yaml::Value -> serde_json::Value via serialization round-trip
+            let json_str = serde_json::to_string(
+                &serde_yaml::from_value::<serde_json::Value>(v.clone()).ok()?,
+            )
+            .ok()?;
+            serde_json::from_str::<Vec<serde_json::Value>>(&json_str).ok()
+        })
+        .unwrap_or_default();
+
+    ParsedLessonFrontmatter {
+        lesson_id,
+        title,
+        topic,
+        difficulty,
+        conjecture_ids,
+        references,
+    }
 }

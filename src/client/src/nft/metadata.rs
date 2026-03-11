@@ -306,6 +306,52 @@ pub fn generate_agent_memory_nft_metadata(info: &AgentMemoryInfo) -> Value {
     })
 }
 
+// ── Series NFT metadata ──
+
+#[allow(dead_code)]
+#[derive(Debug, Serialize, JsonSchema)]
+pub struct SeriesInfo {
+    pub author_username: String,
+    pub series_id: String,
+    pub title: String,
+    pub lesson_count: u32,
+    pub topic: String,
+    pub difficulty_range: String,
+    pub total_conjectures: u32,
+    pub package_sha256: String,
+    pub git_commit: String,
+    pub git_repository: String,
+    pub public_key: String,
+    pub commit_signature: String,
+}
+
+/// Generate OpenSea-compatible NFT metadata JSON for a sealed series
+#[allow(dead_code)]
+pub fn generate_series_nft_metadata(info: &SeriesInfo) -> Value {
+    let date = Utc::now().format("%Y-%m-%d").to_string();
+
+    json!({
+        "name": format!("Proof@Home Series — {} — {}", info.title, date),
+        "description": "Sealed lesson series: a complete curriculum of formally verified mathematics.",
+        "external_url": "",
+        "image": "",
+        "attributes": [
+            {"trait_type": "Author Username", "value": info.author_username},
+            {"trait_type": "Series ID", "value": info.series_id},
+            {"trait_type": "Title", "value": info.title},
+            {"trait_type": "Lesson Count", "value": info.lesson_count},
+            {"trait_type": "Topic", "value": info.topic},
+            {"trait_type": "Difficulty Range", "value": info.difficulty_range},
+            {"trait_type": "Total Conjectures", "value": info.total_conjectures},
+            {"trait_type": "Package SHA256", "value": info.package_sha256},
+            {"trait_type": "Git Commit", "value": info.git_commit},
+            {"trait_type": "Git Repository", "value": info.git_repository},
+            {"trait_type": "Public Key", "value": info.public_key},
+            {"trait_type": "Commit Signature", "value": info.commit_signature}
+        ]
+    })
+}
+
 // ── Schema-only structs mirroring the NFT JSON output shape ──
 // Used by gen-schemas binary; not constructed in the main binary.
 

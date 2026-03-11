@@ -71,6 +71,7 @@ func RenderLessonFile(l Lesson) ([]byte, error) {
 		ConjectureIDs  []string       `yaml:"conjecture_ids,omitempty,flow"`
 		Published      bool           `yaml:"published"`
 		AIAnnotations  []AIAnnotation `yaml:"ai_annotations,omitempty"`
+		References     []Reference    `yaml:"references,omitempty"`
 	}{
 		LessonID:       l.LessonID,
 		AuthorUsername: l.AuthorUsername,
@@ -82,6 +83,7 @@ func RenderLessonFile(l Lesson) ([]byte, error) {
 		ConjectureIDs:  l.ConjectureIDs,
 		Published:      l.Published,
 		AIAnnotations:  l.AIAnnotations,
+		References:     l.References,
 	}
 
 	yamlBytes, err := yaml.Marshal(meta)

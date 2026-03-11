@@ -115,6 +115,28 @@
         .conj-item-title { font-weight: 600; }
         .conj-item-id { color: var(--text-muted); font-size: 0.75rem; }
 
+        /* ── References ───────────────────────────────── */
+        .lesson-references {
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--border);
+        }
+        .lesson-references h2 {
+            font-size: 1.15rem;
+            margin: 0 0 0.75rem;
+        }
+        .lesson-references ol {
+            padding-left: 1.5rem;
+            font-size: 0.875rem;
+            line-height: 1.7;
+        }
+        .lesson-references li {
+            margin-bottom: 0.5rem;
+        }
+        .lesson-references a {
+            word-break: break-all;
+        }
+
         /* ── AI Sparkle button ──────────────────────────── */
         .ai-sparkle {
             display: inline-flex;
@@ -2017,6 +2039,73 @@
             }
         }
 
+        function renderReferences(refs) {
+            if (!refs || refs.length === 0) return '';
+            const items = refs.map((ref, i) => {
+                const parts = [];
+
+                // Authors
+                const authors = ref.author || [];
+                const authorStr = authors.map(a => {
+                    if (a.literal) return escapeHtml(a.literal);
+                    const family = a.family || '';
+                    const given = a.given || '';
+                    const initial = given ? given.charAt(0) + '.' : '';
+                    return escapeHtml(family) + (initial ? ', ' + escapeHtml(initial) : '');
+                }).join(' & ');
+                if (authorStr) parts.push(authorStr);
+
+                // Year
+                let year = '';
+                if (ref.issued && ref.issued['date-parts'] && ref.issued['date-parts'][0]) {
+                    year = ref.issued['date-parts'][0][0];
+                }
+                if (year) parts.push('(' + escapeHtml(String(year)) + ').');
+                else if (parts.length > 0) parts[parts.length - 1] += '.';
+
+                // Title — italicize for books/reports, quote for articles
+                const isBook = ref.type === 'book' || ref.type === 'report' || ref.type === 'thesis';
+                const title = ref.title || '';
+                if (title) {
+                    if (isBook) {
+                        parts.push('<em>' + escapeHtml(title) + '</em>.');
+                    } else {
+                        parts.push('"' + escapeHtml(title) + '."');
+                    }
+                }
+
+                // Container title (journal/proceedings) — italicized for non-book types
+                if (ref['container-title'] && !isBook) {
+                    let ct = '<em>' + escapeHtml(ref['container-title']) + '</em>';
+                    const volParts = [];
+                    if (ref.volume) volParts.push(escapeHtml(ref.volume));
+                    if (ref.issue) volParts.push('(' + escapeHtml(ref.issue) + ')');
+                    if (volParts.length > 0) ct += ', ' + volParts.join('');
+                    if (ref.page) ct += ', ' + escapeHtml(ref.page);
+                    ct += '.';
+                    parts.push(ct);
+                }
+
+                // Publisher for books
+                if (ref.publisher && isBook) {
+                    parts.push(escapeHtml(ref.publisher) + '.');
+                }
+
+                // DOI
+                if (ref.DOI) {
+                    parts.push('DOI: <a href="https://doi.org/' + encodeURIComponent(ref.DOI) + '" target="_blank" rel="noopener">' + escapeHtml(ref.DOI) + '</a>');
+                }
+
+                // URL (only if no DOI already provided)
+                if (ref.URL && !ref.DOI) {
+                    parts.push('<a href="' + escapeHtml(ref.URL) + '" target="_blank" rel="noopener">' + escapeHtml(ref.URL) + '</a>');
+                }
+
+                return '<li>' + parts.join(' ') + '</li>';
+            });
+            return '<div class="lesson-references"><h2>References</h2><ol>' + items.join('') + '</ol></div>';
+        }
+
         function buildSeriesNav(series, lessonIds, currentId) {
             const idx = lessonIds.indexOf(currentId);
             if (idx === -1) return '';
@@ -2091,10 +2180,16 @@
                     conjHtml = '<h2>Conjectures</h2><div class="conj-list" id="conj-list"></div>';
                 }
 
+                let refsHtml = '';
+                if (lesson.references && lesson.references.length > 0) {
+                    refsHtml = renderReferences(lesson.references);
+                }
+
                 document.getElementById('content').innerHTML = `
                     <h1>${escapeHtml(lessonTitle)}</h1>
                     ${metaHtml}
                     ${bodyHtml}
+                    ${refsHtml}
                     ${conjHtml}
                 `;
 
