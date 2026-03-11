@@ -121,7 +121,7 @@ function initNav() {
                     <a href="/strategies.html">Strategies</a>
                 </div>
             </div>
-            <a href="/nft-gallery.html">Credits</a>
+            <a href="/nft-gallery.html">NFT Gallery</a>
         </div>
         ${userSection}
     `;
