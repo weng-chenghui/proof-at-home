@@ -190,6 +190,55 @@ fn test_agent_status_no_args() {
     assert.stderr(predicate::str::contains("required").not());
 }
 
+// ── Agent Pipeline ──
+
+#[test]
+fn test_agent_run_pipeline_help() {
+    let mut cmd = Command::cargo_bin("pah").unwrap();
+    cmd.args(["agent", "run", "pipeline", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("--pipeline"));
+}
+
+#[test]
+fn test_agent_run_pipeline_missing_pipeline() {
+    let mut cmd = Command::cargo_bin("pah").unwrap();
+    cmd.args(["agent", "run", "pipeline"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("required"));
+}
+
+#[test]
+fn test_agent_run_pipeline_with_args() {
+    let mut cmd = Command::cargo_bin("pah").unwrap();
+    let assert = cmd
+        .env("HOME", "/tmp/pah-test-nonexistent-home")
+        .args([
+            "agent",
+            "run",
+            "pipeline",
+            "--pipeline",
+            "lesson-default",
+            "--topic",
+            "test",
+        ])
+        .assert();
+    // Passes clap parsing (may fail at runtime without AI provider, but arg parsing succeeds)
+    assert.stderr(predicate::str::contains("required").not());
+}
+
+#[test]
+fn test_agent_help_shows_pipeline() {
+    let mut cmd = Command::cargo_bin("pah").unwrap();
+    cmd.args(["agent", "run", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("pipeline"))
+        .stdout(predicate::str::contains("lesson"));
+}
+
 // ── Verify old path removed ──
 
 #[test]

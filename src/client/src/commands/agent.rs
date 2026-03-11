@@ -93,6 +93,60 @@ pub async fn cmd_run_lesson(
     Ok(())
 }
 
+pub async fn cmd_run_pipeline(
+    pipeline_name: &str,
+    topic: Option<&str>,
+    conjectures: Option<&str>,
+    difficulty: Option<&str>,
+    output: Option<&str>,
+) -> Result<()> {
+    let cfg = Config::load_or_default();
+    cfg.require_login()?;
+
+    let pipeline = crate::agent::pipeline::load_pipeline(pipeline_name)?;
+
+    println!("{}", format!("Pipeline: {}", pipeline.name).bold().cyan());
+    println!("Description: {}", pipeline.description);
+    println!("Steps: {}", pipeline.steps.len());
+    println!();
+
+    let mut agent = AgentOrchestrator::new(cfg.clone())?;
+
+    // Build resource arguments
+    let conjecture_ids: Vec<String> = conjectures
+        .map(|c| c.split(',').map(|s| s.trim().to_string()).collect())
+        .unwrap_or_default();
+
+    let result = agent
+        .run_pipeline(&pipeline, topic, &conjecture_ids, difficulty)
+        .await?;
+
+    // Write to output file if requested
+    if let Some(path) = output {
+        std::fs::write(path, &result)?;
+        println!("Written to: {}", path.green());
+    }
+
+    println!();
+    println!("{}", "=".repeat(60).dimmed());
+    println!("{}", " Pipeline Run Complete".bold());
+    println!("{}", "=".repeat(60).dimmed());
+    println!("  Run ID:    {}", agent.run_id());
+    println!("  Pipeline:  {}", pipeline.name.cyan());
+    println!("  Steps:     {}", agent.steps().len());
+    println!("  Cost:      ${:.4}", agent.total_cost());
+    println!();
+
+    for step in agent.steps() {
+        println!(
+            "    {:<20} ${:.4}  ({}+{} tokens)",
+            step.name, step.cost_usd, step.input_tokens, step.output_tokens,
+        );
+    }
+
+    Ok(())
+}
+
 pub fn cmd_status(run_id: Option<&str>) -> Result<()> {
     // For now, just show that status tracking is per-session
     println!("Agent status tracking is session-based.");

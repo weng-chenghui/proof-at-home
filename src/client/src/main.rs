@@ -312,10 +312,52 @@ enum StrategyAction {
         /// Paths to import
         paths: Vec<String>,
     },
+    /// Search configured registries for strategies and pipelines
+    Search {
+        /// Search query (matches name, description, tags, author)
+        query: String,
+        /// Filter by kind (e.g. prove, lesson, pipeline)
+        #[arg(long)]
+        kind: Option<String>,
+        /// Filter by prover (e.g. lean, rocq)
+        #[arg(long)]
+        prover: Option<String>,
+    },
+    /// Validate and generate a registry entry for publishing a strategy
+    Publish {
+        /// Strategy name to publish
+        name: String,
+        /// Target registry name (default: official)
+        #[arg(long, default_value = "official")]
+        registry: String,
+    },
+    /// Manage configured strategy registries
+    Registry {
+        #[command(subcommand)]
+        action: RegistryAction,
+    },
     /// Manage agent memories (strategies with kind=memory-*)
     Memory {
         #[command(subcommand)]
         action: MemoryAction,
+    },
+}
+
+#[derive(Subcommand)]
+enum RegistryAction {
+    /// List configured registries
+    List,
+    /// Add a registry
+    Add {
+        /// Registry name
+        name: String,
+        /// Registry URL (e.g. github:user/repo or https://...)
+        url: String,
+    },
+    /// Remove a registry
+    Remove {
+        /// Registry name
+        name: String,
     },
 }
 
@@ -640,6 +682,24 @@ enum AgentTask {
         #[arg(long, short)]
         output: Option<String>,
     },
+    /// Run a custom pipeline
+    Pipeline {
+        /// Pipeline name or path (e.g. lesson-default, series-default, or path/to/pipeline.toml)
+        #[arg(long)]
+        pipeline: String,
+        /// Topic
+        #[arg(long)]
+        topic: Option<String>,
+        /// Comma-separated conjecture IDs
+        #[arg(long)]
+        conjectures: Option<String>,
+        /// Difficulty level
+        #[arg(long)]
+        difficulty: Option<String>,
+        /// Output file path
+        #[arg(long, short)]
+        output: Option<String>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -787,6 +847,21 @@ async fn main() {
             StrategyAction::List { kind } => commands::strategy::cmd_list(kind.as_deref()).await,
             StrategyAction::Get { name } => commands::strategy::cmd_get(&name).await,
             StrategyAction::Import { paths } => commands::strategy::cmd_import(&paths),
+            StrategyAction::Search {
+                query,
+                kind,
+                prover,
+            } => commands::strategy::cmd_search(&query, kind.as_deref(), prover.as_deref()).await,
+            StrategyAction::Publish { name, registry } => {
+                commands::strategy::cmd_publish(&name, &registry)
+            }
+            StrategyAction::Registry { action: reg_action } => match reg_action {
+                RegistryAction::List => commands::strategy::cmd_registry_list(),
+                RegistryAction::Add { name, url } => {
+                    commands::strategy::cmd_registry_add(&name, &url)
+                }
+                RegistryAction::Remove { name } => commands::strategy::cmd_registry_remove(&name),
+            },
             StrategyAction::Memory { action: mem_action } => match mem_action {
                 MemoryAction::List { kind, agent } => {
                     commands::strategy::cmd_memory_list(kind.as_deref(), agent.as_deref())
@@ -906,6 +981,22 @@ async fn main() {
                     output,
                 } => {
                     commands::agent::cmd_run_lesson(
+                        topic.as_deref(),
+                        conjectures.as_deref(),
+                        difficulty.as_deref(),
+                        output.as_deref(),
+                    )
+                    .await
+                }
+                AgentTask::Pipeline {
+                    pipeline,
+                    topic,
+                    conjectures,
+                    difficulty,
+                    output,
+                } => {
+                    commands::agent::cmd_run_pipeline(
+                        &pipeline,
                         topic.as_deref(),
                         conjectures.as_deref(),
                         difficulty.as_deref(),

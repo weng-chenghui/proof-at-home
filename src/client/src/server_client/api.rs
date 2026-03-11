@@ -452,6 +452,7 @@ pub struct ContributionRanking {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
 pub struct Strategy {
     pub name: String,
     #[serde(default)]
@@ -464,6 +465,14 @@ pub struct Strategy {
     pub priority: i32,
     #[serde(default)]
     pub body: String,
+    #[serde(default)]
+    pub version: Option<String>,
+    #[serde(default)]
+    pub author: Option<String>,
+    #[serde(default)]
+    pub license: Option<String>,
+    #[serde(default)]
+    pub source: Option<String>,
 }
 
 impl ServerClient {

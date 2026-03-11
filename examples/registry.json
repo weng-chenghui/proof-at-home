@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "name": "PAH Official",
+  "description": "Official Proof@Home strategy and pipeline registry",
+  "strategies": [
+    {
+      "name": "prove-lean-lemma",
+      "version": "1.0.0",
+      "author": "proof-at-home",
+      "description": "Default Lean 4 proving strategy",
+      "kind": "prove",
+      "prover": "lean",
+      "source": "github:proof-at-home/proof-at-home/examples/data-repo/strategies/prove-lean-lemma.md",
+      "tags": ["lean", "default", "prove"],
+      "updated_at": "2026-03-01T00:00:00Z"
+    },
+    {
+      "name": "compose-lesson",
+      "version": "1.0.0",
+      "author": "proof-at-home",
+      "description": "Compose a lesson from conjectures and topic context",
+      "kind": "lesson",
+      "prover": "",
+      "source": "github:proof-at-home/proof-at-home/examples/data-repo/strategies/compose-lesson.md",
+      "tags": ["lesson", "compose", "education"],
+      "updated_at": "2026-03-01T00:00:00Z"
+    }
+  ],
+  "pipelines": [
+    {
+      "name": "lesson-default",
+      "version": "1.0.0",
+      "author": "proof-at-home",
+      "description": "Default lesson generation pipeline (plan → assess → generate → iterate → reflect)",
+      "kind": "pipeline",
+      "prover": "",
+      "source": "github:proof-at-home/proof-at-home/src/client/src/agent/builtins/lesson-default.toml",
+      "tags": ["lesson", "default", "pipeline"],
+      "updated_at": "2026-03-01T00:00:00Z"
+    },
+    {
+      "name": "series-default",
+      "version": "1.0.0",
+      "author": "proof-at-home",
+      "description": "Default series generation pipeline (plan → assess → generate → lessons → audit → reflect)",
+      "kind": "pipeline",
+      "prover": "",
+      "source": "github:proof-at-home/proof-at-home/src/client/src/agent/builtins/series-default.toml",
+      "tags": ["series", "default", "pipeline"],
+      "updated_at": "2026-03-01T00:00:00Z"
+    }
+  ]
+}

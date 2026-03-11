@@ -115,16 +115,15 @@ fn import_tar_gz(path: &str, dest_dir: &Path) -> Result<()> {
 }
 
 /// Import strategies from a GitHub URL.
-/// Supports: https://github.com/user/repo or github:user/repo
-/// Clones to a temp dir, imports all .md files, cleans up.
+///
+/// Supports:
+///   - `https://github.com/user/repo` or `github:user/repo` — imports all .md files from repo root
+///   - `github:user/repo/path/to/file.md` — imports only the specified file
+///   - `github:user/repo/path/to/dir` — imports all .md files from the specified directory
+///
+/// Clones to a temp dir, imports matching files, cleans up.
 fn import_github(source: &str, dest_dir: &Path) -> Result<()> {
-    let url = if let Some(rest) = source.strip_prefix("github:") {
-        format!("https://github.com/{}.git", rest)
-    } else if !source.ends_with(".git") {
-        format!("{}.git", source)
-    } else {
-        source.to_string()
-    };
+    let (url, subpath) = parse_github_source(source);
 
     let tmp_dir = std::env::temp_dir().join(format!("pah-import-{}", uuid::Uuid::new_v4()));
     println!("  Cloning {}...", url);
@@ -139,10 +138,44 @@ fn import_github(source: &str, dest_dir: &Path) -> Result<()> {
         anyhow::bail!("git clone failed: {}", stderr);
     }
 
-    let result = import_directory(&tmp_dir, dest_dir);
+    let import_path = if let Some(ref sub) = subpath {
+        tmp_dir.join(sub)
+    } else {
+        tmp_dir.clone()
+    };
+
+    let result = if import_path.is_file() {
+        import_file(&import_path, dest_dir)
+    } else if import_path.is_dir() {
+        import_directory(&import_path, dest_dir)
+    } else {
+        anyhow::bail!("Path not found in cloned repo: {}", import_path.display())
+    };
 
     // Clean up
     let _ = std::fs::remove_dir_all(&tmp_dir);
 
     result
+}
+
+/// Parse a GitHub source string into (clone_url, optional_subpath).
+fn parse_github_source(source: &str) -> (String, Option<String>) {
+    if let Some(rest) = source.strip_prefix("github:") {
+        // Split into user/repo and optional subpath
+        let parts: Vec<&str> = rest.splitn(3, '/').collect();
+        if parts.len() >= 3 {
+            // github:user/repo/some/path
+            let repo_url = format!("https://github.com/{}/{}.git", parts[0], parts[1]);
+            let subpath = parts[2].to_string();
+            (repo_url, Some(subpath))
+        } else {
+            // github:user/repo
+            let repo_url = format!("https://github.com/{}.git", rest);
+            (repo_url, None)
+        }
+    } else if !source.ends_with(".git") {
+        (format!("{}.git", source), None)
+    } else {
+        (source.to_string(), None)
+    }
 }

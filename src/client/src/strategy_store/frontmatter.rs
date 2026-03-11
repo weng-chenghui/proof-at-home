@@ -4,6 +4,7 @@ use std::collections::HashMap;
 
 /// Metadata parsed from TOML frontmatter in a strategy `.md` file.
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
 pub struct StrategyMeta {
     pub name: String,
     /// Strategy kind: "prove", "certify-compare", "certify-rollup"
@@ -16,8 +17,41 @@ pub struct StrategyMeta {
     pub description: String,
     #[serde(default)]
     pub priority: i32,
+    /// Sharing metadata (optional, for registry/publish)
+    #[serde(default)]
+    pub version: Option<String>,
+    #[serde(default)]
+    pub author: Option<String>,
+    #[serde(default)]
+    pub license: Option<String>,
+    #[serde(default)]
+    pub source: Option<String>,
     #[serde(default)]
     pub extra: HashMap<String, toml::Value>,
+}
+
+/// Errors when a strategy is missing required fields for publishing.
+pub fn validate_for_publish(meta: &StrategyMeta) -> Result<()> {
+    let mut missing = Vec::new();
+    if meta.name.is_empty() {
+        missing.push("name");
+    }
+    if meta.version.is_none() || meta.version.as_deref() == Some("") {
+        missing.push("version");
+    }
+    if meta.author.is_none() || meta.author.as_deref() == Some("") {
+        missing.push("author");
+    }
+    if meta.description.is_empty() {
+        missing.push("description");
+    }
+    if !missing.is_empty() {
+        anyhow::bail!(
+            "Strategy missing required fields for publish: {}",
+            missing.join(", ")
+        );
+    }
+    Ok(())
 }
 
 fn default_kind() -> String {
@@ -89,6 +123,100 @@ Body here.
     fn test_missing_frontmatter() {
         let content = "# Just markdown\nNo frontmatter here.";
         assert!(parse_strategy_file(content).is_err());
+    }
+
+    #[test]
+    fn test_parse_with_sharing_fields() {
+        let content = r#"+++
+name = "my-strategy"
+version = "1.0.0"
+author = "alice"
+license = "MIT"
+source = "github:alice/strategies/my-strategy.md"
+description = "A shared strategy"
++++
+Body here.
+"#;
+        let (meta, _) = parse_strategy_file(content).unwrap();
+        assert_eq!(meta.version.as_deref(), Some("1.0.0"));
+        assert_eq!(meta.author.as_deref(), Some("alice"));
+        assert_eq!(meta.license.as_deref(), Some("MIT"));
+        assert_eq!(
+            meta.source.as_deref(),
+            Some("github:alice/strategies/my-strategy.md")
+        );
+    }
+
+    #[test]
+    fn test_parse_without_sharing_fields() {
+        let content = r#"+++
+name = "legacy-strategy"
+kind = "prove"
++++
+Body.
+"#;
+        let (meta, _) = parse_strategy_file(content).unwrap();
+        assert!(meta.version.is_none());
+        assert!(meta.author.is_none());
+        assert!(meta.license.is_none());
+        assert!(meta.source.is_none());
+    }
+
+    #[test]
+    fn test_validate_for_publish_ok() {
+        let meta = StrategyMeta {
+            name: "test".to_string(),
+            kind: "prove".to_string(),
+            prover: String::new(),
+            description: "A test strategy".to_string(),
+            priority: 0,
+            version: Some("1.0.0".to_string()),
+            author: Some("alice".to_string()),
+            license: None,
+            source: None,
+            extra: HashMap::new(),
+        };
+        assert!(validate_for_publish(&meta).is_ok());
+    }
+
+    #[test]
+    fn test_validate_for_publish_missing_version() {
+        let meta = StrategyMeta {
+            name: "test".to_string(),
+            kind: "prove".to_string(),
+            prover: String::new(),
+            description: "A test strategy".to_string(),
+            priority: 0,
+            version: None,
+            author: Some("alice".to_string()),
+            license: None,
+            source: None,
+            extra: HashMap::new(),
+        };
+        let err = validate_for_publish(&meta).unwrap_err();
+        assert!(err.to_string().contains("version"));
+    }
+
+    #[test]
+    fn test_validate_for_publish_missing_multiple() {
+        let meta = StrategyMeta {
+            name: String::new(),
+            kind: "prove".to_string(),
+            prover: String::new(),
+            description: String::new(),
+            priority: 0,
+            version: None,
+            author: None,
+            license: None,
+            source: None,
+            extra: HashMap::new(),
+        };
+        let err = validate_for_publish(&meta).unwrap_err();
+        let msg = err.to_string();
+        assert!(msg.contains("name"));
+        assert!(msg.contains("version"));
+        assert!(msg.contains("author"));
+        assert!(msg.contains("description"));
     }
 
     #[test]

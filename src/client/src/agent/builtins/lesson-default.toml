@@ -1,0 +1,31 @@
+name = "lesson-default"
+version = "1.0.0"
+author = "proof-at-home"
+description = "Default lesson generation pipeline: plan → assess → generate → iterate → reflect"
+agent_id = "lesson-agent"
+
+[[steps]]
+name = "plan"
+strategy = "agent-lesson-plan"
+
+[[steps]]
+name = "assess"
+strategy = "agent-lesson-assess"
+
+[[steps]]
+name = "generate"
+strategy = "compose-lesson"
+
+[[steps]]
+name = "iterate"
+strategy = "agent-lesson-iterate"
+max_iterations = 2
+
+[steps.stop_condition]
+json_field = "score"
+operator = ">="
+value = 7.0
+
+[[steps]]
+name = "reflect"
+strategy = "agent-lesson-reflect"

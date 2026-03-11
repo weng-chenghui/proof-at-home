@@ -284,6 +284,10 @@ func registerRoutes(se *core.ServeEvent, app core.App, cfg *config.Config) {
 			Description string `json:"description"`
 			Priority    int    `json:"priority"`
 			Body        string `json:"body"`
+			Version     string `json:"version,omitempty"`
+			Author      string `json:"author,omitempty"`
+			License     string `json:"license,omitempty"`
+			Source      string `json:"source,omitempty"`
 		}
 
 		entries := make([]strategyEntry, 0, len(records))
@@ -295,6 +299,10 @@ func registerRoutes(se *core.ServeEvent, app core.App, cfg *config.Config) {
 				Description: r.GetString("description"),
 				Priority:    int(r.GetFloat("priority")),
 				Body:        r.GetString("body"),
+				Version:     r.GetString("version"),
+				Author:      r.GetString("author"),
+				License:     r.GetString("license"),
+				Source:      r.GetString("source"),
 			})
 		}
 
@@ -330,6 +338,10 @@ func registerRoutes(se *core.ServeEvent, app core.App, cfg *config.Config) {
 			"description": record.GetString("description"),
 			"priority":    int(record.GetFloat("priority")),
 			"body":        record.GetString("body"),
+			"version":     record.GetString("version"),
+			"author":      record.GetString("author"),
+			"license":     record.GetString("license"),
+			"source":      record.GetString("source"),
 		}
 		return e.JSON(http.StatusOK, result)
 	})
@@ -2522,6 +2534,14 @@ func parseStrategyMD(raw []byte, filename string) (data.Strategy, error) {
 			if n, err := strconv.Atoi(val); err == nil {
 				cmd.Priority = n
 			}
+		case "version":
+			cmd.Version = val
+		case "author":
+			cmd.Author = val
+		case "license":
+			cmd.License = val
+		case "source":
+			cmd.Source = val
 		}
 	}
 

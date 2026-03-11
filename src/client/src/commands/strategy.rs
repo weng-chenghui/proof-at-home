@@ -4,7 +4,9 @@ use colored::Colorize;
 use crate::agent::memory;
 use crate::config::Config;
 use crate::server_client::api::ServerClient;
+use crate::strategy_store::frontmatter;
 use crate::strategy_store::importer;
+use crate::strategy_store::registry;
 
 pub async fn cmd_list(kind: Option<&str>) -> Result<()> {
     let cfg = Config::load_or_default();
@@ -130,5 +132,163 @@ pub fn cmd_memory_create(kind: &str, body: &str, tags: Option<&str>) -> Result<(
 pub fn cmd_memory_forget(name: &str) -> Result<()> {
     memory::forget_memory(name)?;
     println!("{} Memory '{}' deleted.", "✓".green(), name);
+    Ok(())
+}
+
+// ── Search ──
+
+pub async fn cmd_search(query: &str, kind: Option<&str>, prover: Option<&str>) -> Result<()> {
+    let cfg = Config::load_or_default();
+    let registries_cfg = &cfg.registries;
+
+    if registries_cfg.is_empty() {
+        println!("No registries configured. Add one with: pah strategy registry add <name> <url>");
+        return Ok(());
+    }
+
+    let mut total = 0;
+    for reg_cfg in registries_cfg {
+        match registry::fetch_registry(&reg_cfg.url).await {
+            Ok(reg) => {
+                let results = registry::search_registry(&reg, query, kind, prover);
+                if results.is_empty() {
+                    continue;
+                }
+
+                println!("\n{} ({})", reg_cfg.name.bold(), reg.description);
+                println!(
+                    "{:<30} {:<12} {:<10} {:<12} Description",
+                    "Name", "Kind", "Prover", "Author"
+                );
+                println!("{}", "-".repeat(90));
+
+                for entry in &results {
+                    let desc = if entry.description.len() > 25 {
+                        format!("{}…", &entry.description[..24])
+                    } else {
+                        entry.description.clone()
+                    };
+                    println!(
+                        "{:<30} {:<12} {:<10} {:<12} {}",
+                        entry.name, entry.kind, entry.prover, entry.author, desc
+                    );
+                }
+                total += results.len();
+            }
+            Err(e) => {
+                eprintln!(
+                    "  {}: Could not fetch registry '{}': {}",
+                    "Warning".yellow(),
+                    reg_cfg.name,
+                    e
+                );
+            }
+        }
+    }
+
+    if total == 0 {
+        println!("No results found for '{}'.", query);
+    } else {
+        println!(
+            "\n{} result(s). Import with: pah strategy import <source>",
+            total
+        );
+    }
+
+    Ok(())
+}
+
+// ── Publish ──
+
+pub fn cmd_publish(name: &str, _registry: &str) -> Result<()> {
+    // Load the local strategy file and validate it
+    let strategies_dir = crate::strategy_store::loader::strategies_dir()?;
+    let path = strategies_dir.join(format!("{}.md", name));
+
+    if !path.exists() {
+        anyhow::bail!(
+            "Strategy '{}' not found in {}. Import it first.",
+            name,
+            strategies_dir.display()
+        );
+    }
+
+    let content = std::fs::read_to_string(&path)?;
+    let (meta, _) = frontmatter::parse_strategy_file(&content)?;
+    frontmatter::validate_for_publish(&meta)?;
+
+    // Generate registry entry JSON
+    let entry = serde_json::json!({
+        "name": meta.name,
+        "version": meta.version,
+        "author": meta.author,
+        "description": meta.description,
+        "kind": meta.kind,
+        "prover": meta.prover,
+        "source": meta.source.unwrap_or_default(),
+        "tags": [],
+        "updated_at": chrono::Utc::now().to_rfc3339(),
+    });
+
+    println!("{}", "=== Strategy Registry Entry ===".bold().cyan());
+    println!("{}", serde_json::to_string_pretty(&entry)?);
+    println!();
+    println!("To publish, add this entry to the registry's JSON file and open a PR.");
+    println!("If you have the {} CLI, run:", "gh".bold());
+    println!("  gh pr create --title \"Add strategy: {}\"", meta.name);
+
+    Ok(())
+}
+
+// ── Registry management ──
+
+pub fn cmd_registry_list() -> Result<()> {
+    let cfg = Config::load_or_default();
+
+    if cfg.registries.is_empty() {
+        println!("No registries configured.");
+        println!("Add one with: pah strategy registry add <name> <url>");
+        return Ok(());
+    }
+
+    println!("{:<20} URL", "Name");
+    println!("{}", "-".repeat(60));
+    for reg in &cfg.registries {
+        println!("{:<20} {}", reg.name, reg.url);
+    }
+
+    Ok(())
+}
+
+pub fn cmd_registry_add(name: &str, url: &str) -> Result<()> {
+    let mut cfg = Config::load_or_default();
+
+    // Check for duplicates
+    if cfg.registries.iter().any(|r| r.name == name) {
+        anyhow::bail!("Registry '{}' already exists. Remove it first.", name);
+    }
+
+    cfg.registries.push(crate::config::types::RegistryConfig {
+        name: name.to_string(),
+        url: url.to_string(),
+    });
+    cfg.save()?;
+
+    println!("{} Registry '{}' added: {}", "✓".green(), name, url);
+    Ok(())
+}
+
+pub fn cmd_registry_remove(name: &str) -> Result<()> {
+    let mut cfg = Config::load_or_default();
+
+    let before = cfg.registries.len();
+    cfg.registries.retain(|r| r.name != name);
+
+    if cfg.registries.len() == before {
+        anyhow::bail!("Registry '{}' not found.", name);
+    }
+
+    cfg.save()?;
+    println!("{} Registry '{}' removed.", "✓".green(), name);
     Ok(())
 }

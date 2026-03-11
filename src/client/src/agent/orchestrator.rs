@@ -138,6 +138,109 @@ impl AgentOrchestrator {
         Ok(response.text)
     }
 
+    /// Run a declarative pipeline.
+    pub async fn run_pipeline(
+        &mut self,
+        pipeline: &crate::agent::pipeline::PipelineDefinition,
+        topic: Option<&str>,
+        conjecture_ids: &[String],
+        difficulty: Option<&str>,
+    ) -> Result<String> {
+        println!(
+            "{}",
+            format!("Running pipeline: {}", pipeline.name).bold().cyan()
+        );
+        println!("Run ID: {}", self.run_id.dimmed());
+        println!();
+
+        self.agent_id = pipeline.agent_id.clone();
+
+        // Build resource arguments
+        let mut resource_parts = Vec::new();
+        resource_parts.push(format!(
+            "**Topic:** {}",
+            topic.unwrap_or("general mathematics")
+        ));
+        resource_parts.push(format!(
+            "**Difficulty:** {}",
+            difficulty.unwrap_or("medium")
+        ));
+        if !conjecture_ids.is_empty() {
+            resource_parts.push(format!("**Conjecture IDs:** {}", conjecture_ids.join(", ")));
+            for cid in conjecture_ids {
+                match self.client.fetch_conjecture(cid).await {
+                    Ok(conj) => {
+                        let args = loader::build_resource_arguments_for_conjecture(&conj);
+                        resource_parts.push(format!("\n### Conjecture: {}\n{}", cid, args));
+                    }
+                    Err(e) => {
+                        eprintln!("  {}: Could not fetch {}: {}", "Warning".yellow(), cid, e);
+                    }
+                }
+            }
+        }
+
+        let resource_args = resource_parts.join("\n");
+        let topic_str = topic.unwrap_or("").to_string();
+        let tags: Vec<&str> = if topic_str.is_empty() {
+            vec![]
+        } else {
+            vec![&topic_str]
+        };
+
+        let mut agent_state = "{}".to_string();
+
+        for (i, step) in pipeline.steps.iter().enumerate() {
+            println!("{}", format!("Step {}: {}...", i + 1, step.name).dimmed());
+
+            let step_tags: Vec<&str> = tags
+                .iter()
+                .copied()
+                .chain(step.tags.iter().map(|s| s.as_str()))
+                .collect();
+
+            if let Some(max_iter) = step.max_iterations {
+                // Iterative step
+                for round in 0..max_iter {
+                    let result = self
+                        .execute_step(
+                            &format!("{}-{}", step.name, round + 1),
+                            &step.strategy,
+                            &resource_args,
+                            &agent_state,
+                            &step_tags,
+                        )
+                        .await?;
+
+                    // Check stop condition
+                    if let Some(ref cond) = step.stop_condition {
+                        if let Ok(json) = extract_json_from_response(&result) {
+                            if cond.evaluate(&json) {
+                                agent_state = result;
+                                break;
+                            }
+                        }
+                    }
+
+                    agent_state = result;
+                }
+            } else {
+                let result = self
+                    .execute_step(
+                        &step.name,
+                        &step.strategy,
+                        &resource_args,
+                        &agent_state,
+                        &step_tags,
+                    )
+                    .await?;
+                agent_state = result;
+            }
+        }
+
+        Ok(agent_state)
+    }
+
     /// Run the full lesson agent pipeline.
     pub async fn run_lesson(
         &mut self,

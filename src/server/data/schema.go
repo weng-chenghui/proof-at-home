@@ -67,6 +67,10 @@ type Strategy struct {
 	Description string `json:"description"`
 	Priority    int    `json:"priority"`
 	Body        string `json:"body"`
+	Version     string `json:"version,omitempty"`
+	Author      string `json:"author,omitempty"`
+	License     string `json:"license,omitempty"`
+	Source      string `json:"source,omitempty"`
 }
 
 // ── Certificate types ──

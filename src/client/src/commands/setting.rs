@@ -413,6 +413,10 @@ fn run_setup_wizard() -> Result<()> {
             .as_ref()
             .map(|c| c.pool.clone())
             .unwrap_or_default(),
+        registries: existing
+            .as_ref()
+            .map(|c| c.registries.clone())
+            .unwrap_or_default(),
     };
 
     config.save()?;

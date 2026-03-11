@@ -1,0 +1,30 @@
+name = "series-default"
+version = "1.0.0"
+author = "proof-at-home"
+description = "Default series generation pipeline: plan → assess → generate manifest → lessons → audit → reflect"
+agent_id = "series-agent"
+
+[[steps]]
+name = "plan"
+strategy = "agent-series-plan"
+
+[[steps]]
+name = "assess"
+strategy = "agent-series-assess"
+
+[[steps]]
+name = "generate"
+strategy = "agent-series-generate"
+
+[[steps]]
+name = "lessons"
+strategy = "lesson-default"
+tags = ["series-child"]
+
+[[steps]]
+name = "audit"
+strategy = "agent-series-audit"
+
+[[steps]]
+name = "reflect"
+strategy = "agent-lesson-reflect"

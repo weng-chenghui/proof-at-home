@@ -13,6 +13,21 @@ pub struct Config {
     pub ipfs: Ipfs,
     #[serde(default)]
     pub pool: Pool,
+    #[serde(default = "default_registries")]
+    pub registries: Vec<RegistryConfig>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RegistryConfig {
+    pub name: String,
+    pub url: String,
+}
+
+fn default_registries() -> Vec<RegistryConfig> {
+    vec![RegistryConfig {
+        name: "official".to_string(),
+        url: "github:proof-at-home/proof-at-home".to_string(),
+    }]
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
