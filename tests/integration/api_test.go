@@ -32,6 +32,24 @@ func get(t *testing.T, path string) []byte {
 	return body
 }
 
+// tryGet is like get but returns nil on non-200 status instead of fataling.
+// Intended for use inside waitFor callbacks where the resource may not exist yet.
+func tryGet(path string) []byte {
+	resp, err := httpClient.Get(serverURL + path)
+	if err != nil {
+		return nil
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil
+	}
+	return body
+}
+
 func getJSON(t *testing.T, path string, v any) {
 	t.Helper()
 	body := get(t, path)
@@ -1187,8 +1205,11 @@ func TestLessonCreditsFlow(t *testing.T) {
 
 	// 2. GET /lessons/{id} → verify credits field present
 	waitFor(t, 5*time.Second, "lesson with credits appears", func() bool {
+		body := tryGet(fmt.Sprintf("/lessons/%s", lessonID))
+		if body == nil {
+			return false
+		}
 		var lesson map[string]any
-		body := get(t, fmt.Sprintf("/lessons/%s", lessonID))
 		json.Unmarshal(body, &lesson)
 		_, hasCredits := lesson["credits"]
 		return hasCredits && lesson["credits"] != nil
@@ -1230,8 +1251,11 @@ func TestLessonCreditsFlow(t *testing.T) {
 
 	// Wait for rebuild and check contributors
 	waitFor(t, 5*time.Second, "bob appears as contributor", func() bool {
+		body := tryGet(fmt.Sprintf("/lessons/%s", lessonID))
+		if body == nil {
+			return false
+		}
 		var l map[string]any
-		body := get(t, fmt.Sprintf("/lessons/%s", lessonID))
 		json.Unmarshal(body, &l)
 		c, ok := l["credits"].(map[string]any)
 		if !ok {
@@ -1263,8 +1287,11 @@ func TestLessonCreditsFlow(t *testing.T) {
 
 	// Verify edition bumped
 	waitFor(t, 5*time.Second, "edition bumped to 2", func() bool {
+		body := tryGet(fmt.Sprintf("/lessons/%s", lessonID))
+		if body == nil {
+			return false
+		}
 		var l map[string]any
-		body := get(t, fmt.Sprintf("/lessons/%s", lessonID))
 		json.Unmarshal(body, &l)
 		c, ok := l["credits"].(map[string]any)
 		if !ok {
@@ -1303,8 +1330,11 @@ func TestSeriesCreditsFlow(t *testing.T) {
 
 	// 2. GET /series/{id} → verify credits
 	waitFor(t, 5*time.Second, "series with credits appears", func() bool {
+		body := tryGet(fmt.Sprintf("/series/%s", seriesID))
+		if body == nil {
+			return false
+		}
 		var s map[string]any
-		body := get(t, fmt.Sprintf("/series/%s", seriesID))
 		json.Unmarshal(body, &s)
 		_, hasCredits := s["credits"]
 		return hasCredits && s["credits"] != nil
