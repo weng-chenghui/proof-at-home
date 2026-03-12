@@ -121,17 +121,12 @@
         }
         .nft-meaning p:last-child { margin-bottom: 0; }
 
-        .roles-summary {
+        .cta-section {
             margin: 2rem 0;
+            text-align: center;
         }
-        .roles-summary h2 {
+        .cta-section h2 {
             margin: 0 0 0.75rem;
-        }
-        .roles-summary p {
-            font-size: 0.9rem;
-            color: var(--text-secondary);
-            line-height: 1.7;
-            margin: 0 0 1rem;
         }
 
         @media (max-width: 768px) {
@@ -145,45 +140,63 @@
 
     <div class="container container-wide">
         <div class="vision-hero">
-            <h1>Every contribution deserves credit.</h1>
-            <p>Whether you write proofs by hand, pair with an AI assistant, or donate compute for fully automated proving — your work is permanently credited.</p>
+            <h1>Learn by creating. AI helps along the way.</h1>
+            <p>Pick any topic, formalize it, prove it, and teach it. Every step deepens your understanding.</p>
         </div>
     </div>
 
     <div class="container container-wide">
-        <h2 style="text-align:center;margin-bottom:0.5rem;">Three ways to prove, one standard of credit</h2>
-        <p style="text-align:center;color:var(--text-secondary);font-size:0.9rem;margin-bottom:0;">Pick the path that fits your skills and tools. Every path produces the same permanent credit.</p>
+        <h2 style="text-align:center;margin-bottom:0.5rem;">The creation pipeline</h2>
+        <p style="text-align:center;color:var(--text-secondary);font-size:0.9rem;margin-bottom:0;">From curiosity to curriculum in six steps.</p>
 
         <div class="paths-grid">
             <div class="path-card">
-                <div class="path-card-icon">&#9997;&#65039;</div>
-                <h3>By Hand</h3>
-                <p>Write a formal proof in Lean or Rocq yourself. No API key, no budget, no AI — just your knowledge and a compiler.</p>
-                <div class="path-cmd">pah proof submit prob_001 proof.lean</div>
+                <div class="path-card-icon">&#129517;</div>
+                <h3>Pick a topic</h3>
+                <p>Browse existing series or choose any domain — finance, physics, music theory, anything.</p>
+                <div class="path-cmd">pah series list</div>
             </div>
 
             <div class="path-card">
-                <div class="path-card-icon">&#128101;</div>
-                <h3>Pair with AI</h3>
-                <p>Export a conjecture and solve it interactively with your AI coding assistant — Claude Code, Cursor, Copilot, or Windsurf. No API key needed.</p>
-                <div class="path-cmd">pah conjecture export prob_001
-# ... prove with your assistant ...
-pah proof submit prob_001 proof.lean \
-  --method pair-proved</div>
+                <div class="path-card-icon">&#9998;</div>
+                <h3>Write conjectures</h3>
+                <p>Formalize statements as conjectures in Lean or Rocq. Import existing ones or define your own.</p>
+                <div class="path-cmd">pah conjecture list</div>
             </div>
 
             <div class="path-card">
                 <div class="path-card-icon">&#9889;</div>
-                <h3>Fully Automated</h3>
-                <p>Set a budget and let the CLI drive an LLM to generate and verify proofs automatically. You donate compute; the system does the rest.</p>
+                <h3>Prove them</h3>
+                <p>AI-assisted, pair with coding assistant, or manual. The compiler verifies all paths equally.</p>
                 <div class="path-cmd">pah contribution run</div>
+            </div>
+
+            <div class="path-card">
+                <div class="path-card-icon">&#128214;</div>
+                <h3>Build lessons</h3>
+                <p>Turn proofs into structured educational content. AI helps generate explanations and annotations.</p>
+                <div class="path-cmd">pah lesson create --topic &lt;t&gt;</div>
+            </div>
+
+            <div class="path-card">
+                <div class="path-card-icon">&#128218;</div>
+                <h3>Compose series</h3>
+                <p>Package related lessons into a course series with a learning path.</p>
+                <div class="path-cmd">pah series create --lessons ...</div>
+            </div>
+
+            <div class="path-card">
+                <div class="path-card-icon">&#10024;</div>
+                <h3>AI annotations</h3>
+                <p>The AI tutor sidebar annotates lessons with context, suggested questions, and interactive hints.</p>
+                <div class="path-cmd"><a href="/ai-guide.html" style="color:var(--accent);text-decoration:none;">Learn about AI Sidebar &rarr;</a></div>
             </div>
 
             <div class="converge-arrow">&#8595; &#8595; &#8595;</div>
 
             <div class="converge-row">
-                <h3>Compiler verifies. You get credited.</h3>
-                <p>Every proof is checked by the Lean or Rocq compiler. Then it's sealed with a permanent NFT — a verifiable record of who contributed, how, and when. Same credit. Same NFT. Your method is recorded, your contribution is equal.</p>
+                <h3>Everything is verified. Everything is credited.</h3>
+                <p>Every proof is checked by the Lean or Rocq compiler. Your contributions are permanently recorded with NFT metadata — a verifiable record of who created what, when, and how.</p>
             </div>
         </div>
     </div>
@@ -191,42 +204,19 @@ pah proof submit prob_001 proof.lean \
     <div class="container">
         <div class="nft-meaning">
             <h2>What the NFT means</h2>
-            <p>The NFT is not about ownership — proofs are public domain (CC0). The NFT is a permanent receipt: <em>"This theorem was formalized because of your work."</em></p>
+            <p>The NFT is not about ownership — content is public domain (CC0). The NFT is a permanent receipt: <em>"This was formalized because of your work."</em></p>
             <p>Think of it like a donor's name on a university building. The building is public. The name records who made it possible. Your NFT records your contribution, your proof method, and a cryptographic signature — pinned to IPFS, mintable on-chain.</p>
         </div>
 
-        <div class="roles-summary">
-            <h2>More than proving</h2>
-            <p>Proving is just one way to contribute. You can also <strong>certify</strong> others' proofs, <strong>author</strong> new conjectures, write <strong>expositions</strong> that explain proofs, or <strong>collaborate</strong> by improving existing work. Every role earns its own NFT credit.</p>
-            <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
-                <a href="/" class="btn btn-secondary">See all roles</a>
-                <a href="/getting-started.html" class="btn">Get started</a>
-            </div>
-        </div>
-    </div>
-
-    <div class="install-band">
-        <div class="install-band-inner">
-            <div>
-                <h2>Start in one command</h2>
-                <p>Install the CLI and prove your first conjecture</p>
-            </div>
-            <div class="install-band-code">
-                <code id="install-cmd">curl -fsSL https://pah.fly.dev/install.sh | sh</code>
-                <button onclick="copyInstall(this)">Copy</button>
+        <div class="cta-section">
+            <h2>Ready to start?</h2>
+            <div style="display:flex;gap:0.5rem;flex-wrap:wrap;justify-content:center;">
+                <a href="/getting-started.html" class="btn">User Guide</a>
+                <a href="/lessons.html" class="btn btn-secondary">Browse Series</a>
             </div>
         </div>
     </div>
 
     <script src="/shared.js"></script>
-    <script>
-    function copyInstall(btn) {
-        const cmd = document.getElementById('install-cmd').textContent;
-        navigator.clipboard.writeText(cmd).then(() => {
-            btn.textContent = '\u2713';
-            setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
-        });
-    }
-    </script>
 </body>
 </html>

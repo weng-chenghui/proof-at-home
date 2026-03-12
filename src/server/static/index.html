@@ -14,11 +14,11 @@
 
     <div class="container container-wide">
         <div class="hero">
-            <h1>Learn formal verification across domains.</h1>
-            <p>Explore structured series of lessons built from formally verified proofs. Create your own curriculum with AI-assisted tools.</p>
+            <h1>Formalize anything you're curious about.</h1>
+            <p>Finance, music theory, chemistry, physics — pick any domain and explore it through formal verification. Learn by creating. AI helps along the way.</p>
             <div style="margin-top:1rem; display:flex; gap:0.75rem; justify-content:center; flex-wrap:wrap;">
-                <a href="/how-it-works.html" class="btn">Learn how it works</a>
-                <a href="/lessons.html" class="btn btn-secondary">Browse Series</a>
+                <a href="/how-it-works.html" class="btn">See how it works</a>
+                <a href="/lessons.html" class="btn btn-secondary">Browse courses</a>
             </div>
         </div>
     </div>
@@ -38,44 +38,52 @@
 
     <div class="container container-wide">
         <div class="roles-section">
-            <h2>Six ways to contribute, depending on your interests</h2>
+            <h2>Your creation pipeline</h2>
             <div class="roles-grid">
                 <div class="role-card">
-                    <div class="role-card-icon">🔬</div>
-                    <h3>Prover</h3>
-                    <p>Prove theorems with AI, by hand, or both. The CLI verifies proofs with Rocq or Lean and seals them with NFT metadata.</p>
-                    <a href="/guide-prover.html" class="btn">Start Proving</a>
+                    <div class="role-card-icon">&#129517;</div>
+                    <h3>Browse &amp; Explore</h3>
+                    <p>Browse existing series and lessons. Start with the Formalizing Finance course or explore conjectures across domains.</p>
+                    <a href="/lessons.html" class="btn">Browse Series</a>
                 </div>
                 <div class="role-card">
-                    <div class="role-card-icon">👥</div>
-                    <h3>Pair Prover</h3>
-                    <p>Prove theorems with your AI coding assistant (Claude Code, Cursor, Copilot, Windsurf). No API key needed — use your existing subscription.</p>
-                    <a href="/guide-pair-prover.html" class="btn">Start Pair Proving</a>
+                    <div class="role-card-icon">&#9998;</div>
+                    <h3>Write Conjectures</h3>
+                    <p>Formalize statements about any topic. Define what you want to prove in Lean or Rocq.</p>
+                    <a href="/conjectures.html" class="btn">View Conjectures</a>
                 </div>
                 <div class="role-card">
-                    <div class="role-card-icon">✅</div>
-                    <h3>Certifier</h3>
-                    <p>Review and certify proof packages submitted by others. Compare strategies and help maintain quality.</p>
-                    <a href="/guide-certifier.html" class="btn">Start Certifying</a>
+                    <div class="role-card-icon">&#9889;</div>
+                    <h3>Prove with AI</h3>
+                    <p>AI-assisted, pair with coding assistant, or write proofs by hand. The compiler verifies everything.</p>
+                    <a href="/getting-started.html" class="btn">Get Started</a>
                 </div>
                 <div class="role-card">
-                    <div class="role-card-icon">📐</div>
-                    <h3>Conjecture Author</h3>
-                    <p>Submit new math problems for the community to prove. Define conjectures in Rocq or Lean.</p>
-                    <a href="/guide-conjecture.html" class="btn">Submit Conjectures</a>
+                    <div class="role-card-icon">&#128214;</div>
+                    <h3>Build Lessons</h3>
+                    <p>Turn proofs into structured lessons with AI-generated annotations for future learners.</p>
+                    <a href="/guide-pipeline.html" class="btn">Content Pipeline</a>
                 </div>
                 <div class="role-card">
-                    <div class="role-card-icon">📖</div>
-                    <h3>Expositor</h3>
-                    <p>Create rich expositions with text, math, and interactive visualizations. Works with your AI API key or coding assistant.</p>
-                    <a href="/guide-exposition.html" class="btn">Write an Exposition</a>
+                    <div class="role-card-icon">&#128218;</div>
+                    <h3>Compose Series</h3>
+                    <p>Package lessons into course series. Share your curriculum on any topic.</p>
+                    <a href="/lessons.html" class="btn">See an example</a>
                 </div>
-                <div class="role-card">
-                    <div class="role-card-icon">🤝</div>
-                    <h3>Collaborator</h3>
-                    <p>Fix, improve, or extend others' work. Clone the shared pool, browse contributions, and seal your own version.</p>
-                    <a href="/guide-collaboration.html" class="btn">Start Collaborating</a>
-                </div>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin: 3rem 0 2rem;">
+            <h2>Formalization beyond mathematics</h2>
+            <p style="color:var(--text-secondary); font-size:0.95rem; max-width:560px; margin:0.5rem auto 1.5rem;">The flagship Formalizing Finance series covers IRR, put-call parity, and martingales. What will you formalize next?</p>
+            <div style="display:flex; gap:0.5rem; justify-content:center; flex-wrap:wrap;">
+                <span class="badge">Finance</span>
+                <span class="badge">Music Theory</span>
+                <span class="badge">Chemistry</span>
+                <span class="badge">Physics</span>
+                <span class="badge">Game Theory</span>
+                <span class="badge">Cryptography</span>
+                <span class="badge">Type Theory</span>
             </div>
         </div>
     </div>
@@ -85,7 +93,7 @@
     function copyInstall(btn) {
         const cmd = document.getElementById('install-cmd').textContent;
         navigator.clipboard.writeText(cmd).then(() => {
-            btn.textContent = '✓';
+            btn.textContent = '\u2713';
             setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
         });
     }

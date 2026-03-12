@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Getting Started — Proof@Home</title>
+    <title>User Guide — Proof@Home</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -12,8 +12,8 @@
 <body>
     <nav id="navbar"></nav>
     <div class="container">
-        <h1>Getting Started</h1>
-        <p class="text-secondary" style="margin-bottom: 2rem;">Go from zero to your first verified proof contribution in seven steps.</p>
+        <h1>User Guide</h1>
+        <p class="text-secondary" style="margin-bottom: 2rem;">Learn by creating: install the tools, explore content, then build your own.</p>
 
         <div class="workflow-step" style="margin-bottom: 1rem;">
             <div class="workflow-number">1</div>
@@ -41,58 +41,60 @@
         <div class="workflow-step" style="margin-bottom: 1rem;">
             <div class="workflow-number">3</div>
             <div class="workflow-content">
-                <h3>Configure</h3>
-                <p>Run the interactive setup wizard:</p>
-<pre><code>pah setting set          # Identity, AI provider, budget
-pah auth login           # Paste token from web UI</code></pre>
-                <p style="margin-top: 0.75rem;">For AI-assisted mode you'll need an API key from <a href="https://console.anthropic.com/">Anthropic</a>, <a href="https://platform.openai.com/">OpenAI</a>, or a local <a href="https://ollama.com/">Ollama</a> install. Manual proof submission needs no API key.</p>
-                <p style="margin-top: 0.5rem; font-size: 0.85rem;" class="text-muted">Using Claude Code, Cursor, or another AI coding assistant? You don't need an API key — see the <a href="/guide-pair-prover.html">Pair Prover guide</a> instead.</p>
+                <h3>Browse existing content</h3>
+                <p>Explore what's already been formalized:</p>
+<pre><code>pah series list
+pah lesson list</code></pre>
+                <p style="margin-top: 0.75rem;">Or browse online at the <a href="/lessons.html">Series &amp; Lessons</a> page. The <strong>Formalizing Finance</strong> series is a good place to start.</p>
             </div>
         </div>
 
         <div class="workflow-step" style="margin-bottom: 1rem;">
             <div class="workflow-number">4</div>
             <div class="workflow-content">
-                <h3>Set your proof budget</h3>
-                <p>Choose how much API credit to allocate per run:</p>
-<pre><code>pah setting set budget</code></pre>
-                <p style="margin-top: 0.75rem;">Read and accept the legal agreement, then pick an amount ($1–$10 or custom). This caps the API cost for a single contribution run.</p>
-                <p style="margin-top: 0.5rem; font-size: 0.85rem;" class="text-muted">Typical costs: ~$0.05/proof with Haiku, ~$0.50 with Sonnet, ~$2.00 with Opus. A $2 budget can prove dozens of easy conjectures.</p>
+                <h3>Pick a topic to formalize</h3>
+                <p>Choose any domain you're curious about — finance, physics, music theory, game theory, anything. Browse existing conjectures or define your own:</p>
+<pre><code>pah conjecture list</code></pre>
+                <p style="margin-top: 0.75rem;">See all available conjectures on the <a href="/conjectures.html">Conjectures</a> page.</p>
             </div>
         </div>
 
         <div class="workflow-step" style="margin-bottom: 1rem;">
             <div class="workflow-number">5</div>
             <div class="workflow-content">
-                <h3>Prove your first conjectures</h3>
-                <p><strong>AI-assisted</strong> — LLM generates proofs, compiler verifies:</p>
-<pre><code>pah contribution run</code></pre>
-                <p style="margin-top: 0.5rem;"><strong>Manual</strong> — you write proofs, compiler verifies:</p>
-<pre><code>pah proof submit prob_001 ./my_proof.v</code></pre>
-                <p style="margin-top: 0.5rem;"><strong>Pair Prover</strong> — export, solve with AI assistant, submit:</p>
+                <h3>Prove conjectures</h3>
+                <p>Three methods, all equally credited:</p>
+                <p style="margin-top: 0.75rem;"><strong>AI-assisted</strong> — LLM generates proofs, compiler verifies:</p>
+<pre><code>pah setting set          # Set AI provider and API key
+pah contribution run</code></pre>
+                <p style="margin-top: 0.75rem;"><strong>Pair with coding assistant</strong> — export, solve with Claude Code / Cursor / Copilot / Windsurf, submit:</p>
 <pre><code>pah conjecture export prob_001 | pbcopy
 # ... prove with your AI assistant ...
 pah proof submit prob_001 proof.lean --method pair-proved</code></pre>
-                <p style="margin-top: 0.75rem; font-size: 0.85rem;">The CLI fetches open conjectures, generates or accepts a formal proof, compiles it with <code>rocq c</code> or <code>lean</code> to verify correctness, submits the results, and archives everything with a SHA-256 hash.</p>
-                <p style="margin-top: 0.75rem;">After proving, create an exposition to explain your proof:</p>
-<pre><code>pah exposition create --for=prob_001</code></pre>
+                <p style="margin-top: 0.75rem;"><strong>Manual</strong> — write proofs yourself:</p>
+<pre><code>pah proof submit prob_001 ./my_proof.v</code></pre>
+                <p style="margin-top: 0.75rem; font-size: 0.85rem;" class="text-muted">The CLI compiles proofs with <code>rocq c</code> or <code>lean</code> to verify correctness, submits the results, and archives everything with a SHA-256 hash.</p>
             </div>
         </div>
 
         <div class="workflow-step" style="margin-bottom: 1rem;">
             <div class="workflow-number">6</div>
             <div class="workflow-content">
-                <h3>Check your contributions</h3>
-                <p>See your contributions and their status:</p>
-<pre><code>pah contribution list</code></pre>
+                <h3>Create lessons and series</h3>
+                <p>Turn your proofs into structured educational content:</p>
+<pre><code>pah lesson create --topic &lt;t&gt; --conjectures id1,id2
+pah series create --lessons id1,id2</code></pre>
+                <p style="margin-top: 0.75rem;">AI annotations are automatically generated to help future learners. See the <a href="/guide-pipeline.html">Content Pipeline</a> guide for details.</p>
             </div>
         </div>
 
         <div class="workflow-step" style="margin-bottom: 1rem;">
             <div class="workflow-number">7</div>
             <div class="workflow-content">
-                <h3>View in the NFT Gallery</h3>
-                <p>Every contribution earns a permanent credit record. Browse all contributions and their verification hashes in the gallery.</p>
+                <h3>View your contributions</h3>
+                <p>See your contributions and their status:</p>
+<pre><code>pah contribution list</code></pre>
+                <p style="margin-top: 0.75rem;">Every contribution earns a permanent credit record. Browse all contributions and their verification hashes in the gallery.</p>
                 <div class="workflow-actions">
                     <a href="/nft-gallery.html" class="btn">Open NFT Gallery</a>
                 </div>

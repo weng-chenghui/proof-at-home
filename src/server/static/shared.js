@@ -106,10 +106,11 @@ function initNav() {
             <div class="nav-dropdown">
                 <a href="#" onclick="toggleNavDropdown(event)">Guides &#9662;</a>
                 <div class="nav-dropdown-menu">
-                    <a href="/getting-started.html">Getting Started</a>
+                    <a href="/getting-started.html">User Guide</a>
                     <a href="/how-it-works.html">How It Works</a>
-                    <a href="/guide-pair-prover.html">Pair-Prover Guide</a>
                     <a href="/guide-pipeline.html">Content Pipeline</a>
+                    <a href="/ai-guide.html">AI Sidebar</a>
+                    <a href="/guide-admin.html">Admin</a>
                 </div>
             </div>
             <div class="nav-dropdown">
